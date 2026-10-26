@@ -6,7 +6,6 @@ import {
   Clipboard,
   X,
   Download,
-  Sparkles,
   AlertCircle,
 } from 'lucide-react';
 import { SkeletonLoader } from './SkeletonLoader';
@@ -90,27 +89,32 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
   };
 
   return (
-    <section className="w-full max-w-3xl mx-auto text-center pt-8 sm:pt-12 pb-8 px-4">
+    <section className="w-full max-w-3xl mx-auto text-center pt-6 sm:pt-10 pb-8 px-4">
       {/* Hero Header Section */}
       <div className="space-y-4 mb-8 sm:mb-9">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold tracking-wide shadow-xs">
-          <Sparkles className="w-3.5 h-3.5 text-[#1877F2]" />
-          <span>Premium Quality · 1080p, 4K & MP3 Supported</span>
+        {/* Top Feature Image Banner (Replaced Pill Badge) */}
+        <div className="flex justify-center mb-1">
+          <img
+            src="https://i.postimg.cc/sg1bNzdz/Picsart-26-10-26-17-37-48-509.png"
+            alt="SaveVibe Feature Banner"
+            className="max-w-[280px] sm:max-w-[360px] md:max-w-[420px] h-auto object-contain mx-auto"
+            referrerPolicy="no-referrer"
+          />
         </div>
 
-        <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 dark:text-white tracking-tight leading-[1.12] text-balance">
+        <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-[1.12] text-balance">
           Download Facebook Videos & Reels
         </h1>
 
-        <p className="max-w-2xl mx-auto text-sm sm:text-base text-slate-600 dark:text-slate-400 font-normal leading-relaxed">
-          Effortlessly download public Facebook videos, reels, and watch clips in high definition. Paste your link below to save in MP4 or MP3 format.
+        <p className="max-w-2xl mx-auto text-sm sm:text-base text-slate-600 font-normal leading-relaxed">
+          Effortlessly download public Facebook videos, reels, and watch clips in high definition with SaveVibe. Paste your link below to save in MP4 or MP3 format.
         </p>
       </div>
 
       {/* Central Input Form & Download Action */}
       <div className="w-full max-w-2xl mx-auto space-y-3.5">
         <div className="relative">
-          <div className="relative flex items-center bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs hover:shadow-sm focus-within:shadow-md transition-all duration-200 focus-within:border-[#1877F2] focus-within:ring-1 focus-within:ring-[#1877F2]">
+          <div className="relative flex items-center bg-white border border-slate-200 rounded-xl shadow-xs hover:shadow-sm focus-within:shadow-md transition-all duration-200 focus-within:border-[#1877F2] focus-within:ring-1 focus-within:ring-[#1877F2]">
             {/* Input Field */}
             <input
               ref={inputRef}
@@ -127,7 +131,7 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
                 }
               }}
               placeholder="Paste Facebook video or reel URL here..."
-              className="w-full py-4 pl-4 pr-24 bg-transparent text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 text-sm sm:text-base font-normal rounded-xl focus:outline-none"
+              className="w-full py-4 pl-4 pr-24 bg-transparent text-slate-900 placeholder:text-slate-400 text-sm sm:text-base font-normal rounded-xl focus:outline-none"
             />
 
             {/* Clear & Paste Actions */}
@@ -136,7 +140,7 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
                 <button
                   type="button"
                   onClick={handleClear}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
                   aria-label="Clear input"
                   title="Clear text"
                 >
@@ -147,7 +151,7 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
               <button
                 type="button"
                 onClick={handlePaste}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 font-medium text-xs transition-colors border border-slate-200/80 dark:border-slate-700/80 shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1877F2]"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 font-medium text-xs transition-colors border border-slate-200/80 shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1877F2]"
                 title="Paste link from clipboard"
               >
                 <Clipboard className="w-3.5 h-3.5 text-[#1877F2]" />
@@ -182,7 +186,7 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
           <motion.div
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex items-center justify-center gap-2 text-xs font-medium text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/50 p-3 rounded-xl"
+            className="flex items-center justify-center gap-2 text-xs font-medium text-rose-600 bg-rose-50 border border-rose-200 p-3 rounded-xl"
           >
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{errorMessage}</span>

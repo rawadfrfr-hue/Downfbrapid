@@ -8,25 +8,35 @@ const inter = Inter({
   display: 'swap',
 });
 
+const LOGO_FAVICON_URL = 'https://i.postimg.cc/85TD7Y3W/images-removebg-preview.png';
+
 export const metadata: Metadata = {
-  title: 'FB Downloader - Fast & Secure Video Downloader',
-  description: 'Effortlessly download public Facebook videos, reels, and watch clips in high definition. Paste your link below to save in MP4 or MP3 format.',
+  title: 'SaveVibe - Fast & Secure Video Downloader',
+  description: 'Effortlessly download public Facebook videos, reels, and watch clips in high definition with SaveVibe. Paste your link below to save in MP4 or MP3 format.',
+  icons: {
+    icon: LOGO_FAVICON_URL,
+    shortcut: LOGO_FAVICON_URL,
+    apple: LOGO_FAVICON_URL,
+  },
   openGraph: {
-    title: 'FB Downloader - Fast & Secure Video Downloader',
-    description: 'Effortlessly download public Facebook videos, reels, and watch clips in high definition. Paste your link below to save in MP4 or MP3 format.',
+    title: 'SaveVibe - Fast & Secure Video Downloader',
+    description: 'Effortlessly download public Facebook videos, reels, and watch clips in high definition with SaveVibe. Paste your link below to save in MP4 or MP3 format.',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'FB Downloader - Fast & Secure Video Downloader',
-    description: 'Effortlessly download public Facebook videos, reels, and watch clips in high definition. Paste your link below to save in MP4 or MP3 format.',
+    title: 'SaveVibe - Fast & Secure Video Downloader',
+    description: 'Effortlessly download public Facebook videos, reels, and watch clips in high definition with SaveVibe. Paste your link below to save in MP4 or MP3 format.',
   },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={inter.variable}>
-      <body className="font-sans antialiased selection:bg-[#1877F2]/20 selection:text-[#1877F2]" suppressHydrationWarning>
+      <head>
+        <link rel="icon" href={LOGO_FAVICON_URL} type="image/png" />
+      </head>
+      <body className="font-sans antialiased bg-[#F8FAFC] text-slate-900 selection:bg-[#1877F2]/20 selection:text-[#1877F2]" suppressHydrationWarning>
         {children}
       </body>
     </html>

@@ -89,7 +89,7 @@ export const PrivacyTermsModal: React.FC<PrivacyTermsModalProps> = ({
               {activeModal === 'privacy' && (
                 <>
                   <p>
-                    Your privacy is paramount. <strong>SnapFB Video Downloader</strong> operates with strict zero-logging policies.
+                    Your privacy is paramount. <strong>SaveVibe Video Downloader</strong> operates with strict zero-logging policies.
                   </p>
                   <div className="space-y-2.5 bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
                     <h4 className="font-semibold text-slate-900 dark:text-white text-xs uppercase tracking-wider">

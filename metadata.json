@@ -1,6 +1,6 @@
 {
-  "name": "FB Downloader - Fast & Free Facebook Video Saver",
-  "description": "Ultra-fast, ad-free Facebook video and reel downloader. Fetch and save HD videos, SD videos, and MP3 audio in seconds.",
+  "name": "SaveVibe - Fast & Secure Video Downloader",
+  "description": "Ultra-fast, ad-free Facebook video and reel downloader. Fetch and save HD videos, SD videos, and MP3 audio in seconds with SaveVibe.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
