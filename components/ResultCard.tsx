@@ -9,9 +9,7 @@ import {
   Video,
   Check,
   Copy,
-  Sparkles,
   RefreshCw,
-  ExternalLink,
   X,
   Eye,
   Clock,
@@ -81,8 +79,6 @@ export const ResultCard: React.FC<ResultCardProps> = ({
     const safeExt = type === 'audio' ? '.mp3' : '.mp4';
     const targetFilename = `${data.title.replace(/[^\w\.-]/g, '_').slice(0, 30)}_${type}${safeExt}`;
 
-    // Trigger direct client download/navigation to Facebook/RapidAPI CDN URL
-    // Zero site bandwidth used
     const link = document.createElement('a');
     link.href = directCdnUrl;
     link.target = '_blank';
@@ -105,14 +101,14 @@ export const ResultCard: React.FC<ResultCardProps> = ({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20, scale: 0.98 }}
+      initial={{ opacity: 0, y: 16, scale: 0.99 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -15, scale: 0.97 }}
-      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-      className="w-full max-w-2xl mx-auto mt-8 p-6 sm:p-8 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#0F172A] shadow-2xl shadow-slate-900/10 overflow-hidden relative transform-gpu"
+      exit={{ opacity: 0, y: -12, scale: 0.98 }}
+      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+      className="w-full max-w-2xl mx-auto mt-6 p-5 sm:p-7 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0F172A] shadow-xl overflow-hidden relative"
     >
-      {/* Top Bar with Fresh Status & Reset button */}
-      <div className="flex items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800/80">
+      {/* Top Status & Fetch Another Button */}
+      <div className="flex items-center justify-between gap-3 mb-5 pb-3.5 border-b border-slate-100 dark:border-slate-800">
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 px-2.5 py-1 rounded-full">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -121,17 +117,16 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         </div>
         <button
           onClick={onReset}
-          className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
         >
           <RefreshCw className="w-3.5 h-3.5" />
           Fetch Another
         </button>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-6 items-start">
-        {/* Small Rounded Video Thumbnail Preview with Play Overlay */}
-        <div className="relative w-full sm:w-44 aspect-video sm:aspect-square rounded-2xl overflow-hidden shrink-0 group border border-slate-200 dark:border-slate-800 bg-slate-900 shadow-md">
-          {/* Thumbnail Image */}
+      <div className="flex flex-col sm:flex-row gap-5 items-start">
+        {/* Thumbnail Preview */}
+        <div className="relative w-full sm:w-40 aspect-video sm:aspect-square rounded-xl overflow-hidden shrink-0 group border border-slate-200 dark:border-slate-800 bg-slate-900 shadow-xs">
           <img
             src={data.thumbnail}
             alt={data.title}
@@ -139,22 +134,19 @@ export const ResultCard: React.FC<ResultCardProps> = ({
             referrerPolicy="no-referrer"
           />
 
-          {/* Scrim Overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
 
-          {/* Duration Badge */}
-          <div className="absolute bottom-2.5 right-2.5 bg-black/75 backdrop-blur-sm text-white text-[11px] font-mono px-2 py-0.5 rounded-md font-medium border border-white/10">
+          <div className="absolute bottom-2 right-2 bg-black/75 backdrop-blur-sm text-white text-[10px] font-mono px-1.5 py-0.5 rounded font-medium border border-white/10">
             {data.duration}
           </div>
 
-          {/* Interactive Play Preview Button */}
           <button
             onClick={() => setIsPreviewOpen(true)}
             className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-white opacity-95 group-hover:scale-110 transition-transform duration-300 focus:outline-none"
             aria-label="Preview video"
           >
-            <div className="w-12 h-12 rounded-full bg-[#1877F2]/90 hover:bg-[#1877F2] text-white flex items-center justify-center shadow-lg shadow-[#1877F2]/40 backdrop-blur-sm">
-              <Play className="w-5 h-5 fill-current ml-0.5" />
+            <div className="w-10 h-10 rounded-full bg-[#1877F2]/90 hover:bg-[#1877F2] text-white flex items-center justify-center shadow-md backdrop-blur-sm">
+              <Play className="w-4 h-4 fill-current ml-0.5" />
             </div>
             <span className="text-[10px] font-medium tracking-wide bg-black/60 px-2 py-0.5 rounded-full backdrop-blur-xs mt-1">
               Preview
@@ -162,114 +154,117 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           </button>
         </div>
 
-        {/* Video Metadata & Download Buttons */}
-        <div className="flex-1 w-full flex flex-col justify-between">
+        {/* Video Info & Download Options */}
+        <div className="flex-1 w-full flex flex-col justify-between min-w-0">
           <div>
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-snug tracking-tight line-clamp-2">
+            <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-snug tracking-tight line-clamp-2">
               {data.title}
             </h2>
 
-            {/* Quiet metadata line with typographic separators */}
-            <div className="flex items-center flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-400 mt-2">
-              <span className="flex items-center gap-1 font-medium text-slate-700 dark:text-slate-300">
-                <User className="w-3 h-3 text-slate-400" />
+            <div className="flex items-center flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-400 mt-1.5">
+              <span className="flex items-center gap-1 font-medium text-slate-700 dark:text-slate-300 truncate max-w-[140px]">
+                <User className="w-3 h-3 text-slate-400 shrink-0" />
                 {data.author}
               </span>
               <span aria-hidden="true" className="text-slate-300 dark:text-slate-700">·</span>
               <span className="flex items-center gap-1">
-                <Eye className="w-3 h-3 text-slate-400" />
+                <Eye className="w-3 h-3 text-slate-400 shrink-0" />
                 {data.views}
               </span>
               <span aria-hidden="true" className="text-slate-300 dark:text-slate-700">·</span>
               <span className="flex items-center gap-1">
-                <Clock className="w-3 h-3 text-slate-400" />
+                <Clock className="w-3 h-3 text-slate-400 shrink-0" />
                 {data.duration}
               </span>
             </div>
           </div>
 
-          {/* Action Buttons Section */}
-          <div className="space-y-3 mt-6">
-            {/* Button 1: Download Video in HD Quality (Emerald Green #10B981) */}
+          {/* Optimized Flex Download Buttons */}
+          <div className="space-y-2.5 mt-5">
+            {/* HD Download Button */}
             <button
               onClick={() => handleDownload('hd', data.qualities.hd.downloadUrl, '1080p HD Video')}
-              className="w-full relative group overflow-hidden bg-[#10B981] hover:bg-[#059669] text-white font-semibold py-3.5 px-5 rounded-2xl shadow-lg shadow-[#10B981]/25 hover:shadow-xl hover:shadow-[#10B981]/35 transform-gpu hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 flex items-center justify-between text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[#10B981]"
+              className="w-full relative group overflow-hidden bg-[#10B981] hover:bg-[#059669] text-white font-semibold py-3 px-3.5 sm:px-4 rounded-xl shadow-xs hover:shadow-md transition-all duration-200 flex items-center justify-between gap-2.5 sm:gap-3 text-xs sm:text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[#10B981]"
             >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+                <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
                   {downloadingQuality === 'hd' ? (
                     <RefreshCw className="w-4 h-4 animate-spin text-white" />
                   ) : (
                     <Video className="w-4 h-4 text-white" />
                   )}
                 </div>
-                <div className="flex flex-col text-left">
-                  <span className="font-bold leading-tight">Download Video in HD Quality</span>
-                  <span className="text-[11px] font-normal text-emerald-100/90 leading-none mt-0.5">
+                <div className="flex flex-col text-left min-w-0">
+                  <span className="font-bold leading-tight text-xs sm:text-sm truncate">
+                    Download HD Video
+                  </span>
+                  <span className="text-[10px] sm:text-[11px] font-normal text-emerald-100/90 leading-none mt-0.5 truncate">
                     1080p High Definition MP4
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-xs font-mono font-semibold bg-black/20 px-2.5 py-1 rounded-lg text-emerald-50 border border-white/10">
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                <span className="text-[10px] sm:text-xs font-mono font-semibold bg-black/20 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-emerald-50 border border-white/10 whitespace-nowrap">
                   {data.qualities.hd.size}
                 </span>
                 <Download className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
               </div>
             </button>
 
-            {/* Button 2: Download Video in Normal Quality (Metallic Silver/Gray #64748B) */}
+            {/* SD Download Button */}
             <button
               onClick={() => handleDownload('sd', data.qualities.sd.downloadUrl, '720p SD Video')}
-              className="w-full relative group overflow-hidden bg-[#64748B] hover:bg-[#475569] text-white font-semibold py-3.5 px-5 rounded-2xl shadow-md shadow-[#64748B]/20 hover:shadow-lg hover:shadow-[#64748B]/30 transform-gpu hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 flex items-center justify-between text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[#64748B]"
+              className="w-full relative group overflow-hidden bg-[#64748B] hover:bg-[#475569] text-white font-semibold py-3 px-3.5 sm:px-4 rounded-xl shadow-2xs hover:shadow-xs transition-all duration-200 flex items-center justify-between gap-2.5 sm:gap-3 text-xs sm:text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[#64748B]"
             >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+                <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
                   {downloadingQuality === 'sd' ? (
                     <RefreshCw className="w-4 h-4 animate-spin text-white" />
                   ) : (
                     <Video className="w-4 h-4 text-white" />
                   )}
                 </div>
-                <div className="flex flex-col text-left">
-                  <span className="font-bold leading-tight">Download Video in Normal Quality</span>
-                  <span className="text-[11px] font-normal text-slate-100/90 leading-none mt-0.5">
+                <div className="flex flex-col text-left min-w-0">
+                  <span className="font-bold leading-tight text-xs sm:text-sm truncate">
+                    Download Normal Video
+                  </span>
+                  <span className="text-[10px] sm:text-[11px] font-normal text-slate-100/90 leading-none mt-0.5 truncate">
                     720p Standard MP4
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-xs font-mono font-semibold bg-black/20 px-2.5 py-1 rounded-lg text-slate-100 border border-white/10">
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                <span className="text-[10px] sm:text-xs font-mono font-semibold bg-black/20 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-slate-100 border border-white/10 whitespace-nowrap">
                   {data.qualities.sd.size}
                 </span>
                 <Download className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
               </div>
             </button>
 
-            {/* Button 3: Download Audio Only (MP3) (Minimal border button) */}
+            {/* MP3 Audio Download Button */}
             <button
               onClick={() => handleDownload('audio', data.qualities.audio.downloadUrl, 'MP3 Audio Only')}
-              className="w-full group bg-slate-50 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-semibold py-3 px-5 rounded-2xl transform-gpu hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 flex items-center justify-between text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+              className="w-full group bg-slate-50 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-semibold py-3 px-3.5 sm:px-4 rounded-xl transition-all duration-200 flex items-center justify-between gap-2.5 sm:gap-3 text-xs sm:text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
             >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center shrink-0 text-[#1877F2]">
+              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+                <div className="w-8 h-8 rounded-lg bg-slate-200 dark:bg-slate-800 flex items-center justify-center shrink-0 text-[#1877F2]">
                   {downloadingQuality === 'audio' ? (
                     <RefreshCw className="w-4 h-4 animate-spin text-[#1877F2]" />
                   ) : (
                     <Music className="w-4 h-4 text-[#1877F2]" />
                   )}
                 </div>
-                <div className="flex flex-col text-left">
-                  <span className="font-semibold leading-tight text-slate-900 dark:text-white">
+                <div className="flex flex-col text-left min-w-0">
+                  <span className="font-semibold leading-tight text-slate-900 dark:text-white text-xs sm:text-sm truncate">
                     Download Audio Only (MP3)
                   </span>
-                  <span className="text-[11px] font-normal text-slate-500 dark:text-slate-400 leading-none mt-0.5">
+                  <span className="text-[10px] sm:text-[11px] font-normal text-slate-500 dark:text-slate-400 leading-none mt-0.5 truncate">
                     320kbps High Quality Audio
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-xs font-mono font-medium text-slate-600 dark:text-slate-400 bg-slate-200/80 dark:bg-slate-800 px-2 py-0.5 rounded-md">
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                <span className="text-[10px] sm:text-xs font-mono font-medium text-slate-600 dark:text-slate-400 bg-slate-200/80 dark:bg-slate-800 px-2 py-0.5 rounded-md whitespace-nowrap">
                   {data.qualities.audio.size}
                 </span>
                 <Download className="w-4 h-4 text-slate-500 group-hover:translate-y-0.5 transition-transform" />
@@ -277,7 +272,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
             </button>
           </div>
 
-          {/* Secondary Copy Link Bar */}
+          {/* Copy Video URL Bar */}
           <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
             <button
               onClick={handleCopyLink}
@@ -295,7 +290,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                 </>
               )}
             </button>
-            <span className="text-[11px] text-slate-400 dark:text-slate-500">No ads · 100% Free</span>
+            <span className="text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500">100% Free & Direct</span>
           </div>
         </div>
       </div>
@@ -315,13 +310,12 @@ export const ResultCard: React.FC<ResultCardProps> = ({
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-3xl bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-800"
+              className="relative w-full max-w-3xl bg-slate-900 rounded-2xl overflow-hidden shadow-2xl border border-slate-800"
             >
-              {/* Modal Header */}
-              <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-900/90">
+              <div className="flex items-center justify-between p-3.5 border-b border-slate-800 bg-slate-900/90">
                 <div className="flex items-center gap-2">
                   <Play className="w-4 h-4 text-[#1877F2]" />
-                  <span className="text-sm font-semibold text-white truncate max-w-md">
+                  <span className="text-xs sm:text-sm font-semibold text-white truncate max-w-md">
                     {data.title}
                   </span>
                 </div>
@@ -333,7 +327,6 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                 </button>
               </div>
 
-              {/* Video Player */}
               <div className="aspect-video w-full bg-black relative flex items-center justify-center">
                 <video
                   src={data.qualities.hd.url}
