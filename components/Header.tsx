@@ -9,7 +9,7 @@ export const Header: React.FC = () => {
         {/* Brand Logo & Name */}
         <div className="flex items-center gap-3">
           <img
-            src="https://i.postimg.cc/85TD7Y3W/images-removebg-preview.png"
+            src="https://i.postimg.cc/28Zx8dbg/savevibelogo.jpg"
             alt="SaveVibe Logo"
             className="w-9 h-9 object-contain shrink-0"
             referrerPolicy="no-referrer"
