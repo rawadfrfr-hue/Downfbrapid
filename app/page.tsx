@@ -3,15 +3,16 @@
 import React, { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { VideoFetcher } from '@/components/VideoFetcher';
+import { FeaturesGrid } from '@/components/FeaturesGrid';
 import { Footer } from '@/components/Footer';
 import { DownloadHistory } from '@/components/DownloadHistory';
-import { BuyCoffeeModal } from '@/components/BuyCoffeeModal';
+import { PrivacyTermsModal, ModalType } from '@/components/PrivacyTermsModal';
 import { VideoData } from '@/components/ResultCard';
 
 export default function Home() {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [isCoffeeModalOpen, setIsCoffeeModalOpen] = useState(false);
+  const [activeLegalModal, setActiveLegalModal] = useState<ModalType>(null);
   const [historyItems, setHistoryItems] = useState<VideoData[]>([]);
   const [downloadsCount, setDownloadsCount] = useState(0);
 
@@ -84,21 +85,24 @@ export default function Home() {
         onOpenHistory={() => setIsHistoryOpen(true)}
       />
 
-      {/* Main One-Page Central Content */}
-      <main className="flex-1 flex flex-col justify-center items-center px-4 py-8">
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col justify-start items-center">
         <VideoFetcher
           onRecordDownload={handleRecordDownload}
           onAddHistory={handleAddHistory}
         />
+
+        {/* Features & Trust Grid */}
+        <FeaturesGrid />
       </main>
 
-      {/* Minimal Ad-Free Footer */}
+      {/* Professional Footer */}
       <Footer
-        onOpenBuyCoffee={() => setIsCoffeeModalOpen(true)}
+        onOpenModal={(type) => setActiveLegalModal(type)}
         totalDownloadsCount={downloadsCount}
       />
 
-      {/* History Drawer */}
+      {/* Download History Drawer */}
       <DownloadHistory
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
@@ -109,10 +113,10 @@ export default function Home() {
         }}
       />
 
-      {/* Buy Me a Coffee Modal */}
-      <BuyCoffeeModal
-        isOpen={isCoffeeModalOpen}
-        onClose={() => setIsCoffeeModalOpen(false)}
+      {/* Interactive Legal & Contact Modal */}
+      <PrivacyTermsModal
+        activeModal={activeLegalModal}
+        onClose={() => setActiveLegalModal(null)}
       />
     </div>
   );

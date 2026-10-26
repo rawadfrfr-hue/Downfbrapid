@@ -29,7 +29,7 @@ export const Header: React.FC<HeaderProps> = ({
               SnapFB
             </span>
             <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 leading-none mt-1">
-              HD Video Downloader
+              Fast & Secure Video Downloader
             </span>
           </div>
         </div>
