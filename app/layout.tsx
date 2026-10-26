@@ -8,7 +8,7 @@ const inter = Inter({
   display: 'swap',
 });
 
-const LOGO_FAVICON_URL = 'https://i.postimg.cc/28Zx8dbg/savevibelogo.jpg';
+const LOGO_FAVICON_URL = '/assets/aistudio/logoosavevibe_afe0d13c.svg';
 
 export const metadata: Metadata = {
   title: 'SaveVibe - Fast & Secure Video Downloader',

@@ -9,10 +9,9 @@ export const Header: React.FC = () => {
         {/* Brand Logo & Name */}
         <div className="flex items-center gap-3">
           <img
-            src="https://i.postimg.cc/28Zx8dbg/savevibelogo.jpg"
+            src="/assets/aistudio/logoosavevibe_afe0d13c.svg"
             alt="SaveVibe Logo"
             className="w-9 h-9 object-contain shrink-0"
-            referrerPolicy="no-referrer"
           />
           <div className="flex flex-col">
             <span className="font-bold text-xl tracking-tight text-slate-900 leading-none">

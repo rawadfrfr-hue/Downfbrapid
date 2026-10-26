@@ -95,10 +95,9 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
         {/* Top Feature Image Banner (Replaced Pill Badge) */}
         <div className="flex justify-center mb-1">
           <img
-            src="https://i.postimg.cc/FFd9z19Z/savevibebanner.jpg"
+            src="/assets/aistudio/bnrsavevibe_b7be51c6.svg"
             alt="SaveVibe Feature Banner"
             className="max-w-[280px] sm:max-w-[360px] md:max-w-[420px] h-auto object-contain mx-auto"
-            referrerPolicy="no-referrer"
           />
         </div>
 
