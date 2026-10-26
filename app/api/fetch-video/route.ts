@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const MOCK_MEDIA_ITEMS = [
+// Sample demo videos ONLY used when explicitly testing sample links
+const DEMO_SAMPLE_VIDEOS = [
   {
-    title: '4K Nature Timelapse - Sunset & Ocean Waves',
-    author: 'Media Channel',
-    views: '1.2M views',
+    title: 'Mind-Blowing Nature 4K Timelapse - Cinematic Sunset & Ocean Waves',
+    author: 'Nature & Wildlife Official',
+    views: '2.4M views',
     duration: '00:30',
     thumbnail: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80',
     hdUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
@@ -15,9 +16,9 @@ const MOCK_MEDIA_ITEMS = [
     audioSize: '3.1 MB',
   },
   {
-    title: 'Technology & Automation Showcase',
-    author: 'Tech Media',
-    views: '500K views',
+    title: 'Future of AI Tech & Robotics Demo 2026 - Official Reel',
+    author: 'Tech Insider',
+    views: '890K views',
     duration: '00:45',
     thumbnail: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80',
     hdUrl: 'https://filesamples.com/samples/video/mp4/sample_960x540.mp4',
@@ -31,26 +32,25 @@ const MOCK_MEDIA_ITEMS = [
 
 export async function POST(req: NextRequest) {
   try {
-    const payload = await req.json();
-    const rawTargetUrl = payload?.url;
-    const isDemoMode = Boolean(payload?.isDemo);
+    const { url, isDemo } = await req.json();
 
-    if (!rawTargetUrl || typeof rawTargetUrl !== 'string' || !rawTargetUrl.trim()) {
+    if (!url || typeof url !== 'string' || !url.trim()) {
       return NextResponse.json(
-        { error: 'Please enter a valid video link.' },
+        { error: 'Please enter a valid Facebook video URL.' },
         { status: 400 }
       );
     }
 
-    const sanitizedUrl = rawTargetUrl.trim();
+    const cleanUrl = url.trim();
 
-    if (isDemoMode || sanitizedUrl.includes('demo-sample-test')) {
-      const sample = MOCK_MEDIA_ITEMS[0];
+    // Explicit demo request handling
+    if (isDemo || cleanUrl.includes('sample-demo-test')) {
+      const sample = DEMO_SAMPLE_VIDEOS[0];
       return NextResponse.json({
         success: true,
         data: {
-          id: 'v_' + Date.now(),
-          originalUrl: sanitizedUrl,
+          id: 'fb_demo_' + Date.now(),
+          originalUrl: cleanUrl,
           title: sample.title,
           author: sample.author,
           views: sample.views,
@@ -60,21 +60,21 @@ export async function POST(req: NextRequest) {
             hd: {
               quality: '1080p HD',
               url: sample.hdUrl,
-              downloadUrl: `/api/download?url=${encodeURIComponent(sample.hdUrl)}&filename=Video_1080p.mp4&type=video`,
+              downloadUrl: sample.hdUrl,
               size: sample.hdSize,
               format: 'MP4',
             },
             sd: {
               quality: '720p Normal',
               url: sample.sdUrl,
-              downloadUrl: `/api/download?url=${encodeURIComponent(sample.sdUrl)}&filename=Video_720p.mp4&type=video`,
+              downloadUrl: sample.sdUrl,
               size: sample.sdSize,
               format: 'MP4',
             },
             audio: {
-              quality: 'Audio MP3',
+              quality: '320kbps Audio',
               url: sample.audioUrl,
-              downloadUrl: `/api/download?url=${encodeURIComponent(sample.audioUrl)}&filename=Audio.mp3&type=audio`,
+              downloadUrl: sample.audioUrl,
               size: sample.audioSize,
               format: 'MP3',
             },
@@ -83,178 +83,183 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    let parsedTitle = '';
-    let parsedThumbnail = '';
-    let highDefUrl = '';
-    let standardDefUrl = '';
-    let audioStreamUrl = '';
-    let videoLength = '';
-    let uploaderName = '';
-    let serviceErr = '';
+    let title = '';
+    let thumbnail = '';
+    let hdUrl = '';
+    let sdUrl = '';
+    let audioUrl = '';
+    let duration = '';
+    let author = '';
+    let rapidApiError = '';
 
-    const apiAuthToken = process.env.RAPIDAPI_KEY || '';
-    const apiHostDomain = 'facebook-reel-and-video-downloader.p.rapidapi.com';
-    const serviceRequestEndpoint = `https://${apiHostDomain}/app/main.php?url=${encodeURIComponent(sanitizedUrl)}`;
+    // RapidAPI integration with credentials
+    const rapidApiKey = process.env.RAPIDAPI_KEY || '983cbe1c92msh03e9da1dbd81833p152e20jsnc068e9bcdfc9';
+    const rapidApiHost = 'facebook-reel-and-video-downloader.p.rapidapi.com';
+    const rapidApiEndpoint = `https://facebook-reel-and-video-downloader.p.rapidapi.com/app/main.php?url=${encodeURIComponent(cleanUrl)}`;
 
-    if (apiAuthToken) {
-      try {
-        const abortCtrl = new AbortController();
-        const timeoutId = setTimeout(() => abortCtrl.abort(), 8000);
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
 
-        const httpRes = await fetch(serviceRequestEndpoint, {
-          method: 'GET',
-          headers: {
-            'x-rapidapi-key': apiAuthToken,
-            'x-rapidapi-host': apiHostDomain,
-          },
-          signal: abortCtrl.signal,
-        });
+      const res = await fetch(rapidApiEndpoint, {
+        method: 'GET',
+        headers: {
+          'x-rapidapi-key': rapidApiKey,
+          'x-rapidapi-host': rapidApiHost,
+        },
+        signal: controller.signal,
+      });
 
-        clearTimeout(timeoutId);
+      clearTimeout(timeout);
 
-        if (httpRes.ok) {
-          const resBody = await httpRes.text();
-          try {
-            const dataObj = JSON.parse(resBody);
+      if (res.ok) {
+        const rawText = await res.text();
+        try {
+          const result = JSON.parse(rawText);
 
-            if (dataObj.error) {
-              serviceErr = typeof dataObj.error === 'string' ? dataObj.error : 'Video is unavailable or private.';
-            }
-
-            if (dataObj.title) parsedTitle = dataObj.title;
-            else if (dataObj.caption) parsedTitle = dataObj.caption;
-            else if (dataObj.description) parsedTitle = dataObj.description;
-
-            if (dataObj.thumbnail) parsedThumbnail = dataObj.thumbnail;
-            else if (dataObj.picture) parsedThumbnail = dataObj.picture;
-            else if (dataObj.cover) parsedThumbnail = dataObj.cover;
-
-            if (dataObj.links && typeof dataObj.links === 'object') {
-              highDefUrl = dataObj.links['Download High Quality'] || dataObj.links['High Quality'] || dataObj.links['HD'] || dataObj.links.hd || dataObj.links['720p'] || dataObj.links['1080p'] || '';
-              standardDefUrl = dataObj.links['Download Low Quality'] || dataObj.links['Low Quality'] || dataObj.links['SD'] || dataObj.links.sd || dataObj.links['360p'] || '';
-              audioStreamUrl = dataObj.links['Download Audio'] || dataObj.links['Audio'] || dataObj.links.mp3 || dataObj.links.audio || '';
-            }
-
-            if (dataObj.media && Array.isArray(dataObj.media) && dataObj.media.length > 0) {
-              const item = dataObj.media[0];
-              if (item.hd_url) highDefUrl = highDefUrl || item.hd_url;
-              if (item.sd_url) standardDefUrl = standardDefUrl || item.sd_url;
-            }
-
-            if (dataObj.hd || dataObj.hd_url) highDefUrl = highDefUrl || dataObj.hd || dataObj.hd_url;
-            if (dataObj.sd || dataObj.sd_url) standardDefUrl = standardDefUrl || dataObj.sd || dataObj.sd_url;
-            if (dataObj.audio || dataObj.mp3 || dataObj.audio_url) audioStreamUrl = audioStreamUrl || dataObj.audio || dataObj.mp3 || dataObj.audio_url;
-
-            if (dataObj.author || dataObj.owner) uploaderName = dataObj.author || dataObj.owner;
-            if (dataObj.duration || dataObj.time) videoLength = dataObj.duration || dataObj.time;
-          } catch {
-            // Json parse fail
+          if (result.error) {
+            rapidApiError = typeof result.error === 'string' ? result.error : 'Video is private or unavailable right now.';
           }
+
+          // Extract title/caption from RapidAPI json
+          if (result.title) title = result.title;
+          else if (result.caption) title = result.caption;
+          else if (result.description) title = result.description;
+
+          // Extract thumbnail
+          if (result.thumbnail) thumbnail = result.thumbnail;
+          else if (result.picture) thumbnail = result.picture;
+          else if (result.cover) thumbnail = result.cover;
+
+          // Extract exact links (Download High Quality, Download Low Quality, High Quality, Low Quality, media array)
+          if (result.links && typeof result.links === 'object') {
+            hdUrl = result.links['Download High Quality'] || result.links['High Quality'] || result.links['HD'] || result.links.hd || result.links['1080p'] || result.links['720p'] || '';
+            sdUrl = result.links['Download Low Quality'] || result.links['Low Quality'] || result.links['SD'] || result.links.sd || result.links['360p'] || result.links['480p'] || '';
+            audioUrl = result.links['Download Audio'] || result.links['Audio'] || result.links.mp3 || result.links.audio || '';
+          }
+
+          // Extract media array from RapidAPI
+          if (result.media && Array.isArray(result.media) && result.media.length > 0) {
+            for (const item of result.media) {
+              if (item.hd_url || item.url) hdUrl = hdUrl || item.hd_url || item.url;
+              if (item.sd_url) sdUrl = sdUrl || item.sd_url;
+              if (item.audio_url || item.mp3) audioUrl = audioUrl || item.audio_url || item.mp3;
+            }
+          }
+
+          if (result.hd || result.hd_url || result.video_hd) hdUrl = hdUrl || result.hd || result.hd_url || result.video_hd;
+          if (result.sd || result.sd_url || result.video_sd) sdUrl = sdUrl || result.sd || result.sd_url || result.video_sd;
+          if (result.audio || result.mp3 || result.audio_url) audioUrl = audioUrl || result.audio || result.mp3 || result.audio_url;
+
+          if (result.author || result.owner) author = result.author || result.owner;
+          if (result.duration || result.time) duration = result.duration || result.time;
+        } catch (jsonErr) {
+          console.error('RapidAPI JSON parse error:', jsonErr);
         }
-      } catch (e) {
-        console.error('Provider fetch failed:', e);
       }
+    } catch (apiErr) {
+      console.error('RapidAPI Fetch error:', apiErr);
     }
 
-    if (!highDefUrl && !standardDefUrl) {
+    // Secondary fallback: Scrape Facebook public OpenGraph tags if RapidAPI returned no video links
+    if (!hdUrl && !sdUrl) {
       try {
-        const abortCtrl = new AbortController();
-        const timeoutId = setTimeout(() => abortCtrl.abort(), 4000);
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 4000);
 
-        const pageRes = await fetch(sanitizedUrl, {
+        const htmlRes = await fetch(cleanUrl, {
           headers: {
             'User-Agent':
               'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
           },
-          signal: abortCtrl.signal,
+          signal: controller.signal,
         });
 
-        clearTimeout(timeoutId);
+        clearTimeout(timeout);
 
-        if (pageRes.ok) {
-          const htmlContent = await pageRes.text();
+        if (htmlRes.ok) {
+          const html = await htmlRes.text();
 
-          if (!parsedTitle) {
-            const matchedTitle = htmlContent.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i) ||
-                                 htmlContent.match(/<title>([^<]+)<\/title>/i);
-            if (matchedTitle && matchedTitle[1]) {
-              parsedTitle = matchedTitle[1].replace(/&#039;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+          if (!title) {
+            const titleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i) ||
+                               html.match(/<title>([^<]+)<\/title>/i);
+            if (titleMatch && titleMatch[1]) {
+              title = titleMatch[1].replace(/&#039;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&');
             }
           }
 
-          if (!parsedThumbnail) {
-            const matchedImg = htmlContent.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
-            if (matchedImg && matchedImg[1]) {
-              parsedThumbnail = matchedImg[1].replace(/&amp;/g, '&');
+          if (!thumbnail) {
+            const imgMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
+            if (imgMatch && imgMatch[1]) {
+              thumbnail = imgMatch[1].replace(/&amp;/g, '&');
             }
           }
 
-          const matchedHd = htmlContent.match(/<meta\s+property="og:video"\s+content="([^"]+)"/i) ||
-                            htmlContent.match(/<meta\s+property="og:video:secure_url"\s+content="([^"]+)"/i) ||
-                            htmlContent.match(/"browser_native_hd_url":"([^"]+)"/i) ||
-                            htmlContent.match(/"playable_url_quality_hd":"([^"]+)"/i);
-          if (matchedHd && matchedHd[1]) {
-            highDefUrl = matchedHd[1].replace(/\\/g, '').replace(/&amp;/g, '&');
+          const videoMatch = html.match(/<meta\s+property="og:video"\s+content="([^"]+)"/i) ||
+                             html.match(/<meta\s+property="og:video:secure_url"\s+content="([^"]+)"/i) ||
+                             html.match(/"browser_native_hd_url":"([^"]+)"/i) ||
+                             html.match(/"playable_url_quality_hd":"([^"]+)"/i);
+          if (videoMatch && videoMatch[1]) {
+            hdUrl = videoMatch[1].replace(/\\/g, '').replace(/&amp;/g, '&');
           }
 
-          const matchedSd = htmlContent.match(/"browser_native_sd_url":"([^"]+)"/i) ||
-                            htmlContent.match(/"playable_url":"([^"]+)"/i);
-          if (matchedSd && matchedSd[1]) {
-            standardDefUrl = matchedSd[1].replace(/\\/g, '').replace(/&amp;/g, '&');
+          const sdMatch = html.match(/"browser_native_sd_url":"([^"]+)"/i) ||
+                          html.match(/"playable_url":"([^"]+)"/i);
+          if (sdMatch && sdMatch[1]) {
+            sdUrl = sdMatch[1].replace(/\\/g, '').replace(/&amp;/g, '&');
           }
         }
       } catch {
-        // Fallback fail
+        // Fallback
       }
     }
 
-    if (!highDefUrl && !standardDefUrl) {
-      const displayErrMsg = serviceErr || 'Could not process this video link. The video may be private, restricted, or unavailable.';
+    // STRICT CHECK: If RapidAPI and direct scraping both failed to find a real video stream URL, return explicit error
+    if (!hdUrl && !sdUrl) {
+      const userErr = rapidApiError || 'Could not download this Facebook video. The video may be private, restricted to logged-in users, deleted, or invalid.';
       return NextResponse.json(
-        { success: false, error: displayErrMsg },
+        { success: false, error: userErr },
         { status: 422 }
       );
     }
 
-    const finalTitle = parsedTitle.trim() || 'Facebook Video';
-    const finalThumb = parsedThumbnail || 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80';
-    const finalHd = highDefUrl || standardDefUrl;
-    const finalSd = standardDefUrl || finalHd;
-    const finalAudio = audioStreamUrl || finalHd;
-    const finalAuthor = uploaderName || 'Content Creator';
-    const finalDuration = videoLength || 'Original Video';
-
-    const cleanSlug = finalTitle.replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 30);
+    const finalTitle = title.trim() || 'Facebook Video';
+    const finalThumbnail = thumbnail || 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80';
+    const finalHdUrl = hdUrl || sdUrl;
+    const finalSdUrl = sdUrl || finalHdUrl;
+    const finalAudioUrl = audioUrl || finalHdUrl;
+    const finalAuthor = author || 'Facebook Creator';
+    const finalDuration = duration || 'Original Video';
 
     return NextResponse.json({
       success: true,
       data: {
-        id: 'v_' + Date.now(),
-        originalUrl: sanitizedUrl,
+        id: 'fb_' + Date.now(),
+        originalUrl: cleanUrl,
         title: finalTitle,
         author: finalAuthor,
         views: 'Public Video',
         duration: finalDuration,
-        thumbnail: finalThumb,
+        thumbnail: finalThumbnail,
         qualities: {
           hd: {
             quality: '1080p HD',
-            url: finalHd,
-            downloadUrl: `/api/download?url=${encodeURIComponent(finalHd)}&filename=${encodeURIComponent(cleanSlug)}_1080p.mp4&type=video`,
+            url: finalHdUrl,
+            downloadUrl: finalHdUrl, // Direct Facebook/RapidAPI CDN URL (no site bandwidth used)
             size: 'Original HD',
             format: 'MP4',
           },
           sd: {
             quality: '720p Normal',
-            url: finalSd,
-            downloadUrl: `/api/download?url=${encodeURIComponent(finalSd)}&filename=${encodeURIComponent(cleanSlug)}_720p.mp4&type=video`,
+            url: finalSdUrl,
+            downloadUrl: finalSdUrl, // Direct Facebook/RapidAPI CDN URL (no site bandwidth used)
             size: 'Original SD',
             format: 'MP4',
           },
           audio: {
             quality: 'Audio Stream',
-            url: finalAudio,
-            downloadUrl: `/api/download?url=${encodeURIComponent(finalAudio)}&filename=${encodeURIComponent(cleanSlug)}_audio.mp3&type=audio`,
+            url: finalAudioUrl,
+            downloadUrl: finalAudioUrl, // Direct Facebook/RapidAPI CDN URL (no site bandwidth used)
             size: 'Audio MP3',
             format: 'MP3',
           },
@@ -262,7 +267,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err: unknown) {
-    const errorMsg = err instanceof Error ? err.message : 'Server processing error.';
-    return NextResponse.json({ error: errorMsg }, { status: 500 });
+    const message = err instanceof Error ? err.message : 'Failed to process Facebook video link.';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
