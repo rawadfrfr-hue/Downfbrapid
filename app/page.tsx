@@ -9,28 +9,29 @@ import { BuyCoffeeModal } from '@/components/BuyCoffeeModal';
 import { VideoData } from '@/components/ResultCard';
 
 export default function Home() {
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      const savedTheme = localStorage.getItem('fb_downloader_theme');
-      if (savedTheme) return savedTheme === 'dark';
-    }
-    return true;
-  });
-
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isCoffeeModalOpen, setIsCoffeeModalOpen] = useState(false);
-
-  const [historyItems, setHistoryItems] = useState<VideoData[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const savedHistory = localStorage.getItem('fb_downloader_history');
-        if (savedHistory) return JSON.parse(savedHistory);
-      } catch {}
-    }
-    return [];
-  });
-
+  const [historyItems, setHistoryItems] = useState<VideoData[]>([]);
   const [downloadsCount, setDownloadsCount] = useState(0);
+
+  // Load client-side stored preferences safely after initial hydration
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      try {
+        const savedTheme = localStorage.getItem('fb_downloader_theme');
+        if (savedTheme) {
+          setIsDarkMode(savedTheme === 'dark');
+        }
+        const savedHistory = localStorage.getItem('fb_downloader_history');
+        if (savedHistory) {
+          setHistoryItems(JSON.parse(savedHistory));
+        }
+      } catch {
+        // Ignore localStorage read errors
+      }
+    });
+  }, []);
 
   // Sync dark mode class on <html> element
   useEffect(() => {

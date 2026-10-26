@@ -70,10 +70,10 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
   const handleSampleClick = (sampleUrl: string) => {
     setUrl(sampleUrl);
     setErrorMessage('');
-    handleFetch(sampleUrl);
+    handleFetch(sampleUrl, true);
   };
 
-  const handleFetch = async (targetUrl?: string) => {
+  const handleFetch = async (targetUrl?: string, isDemoFlag?: boolean) => {
     const linkToFetch = (targetUrl || url).trim();
 
     if (!linkToFetch) {
@@ -90,7 +90,7 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
       const res = await fetch('/api/fetch-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: linkToFetch }),
+        body: JSON.stringify({ url: linkToFetch, isDemo: isDemoFlag || false }),
       });
 
       const json = await res.json();

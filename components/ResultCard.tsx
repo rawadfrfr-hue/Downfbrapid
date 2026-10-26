@@ -66,14 +66,42 @@ export const ResultCard: React.FC<ResultCardProps> = ({
   const [downloadingQuality, setDownloadingQuality] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
-  const handleDownload = (type: 'hd' | 'sd' | 'audio', downloadUrl: string, qualityLabel: string) => {
+  const handleDownload = async (type: 'hd' | 'sd' | 'audio', downloadUrl: string, qualityLabel: string) => {
     setDownloadingQuality(type);
     onRecordDownload(qualityLabel);
 
-    // Create a temporary anchor to trigger native browser file save dialog
+    const fallbackDirectUrl = type === 'hd' ? data.qualities.hd.url : type === 'sd' ? data.qualities.sd.url : data.qualities.audio.url;
+    const safeExt = type === 'audio' ? '.mp3' : '.mp4';
+    const targetFilename = `${data.title.replace(/[^\w\.-]/g, '_').slice(0, 30)}_${type}${safeExt}`;
+
+    try {
+      // Try client-side blob download first for seamless file save dialog
+      const response = await fetch(downloadUrl, { referrerPolicy: 'no-referrer' });
+      if (response.ok) {
+        const blob = await response.blob();
+        if (blob.type.includes('xml') || blob.type.includes('html')) {
+          throw new Error('Invalid media blob');
+        }
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = targetFilename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+        setDownloadingQuality(null);
+        return;
+      }
+    } catch {
+      // Fallback: trigger direct anchor click to media source
+    }
+
     const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.setAttribute('download', '');
+    link.href = fallbackDirectUrl || downloadUrl;
+    link.target = '_blank';
+    link.rel = 'noreferrer';
+    link.setAttribute('download', targetFilename);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

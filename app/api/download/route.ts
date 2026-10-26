@@ -11,15 +11,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Missing media URL' }, { status: 400 });
     }
 
-    // Fetch the remote media stream
+    // Try fetching media stream with proper headers
     const mediaRes = await fetch(mediaUrl, {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': '*/*',
+        'Sec-Fetch-Dest': 'video',
       },
     });
 
     if (!mediaRes.ok || !mediaRes.body) {
+      // If direct proxy fetch fails (e.g. 403 AccessDenied or CORS), redirect to mediaUrl
       return NextResponse.redirect(mediaUrl);
     }
 
@@ -27,6 +30,11 @@ export async function GET(req: NextRequest) {
       type === 'audio'
         ? 'audio/mpeg'
         : mediaRes.headers.get('content-type') || 'video/mp4';
+
+    // If the response is XML or HTML (e.g., AccessDenied error page), redirect instead of outputting XML
+    if (contentType.includes('xml') || contentType.includes('html')) {
+      return NextResponse.redirect(mediaUrl);
+    }
 
     const safeFilename = filename.replace(/[^\w\.-]/g, '_');
 
@@ -38,12 +46,11 @@ export async function GET(req: NextRequest) {
         'Cache-Control': 'no-cache',
       },
     });
-  } catch (err: unknown) {
+  } catch {
     const mediaUrl = new URL(req.url).searchParams.get('url');
     if (mediaUrl) {
       return NextResponse.redirect(mediaUrl);
     }
-    const message = err instanceof Error ? err.message : 'Download failed';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Download stream unavailable' }, { status: 500 });
   }
 }
