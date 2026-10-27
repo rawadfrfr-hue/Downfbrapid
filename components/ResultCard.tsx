@@ -64,7 +64,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
   const [downloadingType, setDownloadingType] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
-  const handleDownload = (type: 'hd' | 'sd' | 'audio', downloadUrl: string, qualityLabel: string) => {
+  const handleDownload = async (type: 'hd' | 'sd' | 'audio', downloadUrl: string, qualityLabel: string) => {
     setDownloadingType(type);
     onRecordDownload(qualityLabel);
 
@@ -79,8 +79,34 @@ export const ResultCard: React.FC<ResultCardProps> = ({
     const safeExt = type === 'audio' ? '.mp3' : '.mp4';
     const targetFilename = `${data.title.replace(/[^\w\.-]/g, '_').slice(0, 30)}_${type}${safeExt}`;
 
+    // 1. Attempt Client-Side Direct Fetch & Blob Download (uses user's IP, bypassing Instagram server 403 block)
+    try {
+      const response = await fetch(directCdnUrl, { mode: 'cors' });
+      if (response.ok) {
+        const blob = await response.blob();
+        if (blob.size > 50000) {
+          const blobUrl = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = targetFilename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => {
+            URL.revokeObjectURL(blobUrl);
+            setDownloadingType(null);
+          }, 10000);
+          return;
+        }
+      }
+    } catch {
+      // Fallback
+    }
+
+    // 2. Fallback: Trigger proxy / 302 download endpoint
+    const proxyDownloadUrl = `/api/download?url=${encodeURIComponent(directCdnUrl)}&filename=${encodeURIComponent(targetFilename)}`;
     const link = document.createElement('a');
-    link.href = directCdnUrl;
+    link.href = proxyDownloadUrl;
     link.target = '_blank';
     link.rel = 'noreferrer';
     link.setAttribute('download', targetFilename);

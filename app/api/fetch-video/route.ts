@@ -45,6 +45,119 @@ async function fetchYouTubeRapidApi(targetUrl: string, requestedFormat: string =
   }
 }
 
+// RapidAPI caller for Instagram Reels download
+async function fetchInstagramRapidApi(targetUrl: string) {
+  const rapidApiKey = process.env.RAPIDAPI_KEY || '983cbe1c92msh03e9da1dbd81833p152e20jsnc068e9bcdfc9';
+  const rapidApiHost = 'instagram-reels-downloader-api.p.rapidapi.com';
+  const rapidApiEndpoint = `https://instagram-reels-downloader-api.p.rapidapi.com/download?url=${encodeURIComponent(targetUrl)}`;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+
+  try {
+    const res = await fetch(rapidApiEndpoint, {
+      method: 'GET',
+      headers: {
+        'x-rapidapi-key': rapidApiKey,
+        'x-rapidapi-host': rapidApiHost,
+      },
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (res.ok) {
+      const text = await res.text();
+      try {
+        const json = JSON.parse(text);
+        return { success: true, data: json };
+      } catch {
+        return { success: false, error: 'Failed to parse JSON response', rawText: text };
+      }
+    } else {
+      const errText = await res.text();
+      return { success: false, status: res.status, error: errText };
+    }
+  } catch (err: unknown) {
+    clearTimeout(timeout);
+    const msg = err instanceof Error ? err.message : 'Instagram API request failed';
+    return { success: false, error: msg };
+  }
+}
+
+// Helper function to extract video URL, audio URL, thumbnail, title, author, duration from Instagram API JSON response
+function extractInstagramData(data: any) {
+  let videoUrl = '';
+  let audioUrl = '';
+  let thumbnailUrl = '';
+  let title = '';
+  let author = '';
+  let duration = '';
+
+  if (!data) return { videoUrl, audioUrl, thumbnailUrl, title, author, duration };
+
+  const root = data.data || data;
+
+  const isWebpageUrl = (u: any) =>
+    typeof u === 'string' &&
+    (u.includes('instagram.com/reel') ||
+      u.includes('instagram.com/p/') ||
+      u.includes('instagram.com/tv/'));
+
+  const isValidCdnUrl = (u: any) =>
+    typeof u === 'string' && u.startsWith('http') && !isWebpageUrl(u);
+
+  // 1. Check medias array first (standard for instagram-reels-downloader-api)
+  if (Array.isArray(root.medias) && root.medias.length > 0) {
+    const videoMedia = root.medias.find(
+      (m: any) => (m.type === 'video' || m.extension === 'mp4') && isValidCdnUrl(m.url)
+    );
+    if (videoMedia && videoMedia.url) {
+      videoUrl = videoMedia.url;
+    }
+
+    const audioMedia = root.medias.find(
+      (m: any) => (m.type === 'audio' || m.extension === 'm4a' || m.extension === 'mp3') && isValidCdnUrl(m.url)
+    );
+    if (audioMedia && audioMedia.url) {
+      audioUrl = audioMedia.url;
+    }
+  }
+
+  // 2. Check fallback properties (excluding webpage URLs)
+  if (!videoUrl) {
+    if (isValidCdnUrl(root.download_url)) videoUrl = root.download_url;
+    else if (isValidCdnUrl(root.video_url)) videoUrl = root.video_url;
+    else if (isValidCdnUrl(root.video)) videoUrl = root.video;
+    else if (isValidCdnUrl(root.media)) videoUrl = root.media;
+    else if (isValidCdnUrl(root.link)) videoUrl = root.link;
+    else if (isValidCdnUrl(root.url)) videoUrl = root.url;
+  }
+
+  if (!audioUrl) {
+    audioUrl = videoUrl;
+  }
+
+  // 3. Extract Thumbnail
+  if (typeof root.thumbnail === 'string' && root.thumbnail) thumbnailUrl = root.thumbnail;
+  else if (typeof root.cover === 'string' && root.cover) thumbnailUrl = root.cover;
+  else if (typeof root.display_url === 'string' && root.display_url) thumbnailUrl = root.display_url;
+
+  // 4. Extract Title
+  if (typeof root.title === 'string' && root.title) title = root.title;
+  else if (typeof root.caption === 'string' && root.caption) title = root.caption;
+  else if (typeof root.description === 'string' && root.description) title = root.description;
+
+  // 5. Extract Author
+  if (typeof root.author === 'string' && root.author) author = root.author;
+  else if (typeof root.owner === 'string' && root.owner) author = root.owner;
+  else if (typeof root.username === 'string' && root.username) author = root.username;
+
+  if (root.duration) duration = String(root.duration);
+
+  return { videoUrl, audioUrl, thumbnailUrl, title, author, duration };
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { url, platform = 'facebook', isDemo } = await req.json();
@@ -156,7 +269,25 @@ export async function POST(req: NextRequest) {
 
     // 2. INSTAGRAM & FACEBOOK PROCESSING
     if (detectedPlatform === 'instagram' || detectedPlatform === 'facebook') {
-      if (detectedPlatform === 'facebook') {
+      if (detectedPlatform === 'instagram') {
+        try {
+          const instaRes = await fetchInstagramRapidApi(cleanUrl);
+          if (instaRes.success && instaRes.data) {
+            const extracted = extractInstagramData(instaRes.data);
+            if (extracted.videoUrl) {
+              hdUrl = extracted.videoUrl;
+              sdUrl = extracted.videoUrl;
+              audioUrl = extracted.audioUrl || extracted.videoUrl;
+            }
+            if (extracted.thumbnailUrl) thumbnail = extracted.thumbnailUrl;
+            if (extracted.title) title = extracted.title;
+            if (extracted.author) author = extracted.author;
+            if (extracted.duration) duration = extracted.duration;
+          }
+        } catch {
+          // Fallback
+        }
+      } else if (detectedPlatform === 'facebook') {
         const rapidApiKey = process.env.RAPIDAPI_KEY || '983cbe1c92msh03e9da1dbd81833p152e20jsnc068e9bcdfc9';
         const rapidApiHost = 'facebook-reel-and-video-downloader.p.rapidapi.com';
         const rapidApiEndpoint = `https://facebook-reel-and-video-downloader.p.rapidapi.com/app/main.php?url=${encodeURIComponent(cleanUrl)}`;
