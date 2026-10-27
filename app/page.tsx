@@ -10,7 +10,7 @@ import { VideoData } from '@/components/ResultCard';
 
 export default function Home() {
   const [activeLegalModal, setActiveLegalModal] = useState<ModalType>(null);
-  const [historyItems, setHistoryItems] = useState<VideoData[]>([]);
+  const [_historyItems, setHistoryItems] = useState<VideoData[]>([]);
   const [downloadsCount, setDownloadsCount] = useState(0);
 
   // Force Light Mode on <html> element
@@ -43,18 +43,19 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-slate-900 transition-colors duration-200">
-      {/* Top Header */}
+      {/* Top Header with 3-line Menu */}
       <Header />
 
-      {/* Main Content Area */}
+      {/* Main Content Area - Facebook Downloader */}
       <main className="flex-1 flex flex-col justify-start items-center">
         <VideoFetcher
+          platform="facebook"
           onRecordDownload={handleRecordDownload}
           onAddHistory={handleAddHistory}
         />
 
         {/* Features & Trust Grid */}
-        <FeaturesGrid />
+        <FeaturesGrid platform="facebook" />
       </main>
 
       {/* Professional Footer */}

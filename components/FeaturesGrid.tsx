@@ -2,45 +2,52 @@
 
 import React from 'react';
 import { Video, Zap, ShieldCheck } from 'lucide-react';
+import { PLATFORMS, PlatformType } from '@/lib/platforms';
 
-const FEATURES = [
-  {
-    icon: Video,
-    title: 'High Quality',
-    description: 'Download crisp 1080p, 4K HD videos and high-bitrate MP3 audio without compression loss.',
-    color: 'text-[#1877F2]',
-    bgColor: 'bg-[#1877F2]/10',
-  },
-  {
-    icon: Zap,
-    title: 'Ultra Fast',
-    description: 'Blazing fast processing speed with direct high-speed CDN delivery for instant downloads.',
-    color: 'text-amber-500',
-    bgColor: 'bg-amber-500/10',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Secure Connection',
-    description: '100% Malware-Free, encrypted connections with total user privacy and zero data tracking.',
-    color: 'text-emerald-500',
-    bgColor: 'bg-emerald-500/10',
-  },
-];
+interface FeaturesGridProps {
+  platform?: PlatformType;
+}
 
-export const FeaturesGrid: React.FC = () => {
+export const FeaturesGrid: React.FC<FeaturesGridProps> = ({ platform = 'facebook' }) => {
+  const platformConfig = PLATFORMS[platform] || PLATFORMS.facebook;
+
+  const features = [
+    {
+      icon: Video,
+      title: 'High Quality',
+      description: `Download crisp 1080p, 4K HD ${platformConfig.name} videos, reels, and high-bitrate MP3 audio without compression loss.`,
+      color: platformConfig.iconColor,
+      bgColor: platformConfig.featureIconBg,
+    },
+    {
+      icon: Zap,
+      title: 'Ultra Fast',
+      description: 'Blazing fast processing speed with direct high-speed CDN delivery for instant downloads.',
+      color: 'text-amber-500',
+      bgColor: 'bg-amber-500/10',
+    },
+    {
+      icon: ShieldCheck,
+      title: 'Secure Connection',
+      description: '100% Malware-Free, encrypted connections with total user privacy and zero data tracking.',
+      color: 'text-emerald-500',
+      bgColor: 'bg-emerald-500/10',
+    },
+  ];
+
   return (
     <section className="w-full max-w-5xl mx-auto px-4 py-12 border-t border-slate-200/80 my-6">
       <div className="text-center mb-8 space-y-1.5">
         <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
-          Why Choose SaveVibe Downloader
+          Why Choose SaveVibe {platformConfig.name} Downloader
         </h2>
         <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
-          Built with high-performance infrastructure for seamless media downloads
+          Built with high-performance infrastructure for seamless {platformConfig.name} media downloads
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {FEATURES.map((feature, idx) => {
+        {features.map((feature, idx) => {
           const IconComponent = feature.icon;
           return (
             <div

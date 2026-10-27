@@ -2,24 +2,23 @@
 
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import {
-  Clipboard,
-  X,
-  Download,
-  AlertCircle,
-} from 'lucide-react';
+import { Clipboard, X, Download, AlertCircle } from 'lucide-react';
 import { SkeletonLoader } from './SkeletonLoader';
 import { ResultCard, VideoData } from './ResultCard';
+import { PLATFORMS, PlatformType } from '@/lib/platforms';
 
 interface VideoFetcherProps {
+  platform?: PlatformType;
   onRecordDownload: (quality: string) => void;
   onAddHistory: (item: VideoData) => void;
 }
 
 export const VideoFetcher: React.FC<VideoFetcherProps> = ({
+  platform = 'facebook',
   onRecordDownload,
   onAddHistory,
 }) => {
+  const platformConfig = PLATFORMS[platform] || PLATFORMS.facebook;
   const [url, setUrl] = useState('');
   const [state, setState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -48,7 +47,7 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
     const linkToFetch = (targetUrl || url).trim();
 
     if (!linkToFetch) {
-      setErrorMessage('Please paste or enter a valid Facebook video link.');
+      setErrorMessage(`Please paste or enter a valid ${platformConfig.name} video link.`);
       inputRef.current?.focus();
       return;
     }
@@ -61,13 +60,17 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
       const res = await fetch('/api/fetch-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: linkToFetch, isDemo: isDemoFlag || false }),
+        body: JSON.stringify({
+          url: linkToFetch,
+          platform: platformConfig.id,
+          isDemo: isDemoFlag || false,
+        }),
       });
 
       const json = await res.json();
 
       if (!res.ok || !json.success) {
-        throw new Error(json.error || 'Unable to download video. Please check your link.');
+        throw new Error(json.error || `Unable to download ${platformConfig.name} video. Please check your link.`);
       }
 
       setTimeout(() => {
@@ -76,7 +79,10 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
         onAddHistory(json.data);
       }, 650);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to process Facebook video link.';
+      const msg =
+        err instanceof Error
+          ? err.message
+          : `Failed to process ${platformConfig.name} video link.`;
       setErrorMessage(msg);
       setState('error');
     }
@@ -92,28 +98,31 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
     <section className="w-full max-w-3xl mx-auto text-center pt-6 sm:pt-10 pb-8 px-4">
       {/* Hero Header Section */}
       <div className="space-y-4 mb-8 sm:mb-9">
-        {/* Top Feature Image Banner (Replaced Pill Badge) */}
+        {/* Top Feature Image Banner (Same SVG file across all platform pages) */}
         <div className="flex justify-center mb-1">
           <img
             src="/assets/aistudio/bnrsavevibe_b7be51c6.svg"
             alt="SaveVibe Feature Banner"
-            className="max-w-[280px] sm:max-w-[360px] md:max-w-[420px] h-auto object-contain mx-auto"
+            className="max-w-[280px] sm:max-w-[360px] md:max-w-[420px] h-auto object-contain mx-auto transition-transform duration-300 hover:scale-102"
           />
         </div>
 
+        {/* Platform Specific Headline */}
         <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-[1.12] text-balance">
-          Download Facebook Videos & Reels
+          {platformConfig.heroTitle}
         </h1>
 
         <p className="max-w-2xl mx-auto text-sm sm:text-base text-slate-600 font-normal leading-relaxed">
-          Effortlessly download public Facebook videos, reels, and watch clips in high definition with SaveVibe. Paste your link below to save in MP4 or MP3 format.
+          {platformConfig.heroSubtitle}
         </p>
       </div>
 
       {/* Central Input Form & Download Action */}
       <div className="w-full max-w-2xl mx-auto space-y-3.5">
         <div className="relative">
-          <div className="relative flex items-center bg-white border border-slate-200 rounded-xl shadow-xs hover:shadow-sm focus-within:shadow-md transition-all duration-200 focus-within:border-[#1877F2] focus-within:ring-1 focus-within:ring-[#1877F2]">
+          <div
+            className={`relative flex items-center bg-white border border-slate-200 rounded-xl shadow-xs hover:shadow-sm focus-within:shadow-md transition-all duration-200 ${platformConfig.focusBorder}`}
+          >
             {/* Input Field */}
             <input
               ref={inputRef}
@@ -129,7 +138,7 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
                   handleFetch();
                 }
               }}
-              placeholder="Paste Facebook video or reel URL here..."
+              placeholder={platformConfig.placeholder}
               className="w-full py-4 pl-4 pr-24 bg-transparent text-slate-900 placeholder:text-slate-400 text-sm sm:text-base font-normal rounded-xl focus:outline-none"
             />
 
@@ -150,10 +159,10 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
               <button
                 type="button"
                 onClick={handlePaste}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 font-medium text-xs transition-colors border border-slate-200/80 shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1877F2]"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 font-medium text-xs transition-colors border border-slate-200/80 shadow-2xs focus:outline-none focus-visible:ring-2"
                 title="Paste link from clipboard"
               >
-                <Clipboard className="w-3.5 h-3.5 text-[#1877F2]" />
+                <Clipboard className={`w-3.5 h-3.5 ${platformConfig.iconColor}`} />
                 <span className="hidden sm:inline">Paste</span>
               </button>
             </div>
@@ -165,7 +174,7 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
           type="button"
           onClick={() => handleFetch()}
           disabled={state === 'loading'}
-          className="w-full group relative overflow-hidden bg-[#1877F2] hover:bg-[#166fe5] active:bg-[#1565d8] text-white font-bold py-3.5 px-6 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2.5 text-base focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#1877F2] disabled:opacity-75 disabled:cursor-not-allowed"
+          className={`w-full group relative overflow-hidden text-white font-bold py-3.5 px-6 rounded-xl transition-all duration-200 flex items-center justify-center gap-2.5 text-base focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-75 disabled:cursor-not-allowed ${platformConfig.buttonBg}`}
         >
           {state === 'loading' ? (
             <>
@@ -201,6 +210,7 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
           <ResultCard
             key="result"
             data={resultData}
+            platform={platform}
             onReset={handleReset}
             onRecordDownload={onRecordDownload}
           />

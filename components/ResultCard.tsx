@@ -3,18 +3,14 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Download,
+  ArrowDown,
   Play,
-  Music,
-  Video,
   Check,
   Copy,
   RefreshCw,
   X,
-  Eye,
-  Clock,
-  User,
 } from 'lucide-react';
+import { PLATFORMS, PlatformType } from '@/lib/platforms';
 
 export interface VideoData {
   id: string;
@@ -24,6 +20,7 @@ export interface VideoData {
   views: string;
   duration: string;
   thumbnail: string;
+  platform?: string;
   qualities: {
     hd: {
       quality: string;
@@ -51,21 +48,24 @@ export interface VideoData {
 
 interface ResultCardProps {
   data: VideoData;
+  platform?: PlatformType;
   onReset: () => void;
   onRecordDownload: (quality: string) => void;
 }
 
 export const ResultCard: React.FC<ResultCardProps> = ({
   data,
+  platform = 'facebook',
   onReset,
   onRecordDownload,
 }) => {
+  const platformConfig = PLATFORMS[platform] || PLATFORMS.facebook;
   const [copiedLink, setCopiedLink] = useState(false);
-  const [downloadingQuality, setDownloadingQuality] = useState<string | null>(null);
+  const [downloadingType, setDownloadingType] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const handleDownload = (type: 'hd' | 'sd' | 'audio', downloadUrl: string, qualityLabel: string) => {
-    setDownloadingQuality(type);
+    setDownloadingType(type);
     onRecordDownload(qualityLabel);
 
     const fallbackDirectUrl =
@@ -89,7 +89,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
     document.body.removeChild(link);
 
     setTimeout(() => {
-      setDownloadingQuality(null);
+      setDownloadingType(null);
     }, 1200);
   };
 
@@ -99,200 +99,153 @@ export const ResultCard: React.FC<ResultCardProps> = ({
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
+  const downloadOptions = [
+    {
+      type: 'hd' as const,
+      label: 'MP4 - 1080p (Full HD)',
+      size: data.qualities.hd.size,
+      downloadUrl: data.qualities.hd.downloadUrl,
+      qualityLabel: '1080p HD Video',
+    },
+    {
+      type: 'sd' as const,
+      label: 'MP4 - 720p (HD)',
+      size: data.qualities.sd.size,
+      downloadUrl: data.qualities.sd.downloadUrl,
+      qualityLabel: '720p SD Video',
+    },
+    {
+      type: 'audio' as const,
+      label: 'MP3 - 320kbps (Audio)',
+      size: data.qualities.audio.size,
+      downloadUrl: data.qualities.audio.downloadUrl,
+      qualityLabel: 'MP3 Audio Only',
+    },
+  ];
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 16, scale: 0.99 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -12, scale: 0.98 }}
       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-      className="w-full max-w-2xl mx-auto mt-6 p-5 sm:p-7 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0F172A] shadow-xl overflow-hidden relative"
+      className="w-full max-w-xl mx-auto mt-6 p-6 sm:p-8 rounded-2xl bg-white border border-slate-100 shadow-[0_12px_40px_rgba(15,23,42,0.08)] text-slate-900 transition-all"
     >
-      {/* Top Status & Fetch Another Button */}
-      <div className="flex items-center justify-between gap-3 mb-5 pb-3.5 border-b border-slate-100 dark:border-slate-800">
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 px-2.5 py-1 rounded-full">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Ready to Download
-          </span>
-        </div>
+      {/* Top Header Row */}
+      <div className="flex items-center justify-between gap-3 mb-5">
+        <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider font-sans">
+          Download Options
+        </span>
         <button
           onClick={onReset}
-          className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          className="text-xs font-medium text-slate-500 hover:text-slate-900 flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors font-sans"
         >
           <RefreshCw className="w-3.5 h-3.5" />
           Fetch Another
         </button>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-5 items-start">
-        {/* Thumbnail Preview */}
-        <div className="relative w-full sm:w-40 aspect-video sm:aspect-square rounded-xl overflow-hidden shrink-0 group border border-slate-200 dark:border-slate-800 bg-slate-900 shadow-xs">
-          <img
-            src={data.thumbnail}
-            alt={data.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-            referrerPolicy="no-referrer"
-          />
+      {/* 1. Video Preview Thumbnail */}
+      <div className="relative w-full aspect-video rounded-[12px] overflow-hidden bg-slate-950 group shadow-sm border border-slate-100">
+        <img
+          src={data.thumbnail}
+          alt={data.title}
+          className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500 ease-out"
+          referrerPolicy="no-referrer"
+        />
 
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
+        {/* Soft overlay */}
+        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/35 transition-colors" />
 
-          <div className="absolute bottom-2 right-2 bg-black/75 backdrop-blur-sm text-white text-[10px] font-mono px-1.5 py-0.5 rounded font-medium border border-white/10">
+        {/* Minimalist Centered Semi-Transparent Play Button */}
+        <button
+          onClick={() => setIsPreviewOpen(true)}
+          className="absolute inset-0 flex items-center justify-center focus:outline-none"
+          aria-label="Preview video"
+        >
+          <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-black/40 backdrop-blur-md border border-white/25 text-white flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:bg-black/60 transition-all duration-300">
+            <Play className="w-6 h-6 fill-white ml-0.5 text-white" />
+          </div>
+        </button>
+
+        {/* Duration badge at bottom right */}
+        {data.duration && (
+          <div className="absolute bottom-2.5 right-2.5 bg-black/60 backdrop-blur-sm text-white text-[11px] font-sans px-2 py-0.5 rounded-md font-medium border border-white/10">
             {data.duration}
           </div>
+        )}
+      </div>
 
+      {/* 2. Metadata Text (Title, platform name, Creator name) */}
+      <div className="mt-5 mb-6 text-left space-y-1">
+        <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-snug tracking-tight font-sans">
+          {data.title}
+        </h2>
+        <div className="flex items-center flex-wrap gap-2 text-xs font-sans font-normal">
+          <span className={`font-semibold px-2 py-0.5 rounded-md text-[11px] ${platformConfig.badgeBg}`}>
+            {data.platform || platformConfig.name}
+          </span>
+          <span aria-hidden="true" className="text-slate-300">·</span>
+          <span className="text-slate-600 font-medium">{data.author || 'Creator'}</span>
+          {data.views && (
+            <>
+              <span aria-hidden="true" className="text-slate-300">·</span>
+              <span className="text-slate-500">{data.views}</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* 3 & 4. Download Button Rows */}
+      <div className="space-y-3">
+        {downloadOptions.map((opt) => (
           <button
-            onClick={() => setIsPreviewOpen(true)}
-            className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-white opacity-95 group-hover:scale-110 transition-transform duration-300 focus:outline-none"
-            aria-label="Preview video"
+            key={opt.type}
+            onClick={() => handleDownload(opt.type, opt.downloadUrl, opt.qualityLabel)}
+            disabled={downloadingType === opt.type}
+            className="w-full group bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white p-4 rounded-xl transition-all duration-200 flex items-center justify-between gap-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 shadow-sm disabled:opacity-80"
           >
-            <div className="w-10 h-10 rounded-full bg-[#1877F2]/90 hover:bg-[#1877F2] text-white flex items-center justify-center shadow-md backdrop-blur-sm">
-              <Play className="w-4 h-4 fill-current ml-0.5" />
-            </div>
-            <span className="text-[10px] font-medium tracking-wide bg-black/60 px-2 py-0.5 rounded-full backdrop-blur-xs mt-1">
-              Preview
-            </span>
-          </button>
-        </div>
-
-        {/* Video Info & Download Options */}
-        <div className="flex-1 w-full flex flex-col justify-between min-w-0">
-          <div>
-            <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-snug tracking-tight line-clamp-2">
-              {data.title}
-            </h2>
-
-            <div className="flex items-center flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-400 mt-1.5">
-              <span className="flex items-center gap-1 font-medium text-slate-700 dark:text-slate-300 truncate max-w-[140px]">
-                <User className="w-3 h-3 text-slate-400 shrink-0" />
-                {data.author}
+            {/* Left side: Format & Quality, with File Size below */}
+            <div className="flex flex-col min-w-0">
+              <span className="font-semibold text-sm text-white font-sans">
+                {opt.label}
               </span>
-              <span aria-hidden="true" className="text-slate-300 dark:text-slate-700">·</span>
-              <span className="flex items-center gap-1">
-                <Eye className="w-3 h-3 text-slate-400 shrink-0" />
-                {data.views}
-              </span>
-              <span aria-hidden="true" className="text-slate-300 dark:text-slate-700">·</span>
-              <span className="flex items-center gap-1">
-                <Clock className="w-3 h-3 text-slate-400 shrink-0" />
-                {data.duration}
+              <span className="text-[11px] text-slate-400 font-normal mt-0.5 font-sans">
+                {opt.size}
               </span>
             </div>
-          </div>
 
-          {/* Optimized Flex Download Buttons */}
-          <div className="space-y-2.5 mt-5">
-            {/* HD Download Button */}
-            <button
-              onClick={() => handleDownload('hd', data.qualities.hd.downloadUrl, '1080p HD Video')}
-              className="w-full relative group overflow-hidden bg-[#10B981] hover:bg-[#059669] text-white font-semibold py-3 px-3.5 sm:px-4 rounded-xl shadow-xs hover:shadow-md transition-all duration-200 flex items-center justify-between gap-2.5 sm:gap-3 text-xs sm:text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[#10B981]"
-            >
-              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-                <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
-                  {downloadingQuality === 'hd' ? (
-                    <RefreshCw className="w-4 h-4 animate-spin text-white" />
-                  ) : (
-                    <Video className="w-4 h-4 text-white" />
-                  )}
-                </div>
-                <div className="flex flex-col text-left min-w-0">
-                  <span className="font-bold leading-tight text-xs sm:text-sm truncate">
-                    Download HD Video
-                  </span>
-                  <span className="text-[10px] sm:text-[11px] font-normal text-emerald-100/90 leading-none mt-0.5 truncate">
-                    1080p High Definition MP4
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                <span className="text-[10px] sm:text-xs font-mono font-semibold bg-black/20 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-emerald-50 border border-white/10 whitespace-nowrap">
-                  {data.qualities.hd.size}
-                </span>
-                <Download className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
-              </div>
-            </button>
-
-            {/* SD Download Button */}
-            <button
-              onClick={() => handleDownload('sd', data.qualities.sd.downloadUrl, '720p SD Video')}
-              className="w-full relative group overflow-hidden bg-[#64748B] hover:bg-[#475569] text-white font-semibold py-3 px-3.5 sm:px-4 rounded-xl shadow-2xs hover:shadow-xs transition-all duration-200 flex items-center justify-between gap-2.5 sm:gap-3 text-xs sm:text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[#64748B]"
-            >
-              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-                <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
-                  {downloadingQuality === 'sd' ? (
-                    <RefreshCw className="w-4 h-4 animate-spin text-white" />
-                  ) : (
-                    <Video className="w-4 h-4 text-white" />
-                  )}
-                </div>
-                <div className="flex flex-col text-left min-w-0">
-                  <span className="font-bold leading-tight text-xs sm:text-sm truncate">
-                    Download Normal Video
-                  </span>
-                  <span className="text-[10px] sm:text-[11px] font-normal text-slate-100/90 leading-none mt-0.5 truncate">
-                    720p Standard MP4
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                <span className="text-[10px] sm:text-xs font-mono font-semibold bg-black/20 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-slate-100 border border-white/10 whitespace-nowrap">
-                  {data.qualities.sd.size}
-                </span>
-                <Download className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
-              </div>
-            </button>
-
-            {/* MP3 Audio Download Button */}
-            <button
-              onClick={() => handleDownload('audio', data.qualities.audio.downloadUrl, 'MP3 Audio Only')}
-              className="w-full group bg-slate-50 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-semibold py-3 px-3.5 sm:px-4 rounded-xl transition-all duration-200 flex items-center justify-between gap-2.5 sm:gap-3 text-xs sm:text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
-            >
-              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-                <div className="w-8 h-8 rounded-lg bg-slate-200 dark:bg-slate-800 flex items-center justify-center shrink-0 text-[#1877F2]">
-                  {downloadingQuality === 'audio' ? (
-                    <RefreshCw className="w-4 h-4 animate-spin text-[#1877F2]" />
-                  ) : (
-                    <Music className="w-4 h-4 text-[#1877F2]" />
-                  )}
-                </div>
-                <div className="flex flex-col text-left min-w-0">
-                  <span className="font-semibold leading-tight text-slate-900 dark:text-white text-xs sm:text-sm truncate">
-                    Download Audio Only (MP3)
-                  </span>
-                  <span className="text-[10px] sm:text-[11px] font-normal text-slate-500 dark:text-slate-400 leading-none mt-0.5 truncate">
-                    320kbps High Quality Audio
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                <span className="text-[10px] sm:text-xs font-mono font-medium text-slate-600 dark:text-slate-400 bg-slate-200/80 dark:bg-slate-800 px-2 py-0.5 rounded-md whitespace-nowrap">
-                  {data.qualities.audio.size}
-                </span>
-                <Download className="w-4 h-4 text-slate-500 group-hover:translate-y-0.5 transition-transform" />
-              </div>
-            </button>
-          </div>
-
-          {/* Copy Video URL Bar */}
-          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-            <button
-              onClick={handleCopyLink}
-              className="flex items-center gap-1.5 hover:text-[#1877F2] dark:hover:text-[#1877F2] transition-colors font-medium"
-            >
-              {copiedLink ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-emerald-500" />
-                  <span className="text-emerald-600 dark:text-emerald-400">Link Copied!</span>
-                </>
+            {/* Right side: Minimalist Down-Arrow Icon */}
+            <div className="w-8 h-8 rounded-full bg-slate-800 group-hover:bg-slate-700 flex items-center justify-center shrink-0 transition-colors">
+              {downloadingType === opt.type ? (
+                <RefreshCw className="w-4 h-4 text-white animate-spin" />
               ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>Copy Video URL</span>
-                </>
+                <ArrowDown className="w-4 h-4 text-white group-hover:translate-y-0.5 transition-transform" />
               )}
-            </button>
-            <span className="text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500">100% Free & Direct</span>
-          </div>
-        </div>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Footer Copy Link Action */}
+      <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-sans">
+        <button
+          onClick={handleCopyLink}
+          className="flex items-center gap-1.5 hover:text-slate-900 transition-colors font-medium"
+        >
+          {copiedLink ? (
+            <>
+              <Check className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="text-emerald-600 font-medium">Copied to Clipboard!</span>
+            </>
+          ) : (
+            <>
+              <Copy className="w-3.5 h-3.5" />
+              <span>Copy Link</span>
+            </>
+          )}
+        </button>
+        <span className="text-slate-400 text-[11px]">HD Quality Direct Download</span>
       </div>
 
       {/* Video Preview Modal */}
@@ -302,28 +255,25 @@ export const ResultCard: React.FC<ResultCardProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
             onClick={() => setIsPreviewOpen(false)}
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
+              initial={{ scale: 0.96, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
+              exit={{ scale: 0.96, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-3xl bg-slate-900 rounded-2xl overflow-hidden shadow-2xl border border-slate-800"
+              className="relative w-full max-w-2xl bg-slate-900 rounded-2xl overflow-hidden shadow-2xl border border-slate-800"
             >
-              <div className="flex items-center justify-between p-3.5 border-b border-slate-800 bg-slate-900/90">
-                <div className="flex items-center gap-2">
-                  <Play className="w-4 h-4 text-[#1877F2]" />
-                  <span className="text-xs sm:text-sm font-semibold text-white truncate max-w-md">
-                    {data.title}
-                  </span>
-                </div>
+              <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-900">
+                <span className="text-xs sm:text-sm font-medium text-white truncate max-w-md">
+                  {data.title}
+                </span>
                 <button
                   onClick={() => setIsPreviewOpen(false)}
                   className="p-1.5 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
@@ -335,7 +285,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                   className="w-full h-full object-contain"
                   poster={data.thumbnail}
                 >
-                  Your browser does not support playing HTML video.
+                  Your browser does not support HTML video playback.
                 </video>
               </div>
             </motion.div>
