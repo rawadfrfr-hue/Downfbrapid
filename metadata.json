@@ -1,6 +1,6 @@
 {
   "name": "SaveVibe - Fast & Secure Video Downloader",
-  "description": "Ultra-fast, ad-free Facebook video and reel downloader. Fetch and save HD videos, SD videos, and MP3 audio in seconds with SaveVibe.",
+  "description": "Ultra-fast, ad-free Facebook, YouTube, Instagram, and TikTok video downloader. Fetch and save HD videos and TikTok videos without watermark in seconds with SaveVibe.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

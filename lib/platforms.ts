@@ -1,4 +1,4 @@
-export type PlatformType = 'facebook' | 'youtube' | 'instagram';
+export type PlatformType = 'facebook' | 'youtube' | 'instagram' | 'tiktok';
 
 export interface PlatformConfig {
   id: PlatformType;
@@ -75,5 +75,24 @@ export const PLATFORMS: Record<PlatformType, PlatformConfig> = {
     featureIconBg: 'bg-pink-100 text-[#E1306C]',
     selectionClass: 'selection:bg-pink-500/20 selection:text-[#E1306C]',
     accentGlow: 'rgba(225, 48, 108, 0.15)',
+  },
+  tiktok: {
+    id: 'tiktok',
+    name: 'TikTok',
+    path: '/tiktok',
+    heroTitle: 'Download TikTok Videos Without Watermark',
+    heroSubtitle:
+      'Effortlessly download TikTok videos in maximum quality without watermark using SaveVibe. Paste your link below to save instantly.',
+    placeholder: 'Paste TikTok video URL here (e.g., https://vm.tiktok.com/...)...',
+    primaryColor: '#000000',
+    gradientBg: 'from-cyan-500/10 via-slate-900/10 to-rose-500/10',
+    buttonBg:
+      'bg-gradient-to-r from-slate-900 via-zinc-900 to-black hover:from-black hover:to-zinc-800 active:from-slate-950 active:to-slate-950 focus-visible:ring-slate-900 shadow-slate-900/20',
+    focusBorder: 'focus-within:border-slate-900 focus-within:ring-slate-900',
+    iconColor: 'text-slate-900',
+    badgeBg: 'bg-slate-100 text-slate-900 border border-slate-200/80',
+    featureIconBg: 'bg-slate-100 text-slate-900',
+    selectionClass: 'selection:bg-slate-900/20 selection:text-slate-900',
+    accentGlow: 'rgba(0, 0, 0, 0.15)',
   },
 };

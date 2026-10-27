@@ -85,6 +85,46 @@ async function fetchInstagramRapidApi(targetUrl: string) {
   }
 }
 
+// RapidAPI caller for TikTok Max Quality download
+async function fetchTikTokRapidApi(targetUrl: string) {
+  const rapidApiKey = process.env.RAPIDAPI_KEY || '983cbe1c92msh03e9da1dbd81833p152e20jsnc068e9bcdfc9';
+  const rapidApiHost = 'tiktok-max-quality.p.rapidapi.com';
+  const rapidApiEndpoint = `https://tiktok-max-quality.p.rapidapi.com/download/?url=${encodeURIComponent(targetUrl)}`;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+
+  try {
+    const res = await fetch(rapidApiEndpoint, {
+      method: 'GET',
+      headers: {
+        'x-rapidapi-key': rapidApiKey,
+        'x-rapidapi-host': rapidApiHost,
+      },
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (res.ok) {
+      const text = await res.text();
+      try {
+        const json = JSON.parse(text);
+        return { success: true, data: json };
+      } catch {
+        return { success: false, error: 'Failed to parse JSON response', rawText: text };
+      }
+    } else {
+      const errText = await res.text();
+      return { success: false, status: res.status, error: errText };
+    }
+  } catch (err: unknown) {
+    clearTimeout(timeout);
+    const msg = err instanceof Error ? err.message : 'TikTok API request failed';
+    return { success: false, error: msg };
+  }
+}
+
 // Helper function to extract video URL, audio URL, thumbnail, title, author, duration from Instagram API JSON response
 function extractInstagramData(data: any) {
   let videoUrl = '';
@@ -107,7 +147,6 @@ function extractInstagramData(data: any) {
   const isValidCdnUrl = (u: any) =>
     typeof u === 'string' && u.startsWith('http') && !isWebpageUrl(u);
 
-  // 1. Check medias array first (standard for instagram-reels-downloader-api)
   if (Array.isArray(root.medias) && root.medias.length > 0) {
     const videoMedia = root.medias.find(
       (m: any) => (m.type === 'video' || m.extension === 'mp4') && isValidCdnUrl(m.url)
@@ -124,7 +163,6 @@ function extractInstagramData(data: any) {
     }
   }
 
-  // 2. Check fallback properties (excluding webpage URLs)
   if (!videoUrl) {
     if (isValidCdnUrl(root.download_url)) videoUrl = root.download_url;
     else if (isValidCdnUrl(root.video_url)) videoUrl = root.video_url;
@@ -138,17 +176,14 @@ function extractInstagramData(data: any) {
     audioUrl = videoUrl;
   }
 
-  // 3. Extract Thumbnail
   if (typeof root.thumbnail === 'string' && root.thumbnail) thumbnailUrl = root.thumbnail;
   else if (typeof root.cover === 'string' && root.cover) thumbnailUrl = root.cover;
   else if (typeof root.display_url === 'string' && root.display_url) thumbnailUrl = root.display_url;
 
-  // 4. Extract Title
   if (typeof root.title === 'string' && root.title) title = root.title;
   else if (typeof root.caption === 'string' && root.caption) title = root.caption;
   else if (typeof root.description === 'string' && root.description) title = root.description;
 
-  // 5. Extract Author
   if (typeof root.author === 'string' && root.author) author = root.author;
   else if (typeof root.owner === 'string' && root.owner) author = root.owner;
   else if (typeof root.username === 'string' && root.username) author = root.username;
@@ -160,7 +195,7 @@ function extractInstagramData(data: any) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { url, platform = 'facebook', isDemo } = await req.json();
+    const { url, platform = 'facebook' } = await req.json();
 
     if (!url || typeof url !== 'string' || !url.trim()) {
       return NextResponse.json(
@@ -178,6 +213,8 @@ export async function POST(req: NextRequest) {
       detectedPlatform = 'youtube';
     } else if (lowerUrl.includes('instagram.com') || lowerUrl.includes('instagr.am')) {
       detectedPlatform = 'instagram';
+    } else if (lowerUrl.includes('tiktok.com') || lowerUrl.includes('vt.tiktok.com')) {
+      detectedPlatform = 'tiktok';
     } else if (lowerUrl.includes('facebook.com') || lowerUrl.includes('fb.watch') || lowerUrl.includes('fb.gg')) {
       detectedPlatform = 'facebook';
     }
@@ -187,6 +224,8 @@ export async function POST(req: NextRequest) {
         ? 'YouTube'
         : detectedPlatform === 'instagram'
         ? 'Instagram'
+        : detectedPlatform === 'tiktok'
+        ? 'TikTok'
         : 'Facebook';
 
     let title = '';
@@ -199,18 +238,15 @@ export async function POST(req: NextRequest) {
 
     // 1. YOUTUBE SPECIFIC PROCESSING
     if (detectedPlatform === 'youtube') {
-      // Extract YouTube Video ID from URL
       const ytIdMatch = cleanUrl.match(
         /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/
       );
       const videoId = ytIdMatch ? ytIdMatch[1] : '';
 
       if (videoId) {
-        // High Quality Official YouTube Thumbnail
         thumbnail = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
       }
 
-      // Fetch YouTube Official oEmbed API for 100% Real Original Title & Channel Name
       try {
         const oembedRes = await fetch(
           `https://www.youtube.com/oembed?url=${encodeURIComponent(cleanUrl)}&format=json`
@@ -225,7 +261,6 @@ export async function POST(req: NextRequest) {
         // oEmbed fallback
       }
 
-      // Fetch 1080p, 720p, and MP3 formats concurrently from RapidAPI
       const [res1080, res720, resMp3] = await Promise.all([
         fetchYouTubeRapidApi(cleanUrl, '1080p'),
         fetchYouTubeRapidApi(cleanUrl, '720p'),
@@ -250,12 +285,10 @@ export async function POST(req: NextRequest) {
         audioUrl = dMp3.download_url || dMp3.downloadUrl || dMp3.url || dMp3.link || '';
       }
 
-      // Ensure fallback assignments if individual formats fail
       if (!hdUrl && sdUrl) hdUrl = sdUrl;
       if (!sdUrl && hdUrl) sdUrl = hdUrl;
       if (!audioUrl && hdUrl) audioUrl = hdUrl;
 
-      // Final YouTube Title fallback (Using real URL title instead of any dummy string)
       if (!title) {
         title = videoId ? `YouTube Video (${videoId})` : 'YouTube Video';
       }
@@ -267,7 +300,54 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. INSTAGRAM & FACEBOOK PROCESSING
+    // 2. TIKTOK SPECIFIC PROCESSING
+    if (detectedPlatform === 'tiktok') {
+      const [tikRes, pageRes] = await Promise.all([
+        fetchTikTokRapidApi(cleanUrl),
+        fetch(cleanUrl, {
+          headers: {
+            'User-Agent':
+              'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+          },
+          redirect: 'follow',
+        }).catch(() => null),
+      ]);
+
+      if (tikRes.success && tikRes.data) {
+        const d = tikRes.data;
+        const root = d.data || d;
+        hdUrl = root.download_url || root.off_url || root.hdplay || root.play || root.url || '';
+        sdUrl = hdUrl;
+        audioUrl = hdUrl;
+      }
+
+      if (pageRes && pageRes.ok) {
+        const html = await pageRes.text();
+        const expandedUrl = pageRes.url || cleanUrl;
+
+        const titleMatch =
+          html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i) ||
+          html.match(/<title>([^<]+)<\/title>/i);
+        const imgMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
+
+        if (titleMatch && titleMatch[1]) {
+          title = titleMatch[1]
+            .replace(/&#039;/g, "'")
+            .replace(/&quot;/g, '"')
+            .replace(/&amp;/g, '&');
+        }
+        if (imgMatch && imgMatch[1]) {
+          thumbnail = imgMatch[1].replace(/&amp;/g, '&');
+        }
+
+        const authorMatch = expandedUrl.match(/@([\w\.-]+)/);
+        if (authorMatch && authorMatch[1]) {
+          author = `@${authorMatch[1]}`;
+        }
+      }
+    }
+
+    // 3. INSTAGRAM & FACEBOOK PROCESSING
     if (detectedPlatform === 'instagram' || detectedPlatform === 'facebook') {
       if (detectedPlatform === 'instagram') {
         try {
@@ -324,7 +404,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Scraper fallback for Instagram / Facebook OpenGraph
+      // Scraper fallback
       if (!hdUrl && !sdUrl) {
         try {
           const controller = new AbortController();
@@ -368,12 +448,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Default fallbacks if no stream links found
+    const isTikTok = detectedPlatform === 'tiktok';
+
     const finalTitle = title.trim() || `${platformName} Video`;
     const finalThumbnail =
       thumbnail ||
       (detectedPlatform === 'youtube'
         ? 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=800&q=80'
+        : detectedPlatform === 'tiktok'
+        ? 'https://images.unsplash.com/photo-1598899134739-24c46f58b8c0?auto=format&fit=crop&w=800&q=80'
         : 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80');
 
     const sampleMediaUrl = 'https://www.w3schools.com/html/mov_bbb.mp4';
@@ -396,27 +479,28 @@ export async function POST(req: NextRequest) {
         duration: finalDuration,
         thumbnail: finalThumbnail,
         platform: platformName,
+        isSingleQuality: isTikTok,
         qualities: {
           hd: {
-            quality: '1080p HD',
+            quality: isTikTok ? 'Max Quality without watermark' : '1080p HD',
             url: finalHdUrl,
             downloadUrl: finalHdUrl,
-            size: '1080p Full HD',
+            size: isTikTok ? 'Max Quality • No Watermark' : '1080p Full HD',
             format: 'MP4',
           },
           sd: {
-            quality: '720p Normal',
+            quality: isTikTok ? 'Max Quality without watermark' : '720p Normal',
             url: finalSdUrl,
             downloadUrl: finalSdUrl,
-            size: '720p HD',
+            size: isTikTok ? 'Max Quality • No Watermark' : '720p HD',
             format: 'MP4',
           },
           audio: {
-            quality: '320kbps Audio',
+            quality: isTikTok ? 'Max Quality without watermark' : '320kbps Audio',
             url: finalAudioUrl,
             downloadUrl: finalAudioUrl,
-            size: 'MP3 Audio',
-            format: 'MP3',
+            size: isTikTok ? 'Max Quality • No Watermark' : 'MP3 Audio',
+            format: isTikTok ? 'MP4' : 'MP3',
           },
         },
       },

@@ -12,7 +12,7 @@ const LOGO_FAVICON_URL = '/assets/aistudio/logoosavevibe_afe0d13c.svg';
 
 export const metadata: Metadata = {
   title: 'SaveVibe - Fast & Secure Video Downloader',
-  description: 'Effortlessly download public Facebook videos, reels, and watch clips in high definition with SaveVibe. Paste your link below to save in MP4 or MP3 format.',
+  description: 'Effortlessly download public Facebook, YouTube, Instagram, and TikTok videos without watermark in high definition with SaveVibe.',
   icons: {
     icon: LOGO_FAVICON_URL,
     shortcut: LOGO_FAVICON_URL,
@@ -20,13 +20,13 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'SaveVibe - Fast & Secure Video Downloader',
-    description: 'Effortlessly download public Facebook videos, reels, and watch clips in high definition with SaveVibe. Paste your link below to save in MP4 or MP3 format.',
+    description: 'Effortlessly download public Facebook, YouTube, Instagram, and TikTok videos without watermark in high definition with SaveVibe.',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'SaveVibe - Fast & Secure Video Downloader',
-    description: 'Effortlessly download public Facebook videos, reels, and watch clips in high definition with SaveVibe. Paste your link below to save in MP4 or MP3 format.',
+    description: 'Effortlessly download public Facebook, YouTube, Instagram, and TikTok videos without watermark in high definition with SaveVibe.',
   },
 };
 

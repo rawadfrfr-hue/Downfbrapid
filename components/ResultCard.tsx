@@ -21,6 +21,7 @@ export interface VideoData {
   duration: string;
   thumbnail: string;
   platform?: string;
+  isSingleQuality?: boolean;
   qualities: {
     hd: {
       quality: string;
@@ -29,14 +30,14 @@ export interface VideoData {
       size: string;
       format: string;
     };
-    sd: {
+    sd?: {
       quality: string;
       url: string;
       downloadUrl: string;
       size: string;
       format: string;
     };
-    audio: {
+    audio?: {
       quality: string;
       url: string;
       downloadUrl: string;
@@ -72,43 +73,18 @@ export const ResultCard: React.FC<ResultCardProps> = ({
       type === 'hd'
         ? data.qualities.hd.url
         : type === 'sd'
-        ? data.qualities.sd.url
-        : data.qualities.audio.url;
+        ? data.qualities.sd?.url || data.qualities.hd.url
+        : data.qualities.audio?.url || data.qualities.hd.url;
 
     const directCdnUrl = downloadUrl || fallbackDirectUrl;
     const safeExt = type === 'audio' ? '.mp3' : '.mp4';
-    const targetFilename = `${data.title.replace(/[^\w\.-]/g, '_').slice(0, 30)}_${type}${safeExt}`;
+    const cleanTitle = data.title.replace(/[^\w\.-]/g, '_').slice(0, 30) || 'TikTok_Video';
+    const targetFilename = `${cleanTitle}_${type}${safeExt}`;
 
-    // 1. Attempt Client-Side Direct Fetch & Blob Download (uses user's IP, bypassing Instagram server 403 block)
-    try {
-      const response = await fetch(directCdnUrl, { mode: 'cors' });
-      if (response.ok) {
-        const blob = await response.blob();
-        if (blob.size > 50000) {
-          const blobUrl = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = blobUrl;
-          link.download = targetFilename;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          setTimeout(() => {
-            URL.revokeObjectURL(blobUrl);
-            setDownloadingType(null);
-          }, 10000);
-          return;
-        }
-      }
-    } catch {
-      // Fallback
-    }
-
-    // 2. Fallback: Trigger proxy / 302 download endpoint
     const proxyDownloadUrl = `/api/download?url=${encodeURIComponent(directCdnUrl)}&filename=${encodeURIComponent(targetFilename)}`;
+
     const link = document.createElement('a');
     link.href = proxyDownloadUrl;
-    link.target = '_blank';
-    link.rel = 'noreferrer';
     link.setAttribute('download', targetFilename);
     document.body.appendChild(link);
     link.click();
@@ -116,7 +92,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
 
     setTimeout(() => {
       setDownloadingType(null);
-    }, 1200);
+    }, 2000);
   };
 
   const handleCopyLink = () => {
@@ -125,29 +101,41 @@ export const ResultCard: React.FC<ResultCardProps> = ({
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
-  const downloadOptions = [
-    {
-      type: 'hd' as const,
-      label: 'MP4 - 1080p (Full HD)',
-      size: data.qualities.hd.size,
-      downloadUrl: data.qualities.hd.downloadUrl,
-      qualityLabel: '1080p HD Video',
-    },
-    {
-      type: 'sd' as const,
-      label: 'MP4 - 720p (HD)',
-      size: data.qualities.sd.size,
-      downloadUrl: data.qualities.sd.downloadUrl,
-      qualityLabel: '720p SD Video',
-    },
-    {
-      type: 'audio' as const,
-      label: 'MP3 - 320kbps (Audio)',
-      size: data.qualities.audio.size,
-      downloadUrl: data.qualities.audio.downloadUrl,
-      qualityLabel: 'MP3 Audio Only',
-    },
-  ];
+  const isTikTokOrSingleQuality = platform === 'tiktok' || data.isSingleQuality || data.platform === 'TikTok';
+
+  const downloadOptions = isTikTokOrSingleQuality
+    ? [
+        {
+          type: 'hd' as const,
+          label: 'Max Quality without watermark',
+          size: 'MP4 Video • Watermark-Free',
+          downloadUrl: data.qualities.hd.downloadUrl,
+          qualityLabel: 'Max Quality without watermark',
+        },
+      ]
+    : [
+        {
+          type: 'hd' as const,
+          label: 'MP4 - 1080p (Full HD)',
+          size: data.qualities.hd.size,
+          downloadUrl: data.qualities.hd.downloadUrl,
+          qualityLabel: '1080p HD Video',
+        },
+        {
+          type: 'sd' as const,
+          label: 'MP4 - 720p (HD)',
+          size: data.qualities.sd?.size || '720p HD',
+          downloadUrl: data.qualities.sd?.downloadUrl || '',
+          qualityLabel: '720p SD Video',
+        },
+        {
+          type: 'audio' as const,
+          label: 'MP3 - 320kbps (Audio)',
+          size: data.qualities.audio?.size || 'MP3 Audio',
+          downloadUrl: data.qualities.audio?.downloadUrl || '',
+          qualityLabel: 'MP3 Audio Only',
+        },
+      ];
 
   return (
     <motion.div

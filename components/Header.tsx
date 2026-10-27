@@ -17,14 +17,22 @@ import {
 } from 'lucide-react';
 import { PLATFORMS, PlatformType } from '@/lib/platforms';
 
+const TikTokIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 3 15.68 6.34 6.34 0 0 0 9.35 22a6.33 6.33 0 0 0 6.33-6.32V9.05a8.16 8.16 0 0 0 4.91 1.62V7.22a4.85 4.85 0 0 1-1-.53z" />
+  </svg>
+);
+
 export const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
 
-  // Close menu on route change
-  useEffect(() => {
+  // Reset menu on route change
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
     setIsMenuOpen(false);
-  }, [pathname]);
+  }
 
   // Handle ESC key to close sidebar
   useEffect(() => {
@@ -52,7 +60,7 @@ export const Header: React.FC = () => {
   const menuItems = [
     {
       id: 'facebook' as PlatformType,
-      label: 'Download Facebook Video',
+      label: 'Facebook',
       description: 'HD Videos, Reels & Public Clips',
       path: PLATFORMS.facebook.path,
       icon: Facebook,
@@ -64,7 +72,7 @@ export const Header: React.FC = () => {
     },
     {
       id: 'youtube' as PlatformType,
-      label: 'Download YouTube Video',
+      label: 'YouTube',
       description: '4K Shorts, Videos & MP3 Audio',
       path: PLATFORMS.youtube.path,
       icon: Youtube,
@@ -76,7 +84,7 @@ export const Header: React.FC = () => {
     },
     {
       id: 'instagram' as PlatformType,
-      label: 'Download Instagram Video',
+      label: 'Instagram',
       description: 'Reels, IGTV & Video Posts',
       path: PLATFORMS.instagram.path,
       icon: Instagram,
@@ -85,6 +93,18 @@ export const Header: React.FC = () => {
       activeBorder: 'border-[#E1306C]',
       activeBg: 'bg-pink-50/80 text-[#E1306C]',
       badgeText: 'Instagram',
+    },
+    {
+      id: 'tiktok' as PlatformType,
+      label: 'TikTok',
+      description: 'Max Quality without Watermark',
+      path: PLATFORMS.tiktok.path,
+      icon: TikTokIcon,
+      colorClass: 'text-slate-900',
+      iconBg: 'bg-slate-200/70',
+      activeBorder: 'border-slate-900',
+      activeBg: 'bg-slate-100/90 text-slate-900',
+      badgeText: 'TikTok',
     },
   ];
 

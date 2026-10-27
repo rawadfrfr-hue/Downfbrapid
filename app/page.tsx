@@ -10,20 +10,20 @@ import { VideoData } from '@/components/ResultCard';
 
 export default function Home() {
   const [activeLegalModal, setActiveLegalModal] = useState<ModalType>(null);
-  const [_historyItems, setHistoryItems] = useState<VideoData[]>([]);
+  const [_historyItems, setHistoryItems] = useState<VideoData[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const savedHistory = localStorage.getItem('savevibe_history');
+      return savedHistory ? JSON.parse(savedHistory) : [];
+    } catch {
+      return [];
+    }
+  });
   const [downloadsCount, setDownloadsCount] = useState(0);
 
   // Force Light Mode on <html> element
   useEffect(() => {
     document.documentElement.classList.remove('dark');
-    try {
-      const savedHistory = localStorage.getItem('savevibe_history');
-      if (savedHistory) {
-        setHistoryItems(JSON.parse(savedHistory));
-      }
-    } catch {
-      // Ignore localStorage read errors
-    }
   }, []);
 
   const handleAddHistory = (item: VideoData) => {
