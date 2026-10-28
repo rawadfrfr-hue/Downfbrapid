@@ -9,7 +9,6 @@ import {
   Copy,
   RefreshCw,
   X,
-  ExternalLink,
 } from 'lucide-react';
 import { PLATFORMS, PlatformType } from '@/lib/platforms';
 
@@ -103,19 +102,20 @@ export const ResultCard: React.FC<ResultCardProps> = ({
     const cleanTitle = data.title.replace(/[^\w\.-]/g, '_').slice(0, 30) || 'SaveVibe_Media';
     const targetFilename = `${cleanTitle}_${type}${safeExt}`;
 
-    // Same-origin attachment endpoint for forced download save dialog (zero backend file storage)
-    const proxyDownloadUrl = `/api/download?url=${encodeURIComponent(directCdnUrl)}&filename=${encodeURIComponent(targetFilename)}`;
+    // 100% Direct Client-Side Download Trigger (Zero backend proxying/saving)
+    const link = document.createElement('a');
+    link.href = directCdnUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.setAttribute('download', targetFilename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 
-    const a = document.createElement('a');
-    a.href = proxyDownloadUrl;
-    a.setAttribute('download', targetFilename);
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-
+    // Stop spinner immediately after 800ms
     setTimeout(() => {
       setDownloadingType(null);
-    }, 1500);
+    }, 800);
   };
 
   const handleCopyLink = () => {
@@ -297,7 +297,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         ))}
       </div>
 
-      {/* Footer Actions */}
+      {/* Footer Copy Link Action */}
       <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-sans">
         <button
           onClick={handleCopyLink}
@@ -315,16 +315,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
             </>
           )}
         </button>
-
-        <a
-          href={data.qualities.hd.url || data.originalUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1 hover:text-slate-900 transition-colors font-medium text-slate-400 text-[11px]"
-        >
-          <ExternalLink className="w-3 h-3" />
-          <span>Direct Link</span>
-        </a>
+        <span className="text-slate-400 text-[11px]">Direct CDN Download</span>
       </div>
 
       {/* Video Preview Modal */}
