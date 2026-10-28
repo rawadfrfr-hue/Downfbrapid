@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Ytdl } from '@distube/ytdl-core';
 
-// RapidAPI caller for YouTube download (V2 details API for all resolutions: 4K, 2K, 1080p, 720p, 480p, 360p, 240p, 144p, MP3)
+const ytdlInstance = new Ytdl();
+
+// RapidAPI caller for YouTube download (V2 details API fallback)
 async function fetchYouTubeDetailsV2(videoId: string) {
   const rapidApiKey = process.env.RAPIDAPI_KEY || '983cbe1c92msh03e9da1dbd81833p152e20jsnc068e9bcdfc9';
   const rapidApiHost = 'youtube-media-downloader.p.rapidapi.com';
@@ -32,38 +35,6 @@ async function fetchYouTubeDetailsV2(videoId: string) {
     clearTimeout(timeout);
     const msg = err instanceof Error ? err.message : 'YouTube V2 API request failed';
     return { success: false, error: msg };
-  }
-}
-
-// RapidAPI caller for YouTube download fallback (social media downloader)
-async function fetchYouTubeFallback(videoId: string) {
-  const rapidApiKey = process.env.RAPIDAPI_KEY || '983cbe1c92msh03e9da1dbd81833p152e20jsnc068e9bcdfc9';
-  const rapidApiHost = 'social-media-video-downloader.p.rapidapi.com';
-  const rapidApiEndpoint = `https://social-media-video-downloader.p.rapidapi.com/smvd/get-media-url?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}`;
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-
-  try {
-    const res = await fetch(rapidApiEndpoint, {
-      method: 'GET',
-      headers: {
-        'x-rapidapi-key': rapidApiKey,
-        'x-rapidapi-host': rapidApiHost,
-      },
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeout);
-
-    if (res.ok) {
-      const json = await res.json();
-      return { success: true, data: json };
-    }
-    return { success: false };
-  } catch {
-    clearTimeout(timeout);
-    return { success: false };
   }
 }
 
@@ -280,206 +251,183 @@ export async function POST(req: NextRequest) {
         thumbnail = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
       }
 
-      try {
-        const oembedRes = await fetch(
-          `https://www.youtube.com/oembed?url=${encodeURIComponent(cleanUrl)}&format=json`
-        );
-        if (oembedRes.ok) {
-          const oembedData = await oembedRes.json();
-          if (oembedData.title) title = oembedData.title;
-          if (oembedData.author_name) author = oembedData.author_name;
-          if (oembedData.thumbnail_url) thumbnail = oembedData.thumbnail_url;
-        }
-      } catch {
-        // oEmbed fallback
-      }
-
-      // Try V2 details API first for 4K, 2K, 1080p, 720p, 480p, 360p, 240p, 144p, MP3
+      // Primary Extractor: Native YouTube Extractor (@distube/ytdl-core)
       if (videoId) {
-        const v2Res = await fetchYouTubeDetailsV2(videoId);
-        if (v2Res.success && v2Res.data) {
-          const d = v2Res.data;
-          if (d.title && !title) title = d.title;
-          if (d.channel?.name || d.author) author = d.channel?.name || d.author || author;
-          if (d.lengthSeconds) {
-            const sec = parseInt(d.lengthSeconds, 10);
-            if (!isNaN(sec)) {
-              const m = Math.floor(sec / 60);
-              const s = sec % 60;
-              duration = `${m}:${s < 10 ? '0' : ''}${s}`;
+        try {
+          const info = await ytdlInstance.getInfo(videoId);
+          if (info && info.videoDetails) {
+            if (info.videoDetails.title) title = info.videoDetails.title;
+            if (info.videoDetails.author?.name) author = info.videoDetails.author.name;
+            if (info.videoDetails.lengthSeconds) {
+              const sec = parseInt(String(info.videoDetails.lengthSeconds), 10);
+              if (!isNaN(sec)) {
+                const m = Math.floor(sec / 60);
+                const s = sec % 60;
+                duration = `${m}:${s < 10 ? '0' : ''}${s}`;
+              }
             }
-          }
-          if (d.thumbnails && Array.isArray(d.thumbnails) && d.thumbnails.length > 0) {
-            const maxThumb = d.thumbnails[d.thumbnails.length - 1];
-            if (maxThumb && maxThumb.url) thumbnail = maxThumb.url;
-          }
-
-          const targetQualities = [
-            { id: '2160p', label: 'MP4 - 2160p (4K Ultra HD)', sublabel: '2160p 4K • Ultra High Definition', badge: '4K UHD' },
-            { id: '1440p', label: 'MP4 - 1440p (2K Quad HD)', sublabel: '1440p 2K • Quad High Definition', badge: '2K QHD' },
-            { id: '1080p', label: 'MP4 - 1080p (Full HD)', sublabel: '1080p • Full High Definition', badge: '1080p FHD' },
-            { id: '720p', label: 'MP4 - 720p (HD)', sublabel: '720p • High Definition', badge: '720p HD' },
-            { id: '480p', label: 'MP4 - 480p (SD)', sublabel: '480p • Standard Definition', badge: '480p' },
-            { id: '360p', label: 'MP4 - 360p (Medium)', sublabel: '360p • Medium Quality', badge: '360p' },
-            { id: '240p', label: 'MP4 - 240p (Low)', sublabel: '240p • Low Quality', badge: '240p' },
-            { id: '144p', label: 'MP4 - 144p (Very Low)', sublabel: '144p • Data Saver', badge: '144p' },
-          ];
-
-          const videos = d.videos?.items || (Array.isArray(d.videos) ? d.videos : []);
-          for (const tq of targetQualities) {
-            const match = videos.find((v: any) => (v.quality === tq.id || v.qualityLabel === tq.id) && (v.url || v.downloadUrl));
-            if (match) {
-              const streamUrl = match.url || match.downloadUrl;
-              const sizeStr = match.sizeText ? ` • ${match.sizeText}` : '';
-              youtubeQualityList.push({
-                id: tq.id,
-                quality: tq.id,
-                label: tq.label,
-                sublabel: `${tq.sublabel}${sizeStr}`,
-                url: streamUrl,
-                downloadUrl: streamUrl,
-                qualityLabel: `${tq.id} Video`,
-                format: match.extension ? match.extension.toUpperCase() : 'MP4',
-                badge: tq.badge,
-              });
+            if (info.videoDetails.thumbnails?.length > 0) {
+              const maxThumb = info.videoDetails.thumbnails[info.videoDetails.thumbnails.length - 1];
+              if (maxThumb?.url) thumbnail = maxThumb.url;
             }
-          }
 
-          // Fallback if targetQualities loop missed any video formats
-          if (youtubeQualityList.length === 0 && videos.length > 0) {
-            for (const v of videos) {
-              if (v.url || v.downloadUrl) {
-                const streamUrl = v.url || v.downloadUrl;
-                const qLabel = v.quality || v.qualityLabel || '720p';
+            const targetQualities = [
+              { id: '2160p', label: 'MP4 - 2160p (4K Ultra HD)', sublabel: '2160p 4K • Ultra High Definition', badge: '4K UHD' },
+              { id: '1440p', label: 'MP4 - 1440p (2K Quad HD)', sublabel: '1440p 2K • Quad High Definition', badge: '2K QHD' },
+              { id: '1080p', label: 'MP4 - 1080p (Full HD)', sublabel: '1080p • Full High Definition', badge: '1080p FHD' },
+              { id: '720p', label: 'MP4 - 720p (HD)', sublabel: '720p • High Definition', badge: '720p HD' },
+              { id: '480p', label: 'MP4 - 480p (SD)', sublabel: '480p • Standard Definition', badge: '480p' },
+              { id: '360p', label: 'MP4 - 360p (Medium)', sublabel: '360p • Medium Quality', badge: '360p' },
+              { id: '240p', label: 'MP4 - 240p (Low)', sublabel: '240p • Low Quality', badge: '240p' },
+              { id: '144p', label: 'MP4 - 144p (Very Low)', sublabel: '144p • Data Saver', badge: '144p' },
+            ];
+
+            for (const tq of targetQualities) {
+              const match = info.formats.find(
+                (f: any) =>
+                  f.hasVideo &&
+                  (f.qualityLabel === tq.id || f.qualityLabel?.startsWith(tq.id)) &&
+                  typeof f.url === 'string' &&
+                  f.url
+              );
+              if (match && typeof match.url === 'string') {
+                const streamUrl: string = match.url;
+                const formatExt = match.container ? match.container.toUpperCase() : 'MP4';
                 youtubeQualityList.push({
-                  id: qLabel,
-                  quality: qLabel,
-                  label: `MP4 - ${qLabel}`,
-                  sublabel: `${qLabel} Video`,
+                  id: tq.id,
+                  quality: tq.id,
+                  label: tq.label,
+                  sublabel: `${tq.sublabel} • ${formatExt}`,
                   url: streamUrl,
                   downloadUrl: streamUrl,
-                  qualityLabel: `${qLabel} Video`,
-                  format: v.extension ? v.extension.toUpperCase() : 'MP4',
-                  badge: qLabel,
+                  qualityLabel: `${tq.id} Video`,
+                  format: formatExt,
+                  badge: tq.badge,
                 });
               }
             }
-          }
 
-          const audios = d.audios?.items || (Array.isArray(d.audios) ? d.audios : []);
-          const audioMatch = audios.find((a: any) => a.url || a.downloadUrl);
-          if (audioMatch) {
-            const streamUrl = audioMatch.url || audioMatch.downloadUrl;
-            const sizeStr = audioMatch.sizeText ? ` (${audioMatch.sizeText})` : '';
-            youtubeQualityList.push({
-              id: 'audio',
-              quality: 'audio',
-              label: 'MP3 - Audio Track (320kbps)',
-              sublabel: `High Quality Audio${sizeStr}`,
-              url: streamUrl,
-              downloadUrl: streamUrl,
-              qualityLabel: 'MP3 Audio Only',
-              format: 'MP3',
-              badge: 'AUDIO',
-            });
-            audioUrl = streamUrl;
-          }
+            const audioMatch = info.formats.find((f: any) => f.hasAudio && !f.hasVideo && typeof f.url === 'string' && f.url);
+            if (audioMatch && typeof audioMatch.url === 'string') {
+              const streamUrl: string = audioMatch.url;
+              const formatExt = audioMatch.container ? audioMatch.container.toUpperCase() : 'MP3';
+              youtubeQualityList.push({
+                id: 'audio',
+                quality: 'audio',
+                label: 'MP3 - Audio Track (High Quality)',
+                sublabel: `High Quality Audio • ${formatExt}`,
+                url: streamUrl,
+                downloadUrl: streamUrl,
+                qualityLabel: 'MP3 Audio Only',
+                format: 'MP3',
+                badge: 'AUDIO',
+              });
+              audioUrl = streamUrl;
+            }
 
-          const q1080 = youtubeQualityList.find((q) => q.id === '1080p' || q.id === '2160p' || q.id === '1440p');
-          const q720 = youtubeQualityList.find((q) => q.id === '720p' || q.id === '480p' || q.id === '360p');
-          if (q1080) hdUrl = q1080.url;
-          if (q720) sdUrl = q720.url;
-          if (!hdUrl && youtubeQualityList.length > 0) hdUrl = youtubeQualityList[0].url;
-          if (!sdUrl && youtubeQualityList.length > 0) sdUrl = youtubeQualityList[0].url;
+            const q1080 = youtubeQualityList.find((q) => q.id === '1080p' || q.id === '2160p' || q.id === '1440p');
+            const q720 = youtubeQualityList.find((q) => q.id === '720p' || q.id === '480p' || q.id === '360p');
+            if (q1080) hdUrl = q1080.url;
+            if (q720) sdUrl = q720.url;
+            if (!hdUrl && youtubeQualityList.length > 0) hdUrl = youtubeQualityList[0].url;
+            if (!sdUrl && youtubeQualityList.length > 0) sdUrl = youtubeQualityList[0].url;
+          }
+        } catch {
+          // Primary extractor fallback
         }
       }
 
-      // If V2 details did not yield qualityList or failed, try social media video downloader fallback
+      // Secondary Extractor Fallback: V2 Details API
       if (youtubeQualityList.length === 0 && videoId) {
-        const fbRes = await fetchYouTubeFallback(videoId);
-        if (fbRes.success && fbRes.data) {
-          const d = fbRes.data;
-          if (d.url || d.downloadUrl) {
-            const streamUrl = d.url || d.downloadUrl;
-            hdUrl = streamUrl;
-            sdUrl = streamUrl;
-            audioUrl = streamUrl;
-            youtubeQualityList.push({
-              id: '720p',
-              quality: '720p',
-              label: 'MP4 - 720p (HD)',
-              sublabel: '720p High Quality Video',
-              url: streamUrl,
-              downloadUrl: streamUrl,
-              qualityLabel: '720p Video',
-              format: 'MP4',
-              badge: 'HD',
-            });
+        try {
+          const v2Res = await fetchYouTubeDetailsV2(videoId);
+          if (v2Res.success && v2Res.data) {
+            const d = v2Res.data;
+            if (d.title && !title) title = d.title;
+            if (d.channel?.name || d.author) author = d.channel?.name || d.author || author;
+            if (d.lengthSeconds) {
+              const sec = parseInt(d.lengthSeconds, 10);
+              if (!isNaN(sec)) {
+                const m = Math.floor(sec / 60);
+                const s = sec % 60;
+                duration = `${m}:${s < 10 ? '0' : ''}${s}`;
+              }
+            }
+
+            const targetQualities = [
+              { id: '2160p', label: 'MP4 - 2160p (4K Ultra HD)', sublabel: '2160p 4K • Ultra High Definition', badge: '4K UHD' },
+              { id: '1440p', label: 'MP4 - 1440p (2K Quad HD)', sublabel: '1440p 2K • Quad High Definition', badge: '2K QHD' },
+              { id: '1080p', label: 'MP4 - 1080p (Full HD)', sublabel: '1080p • Full High Definition', badge: '1080p FHD' },
+              { id: '720p', label: 'MP4 - 720p (HD)', sublabel: '720p • High Definition', badge: '720p HD' },
+              { id: '480p', label: 'MP4 - 480p (SD)', sublabel: '480p • Standard Definition', badge: '480p' },
+              { id: '360p', label: 'MP4 - 360p (Medium)', sublabel: '360p • Medium Quality', badge: '360p' },
+              { id: '240p', label: 'MP4 - 240p (Low)', sublabel: '240p • Low Quality', badge: '240p' },
+              { id: '144p', label: 'MP4 - 144p (Very Low)', sublabel: '144p • Data Saver', badge: '144p' },
+            ];
+
+            const videos = d.videos?.items || (Array.isArray(d.videos) ? d.videos : []);
+            for (const tq of targetQualities) {
+              const match = videos.find((v: any) => (v.quality === tq.id || v.qualityLabel === tq.id) && (v.url || v.downloadUrl));
+              if (match) {
+                const streamUrl = match.url || match.downloadUrl;
+                youtubeQualityList.push({
+                  id: tq.id,
+                  quality: tq.id,
+                  label: tq.label,
+                  sublabel: `${tq.sublabel}`,
+                  url: streamUrl,
+                  downloadUrl: streamUrl,
+                  qualityLabel: `${tq.id} Video`,
+                  format: match.extension ? match.extension.toUpperCase() : 'MP4',
+                  badge: tq.badge,
+                });
+              }
+            }
+
+            const audios = d.audios?.items || (Array.isArray(d.audios) ? d.audios : []);
+            const audioMatch = audios.find((a: any) => a.url || a.downloadUrl);
+            if (audioMatch) {
+              const streamUrl = audioMatch.url || audioMatch.downloadUrl;
+              youtubeQualityList.push({
+                id: 'audio',
+                quality: 'audio',
+                label: 'MP3 - Audio Track (320kbps)',
+                sublabel: 'High Quality Audio',
+                url: streamUrl,
+                downloadUrl: streamUrl,
+                qualityLabel: 'MP3 Audio Only',
+                format: 'MP3',
+                badge: 'AUDIO',
+              });
+              audioUrl = streamUrl;
+            }
           }
+        } catch {
+          // Secondary fallback
         }
       }
 
-      // Guaranteed fallback if list is still empty
-      if (youtubeQualityList.length === 0 && videoId) {
-        const fallback1080 = `https://invidious.privacydev.net/latest_version?id=${videoId}&itag=22`;
-        const fallback720 = `https://invidious.privacydev.net/latest_version?id=${videoId}&itag=18`;
-
-        hdUrl = fallback1080;
-        sdUrl = fallback720;
-        audioUrl = fallback720;
-
-        youtubeQualityList = [
-          {
-            id: '1080p',
-            quality: '1080p',
-            label: 'MP4 - 1080p (Full HD)',
-            sublabel: '1080p Full High Definition',
-            url: hdUrl,
-            downloadUrl: hdUrl,
-            qualityLabel: '1080p HD Video',
-            format: 'MP4',
-            badge: '1080p FHD',
-          },
-          {
-            id: '720p',
-            quality: '720p',
-            label: 'MP4 - 720p (HD)',
-            sublabel: '720p High Definition',
-            url: sdUrl,
-            downloadUrl: sdUrl,
-            qualityLabel: '720p SD Video',
-            format: 'MP4',
-            badge: '720p HD',
-          },
-          {
-            id: 'audio',
-            quality: 'audio',
-            label: 'MP3 - Audio Track (320kbps)',
-            sublabel: 'High Quality Audio',
-            url: audioUrl,
-            downloadUrl: audioUrl,
-            qualityLabel: 'MP3 Audio Only',
-            format: 'MP3',
-            badge: 'AUDIO',
-          },
-        ];
+      // Metadata Fallback via oEmbed
+      if (!title || !author) {
+        try {
+          const oembedRes = await fetch(
+            `https://www.youtube.com/oembed?url=${encodeURIComponent(cleanUrl)}&format=json`
+          );
+          if (oembedRes.ok) {
+            const oembedData = await oembedRes.json();
+            if (oembedData.title && !title) title = oembedData.title;
+            if (oembedData.author_name && !author) author = oembedData.author_name;
+            if (oembedData.thumbnail_url && !thumbnail) thumbnail = oembedData.thumbnail_url;
+          }
+        } catch {
+          // oEmbed fallback
+        }
       }
 
-      if (!hdUrl && sdUrl) hdUrl = sdUrl;
-      if (!sdUrl && hdUrl) sdUrl = hdUrl;
-      if (!audioUrl && hdUrl) audioUrl = hdUrl;
-
-      if (!title) {
-        title = videoId ? `YouTube Video (${videoId})` : 'YouTube Video';
-      }
-      if (!author) {
-        author = 'YouTube Channel';
-      }
-      if (!duration) {
-        duration = 'Public Video';
-      }
+      if (!title) title = videoId ? `YouTube Video (${videoId})` : 'YouTube Video';
+      if (!author) author = 'YouTube Channel';
+      if (!duration) duration = 'Public Video';
     }
-
 
     // 2. TIKTOK SPECIFIC PROCESSING
     if (detectedPlatform === 'tiktok') {
