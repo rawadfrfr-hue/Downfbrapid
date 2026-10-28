@@ -104,12 +104,15 @@ export const ResultCard: React.FC<ResultCardProps> = ({
 
     const proxyDownloadUrl = `/api/download?url=${encodeURIComponent(directCdnUrl)}&filename=${encodeURIComponent(targetFilename)}`;
 
-    const link = document.createElement('a');
-    link.href = proxyDownloadUrl;
-    link.setAttribute('download', targetFilename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // Invisible iframe download method (does NOT open new tab, triggers browser direct file download)
+    let iframe = document.getElementById('download_iframe') as HTMLIFrameElement;
+    if (!iframe) {
+      iframe = document.createElement('iframe');
+      iframe.id = 'download_iframe';
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+    }
+    iframe.src = proxyDownloadUrl;
 
     setTimeout(() => {
       setDownloadingType(null);
@@ -126,54 +129,68 @@ export const ResultCard: React.FC<ResultCardProps> = ({
 
   const downloadOptions =
     data.qualityList && data.qualityList.length > 0
-      ? data.qualityList.map((item) => ({
-          type: item.id,
-          label: item.label,
-          size: item.sublabel,
-          downloadUrl: item.downloadUrl,
-          qualityLabel: item.qualityLabel,
-          format: item.format,
-          badge: item.badge,
-        }))
+      ? data.qualityList.map((item) => {
+          let mainTitle = '';
+          if (item.id === '2160p') mainTitle = '2160p (4K Ultra HD)';
+          else if (item.id === '1440p') mainTitle = '1440p (2K Quad HD)';
+          else if (item.id === '1080p') mainTitle = '1080p (Full HD)';
+          else if (item.id === '720p') mainTitle = '720p (HD)';
+          else if (item.id === '480p') mainTitle = '480p (SD)';
+          else if (item.id === '360p') mainTitle = '360p (Standard)';
+          else if (item.id === '240p') mainTitle = '240p (Low)';
+          else if (item.id === '144p') mainTitle = '144p (Data Saver)';
+          else if (item.id === 'audio') mainTitle = 'MP3 (Audio Only)';
+          else mainTitle = item.label;
+
+          const formatText = item.format || (item.id === 'audio' ? 'MP3' : 'MP4');
+          let cleanSub = item.sublabel;
+          cleanSub = cleanSub.replace(/^MP\d\s*•?\s*/i, '');
+          cleanSub = cleanSub.replace(/\(([^)]+)\)/, '• $1');
+
+          return {
+            type: item.id,
+            mainTitle,
+            subDetails: `${formatText} • ${cleanSub}`,
+            downloadUrl: item.downloadUrl,
+            qualityLabel: item.qualityLabel,
+            format: item.format,
+          };
+        })
       : isTikTokOrSingleQuality
       ? [
           {
             type: 'hd',
-            label: 'Max Quality without watermark',
-            size: 'MP4 Video • Watermark-Free',
+            mainTitle: 'Max Quality (No Watermark)',
+            subDetails: 'MP4 • Watermark-Free • High Quality',
             downloadUrl: data.qualities.hd.downloadUrl,
             qualityLabel: 'Max Quality without watermark',
             format: 'MP4',
-            badge: 'MAX',
           },
         ]
       : [
           {
             type: 'hd',
-            label: 'MP4 - 1080p (Full HD)',
-            size: data.qualities.hd.size,
+            mainTitle: '1080p (Full HD)',
+            subDetails: `MP4 • High Quality • ${data.qualities.hd.size}`,
             downloadUrl: data.qualities.hd.downloadUrl,
             qualityLabel: '1080p HD Video',
             format: 'MP4',
-            badge: '1080p',
           },
           {
             type: 'sd',
-            label: 'MP4 - 720p (HD)',
-            size: data.qualities.sd?.size || '720p HD',
+            mainTitle: '720p (HD)',
+            subDetails: `MP4 • Standard Quality • ${data.qualities.sd?.size || '720p'}`,
             downloadUrl: data.qualities.sd?.downloadUrl || '',
             qualityLabel: '720p SD Video',
             format: 'MP4',
-            badge: '720p',
           },
           {
             type: 'audio',
-            label: 'MP3 - 320kbps (Audio)',
-            size: data.qualities.audio?.size || 'MP3 Audio',
+            mainTitle: 'MP3 (Audio Only)',
+            subDetails: `MP3 • High Quality Audio • ${data.qualities.audio?.size || '320kbps'}`,
             downloadUrl: data.qualities.audio?.downloadUrl || '',
             qualityLabel: 'MP3 Audio Only',
             format: 'MP3',
-            badge: 'MP3',
           },
         ];
 
@@ -183,16 +200,16 @@ export const ResultCard: React.FC<ResultCardProps> = ({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -12, scale: 0.98 }}
       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-      className="w-full max-w-xl mx-auto mt-6 p-6 sm:p-8 rounded-2xl bg-white border border-slate-100 shadow-[0_12px_40px_rgba(15,23,42,0.08)] text-slate-900 transition-all"
+      className="w-full max-w-xl mx-auto mt-6 p-5 sm:p-7 rounded-2xl bg-white border border-slate-200/80 shadow-[0_8px_30px_rgba(15,23,42,0.06)] text-slate-900 transition-all"
     >
       {/* Top Header Row */}
-      <div className="flex items-center justify-between gap-3 mb-5">
+      <div className="flex items-center justify-between gap-3 mb-4">
         <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider font-sans">
-          Download Options
+          Download Quality Selection
         </span>
         <button
           onClick={onReset}
-          className="text-xs font-medium text-slate-500 hover:text-slate-900 flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors font-sans"
+          className="text-xs font-medium text-slate-500 hover:text-slate-900 flex items-center gap-1.5 px-2.5 py-1 rounded-lg hover:bg-slate-100 transition-colors font-sans"
         >
           <RefreshCw className="w-3.5 h-3.5" />
           Fetch Another
@@ -200,7 +217,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
       </div>
 
       {/* 1. Video Preview Thumbnail */}
-      <div className="relative w-full aspect-video rounded-[12px] overflow-hidden bg-slate-950 group shadow-sm border border-slate-100">
+      <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-slate-950 group shadow-2xs border border-slate-100">
         <img
           src={data.thumbnail}
           alt={data.title}
@@ -217,8 +234,8 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           className="absolute inset-0 flex items-center justify-center focus:outline-none"
           aria-label="Preview video"
         >
-          <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-black/40 backdrop-blur-md border border-white/25 text-white flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:bg-black/60 transition-all duration-300">
-            <Play className="w-6 h-6 fill-white ml-0.5 text-white" />
+          <div className="w-12 h-12 sm:w-13 sm:h-13 rounded-full bg-black/40 backdrop-blur-md border border-white/25 text-white flex items-center justify-center shadow-md group-hover:scale-110 group-hover:bg-black/60 transition-all duration-300">
+            <Play className="w-5 h-5 fill-white ml-0.5 text-white" />
           </div>
         </button>
 
@@ -231,7 +248,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
       </div>
 
       {/* 2. Metadata Text (Title, platform name, Creator name) */}
-      <div className="mt-5 mb-6 text-left space-y-1">
+      <div className="mt-4 mb-5 text-left space-y-1">
         <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-snug tracking-tight font-sans">
           {data.title}
         </h2>
@@ -250,52 +267,31 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         </div>
       </div>
 
-      {/* 3 & 4. Download Button Rows */}
-      <div className="space-y-3">
+      {/* 3 & 4. Slim, Modern, Clean Download Cards Section */}
+      <div className="space-y-2">
         {downloadOptions.map((opt) => (
           <button
             key={opt.type}
             onClick={() => handleDownload(opt.type, opt.downloadUrl, opt.qualityLabel, opt.format || 'mp4')}
             disabled={downloadingType === opt.type}
-            className="w-full group bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white p-3.5 sm:p-4 rounded-xl transition-all duration-200 flex items-center justify-between gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 shadow-sm disabled:opacity-80 border border-slate-800/50"
+            className="w-full group bg-slate-50 hover:bg-slate-100/90 active:bg-slate-200/80 text-slate-900 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-slate-200/80 transition-all duration-200 flex items-center justify-between gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 shadow-2xs disabled:opacity-75 cursor-pointer"
           >
-            {/* Left side: Format & Quality badge, with File Size below */}
+            {/* Left side: Clean Typography - Main Title & Subtitle in same line or clean row */}
             <div className="flex flex-col min-w-0 flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-semibold text-xs sm:text-sm text-white font-sans truncate">
-                  {opt.label}
-                </span>
-                {opt.badge && (
-                  <span
-                    className={`text-[10px] font-bold font-mono px-1.5 py-0.5 rounded uppercase tracking-wide shrink-0 ${
-                      opt.badge.includes('4K')
-                        ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-xs'
-                        : opt.badge.includes('2K')
-                        ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-xs'
-                        : opt.badge.includes('1080p')
-                        ? 'bg-blue-600 text-white'
-                        : opt.badge.includes('720p')
-                        ? 'bg-sky-600 text-white'
-                        : opt.badge.includes('AUDIO') || opt.badge.includes('MP3')
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-slate-700 text-slate-200'
-                    }`}
-                  >
-                    {opt.badge}
-                  </span>
-                )}
-              </div>
-              <span className="text-[11px] text-slate-400 font-normal mt-1 font-sans truncate">
-                {opt.size}
+              <span className="font-bold text-xs sm:text-sm text-slate-800 font-sans tracking-tight truncate">
+                {opt.mainTitle}
+              </span>
+              <span className="text-[11px] text-slate-500 font-normal font-sans mt-0.5 truncate">
+                {opt.subDetails}
               </span>
             </div>
 
-            {/* Right side: Minimalist Down-Arrow Icon */}
-            <div className="w-8 h-8 rounded-full bg-slate-800 group-hover:bg-slate-700 flex items-center justify-center shrink-0 transition-colors">
+            {/* Right side: Minimalist Circular Action Button */}
+            <div className="w-8 h-8 rounded-full bg-slate-900 text-white group-hover:bg-slate-800 flex items-center justify-center shrink-0 transition-colors shadow-2xs">
               {downloadingType === opt.type ? (
-                <RefreshCw className="w-4 h-4 text-white animate-spin" />
+                <RefreshCw className="w-3.5 h-3.5 text-white animate-spin" />
               ) : (
-                <ArrowDown className="w-4 h-4 text-white group-hover:translate-y-0.5 transition-transform" />
+                <ArrowDown className="w-3.5 h-3.5 text-white group-hover:translate-y-0.5 transition-transform" />
               )}
             </div>
           </button>
@@ -303,7 +299,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
       </div>
 
       {/* Footer Copy Link Action */}
-      <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-sans">
+      <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-sans">
         <button
           onClick={handleCopyLink}
           className="flex items-center gap-1.5 hover:text-slate-900 transition-colors font-medium"
@@ -320,7 +316,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
             </>
           )}
         </button>
-        <span className="text-slate-400 text-[11px]">HD Quality Direct Download</span>
+        <span className="text-slate-400 text-[11px]">Direct Binary Stream Download</span>
       </div>
 
       {/* Video Preview Modal */}
