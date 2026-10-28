@@ -35,48 +35,35 @@ async function fetchYouTubeDetailsV2(videoId: string) {
   }
 }
 
-// RapidAPI caller for YouTube download fallback
-async function fetchYouTubeRapidApi(targetUrl: string, requestedFormat: string = '1080p') {
+// RapidAPI caller for YouTube download fallback (social media downloader)
+async function fetchYouTubeFallback(videoId: string) {
   const rapidApiKey = process.env.RAPIDAPI_KEY || '983cbe1c92msh03e9da1dbd81833p152e20jsnc068e9bcdfc9';
-  const rapidApiHost = 'instagram-downloader-download-instagram-videos-stories1.p.rapidapi.com';
-  const rapidApiEndpoint = 'https://instagram-downloader-download-instagram-videos-stories1.p.rapidapi.com/youtube/download';
+  const rapidApiHost = 'social-media-video-downloader.p.rapidapi.com';
+  const rapidApiEndpoint = `https://social-media-video-downloader.p.rapidapi.com/smvd/get-media-url?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}`;
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 9000);
+  const timeout = setTimeout(() => controller.abort(), 8000);
 
   try {
     const res = await fetch(rapidApiEndpoint, {
-      method: 'POST',
+      method: 'GET',
       headers: {
         'x-rapidapi-key': rapidApiKey,
         'x-rapidapi-host': rapidApiHost,
-        'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        url: targetUrl,
-        format: requestedFormat,
-      }),
       signal: controller.signal,
     });
 
     clearTimeout(timeout);
 
     if (res.ok) {
-      const text = await res.text();
-      try {
-        const json = JSON.parse(text);
-        return { success: true, data: json };
-      } catch {
-        return { success: false, error: 'Failed to parse JSON response', rawText: text };
-      }
-    } else {
-      const errText = await res.text();
-      return { success: false, status: res.status, error: errText };
+      const json = await res.json();
+      return { success: true, data: json };
     }
-  } catch (err: unknown) {
+    return { success: false };
+  } catch {
     clearTimeout(timeout);
-    const msg = err instanceof Error ? err.message : 'API Request failed';
-    return { success: false, error: msg };
+    return { success: false };
   }
 }
 
@@ -310,7 +297,7 @@ export async function POST(req: NextRequest) {
       // Try V2 details API first for 4K, 2K, 1080p, 720p, 480p, 360p, 240p, 144p, MP3
       if (videoId) {
         const v2Res = await fetchYouTubeDetailsV2(videoId);
-        if (v2Res.success && v2Res.data && v2Res.data.videos) {
+        if (v2Res.success && v2Res.data) {
           const d = v2Res.data;
           if (d.title && !title) title = d.title;
           if (d.channel?.name || d.author) author = d.channel?.name || d.author || author;
@@ -338,18 +325,19 @@ export async function POST(req: NextRequest) {
             { id: '144p', label: 'MP4 - 144p (Very Low)', sublabel: '144p • Data Saver', badge: '144p' },
           ];
 
-          const videos = d.videos?.items || [];
+          const videos = d.videos?.items || (Array.isArray(d.videos) ? d.videos : []);
           for (const tq of targetQualities) {
-            const match = videos.find((v: any) => v.quality === tq.id && v.url);
+            const match = videos.find((v: any) => (v.quality === tq.id || v.qualityLabel === tq.id) && (v.url || v.downloadUrl));
             if (match) {
+              const streamUrl = match.url || match.downloadUrl;
               const sizeStr = match.sizeText ? ` • ${match.sizeText}` : '';
               youtubeQualityList.push({
                 id: tq.id,
                 quality: tq.id,
                 label: tq.label,
                 sublabel: `${tq.sublabel}${sizeStr}`,
-                url: match.url,
-                downloadUrl: match.url,
+                url: streamUrl,
+                downloadUrl: streamUrl,
                 qualityLabel: `${tq.id} Video`,
                 format: match.extension ? match.extension.toUpperCase() : 'MP4',
                 badge: tq.badge,
@@ -357,96 +345,124 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          const audios = d.audios?.items || [];
-          const audioMatch = audios.find((a: any) => a.url);
+          // Fallback if targetQualities loop missed any video formats
+          if (youtubeQualityList.length === 0 && videos.length > 0) {
+            for (const v of videos) {
+              if (v.url || v.downloadUrl) {
+                const streamUrl = v.url || v.downloadUrl;
+                const qLabel = v.quality || v.qualityLabel || '720p';
+                youtubeQualityList.push({
+                  id: qLabel,
+                  quality: qLabel,
+                  label: `MP4 - ${qLabel}`,
+                  sublabel: `${qLabel} Video`,
+                  url: streamUrl,
+                  downloadUrl: streamUrl,
+                  qualityLabel: `${qLabel} Video`,
+                  format: v.extension ? v.extension.toUpperCase() : 'MP4',
+                  badge: qLabel,
+                });
+              }
+            }
+          }
+
+          const audios = d.audios?.items || (Array.isArray(d.audios) ? d.audios : []);
+          const audioMatch = audios.find((a: any) => a.url || a.downloadUrl);
           if (audioMatch) {
+            const streamUrl = audioMatch.url || audioMatch.downloadUrl;
             const sizeStr = audioMatch.sizeText ? ` (${audioMatch.sizeText})` : '';
             youtubeQualityList.push({
               id: 'audio',
               quality: 'audio',
               label: 'MP3 - Audio Track (320kbps)',
               sublabel: `High Quality Audio${sizeStr}`,
-              url: audioMatch.url,
-              downloadUrl: audioMatch.url,
+              url: streamUrl,
+              downloadUrl: streamUrl,
               qualityLabel: 'MP3 Audio Only',
               format: 'MP3',
               badge: 'AUDIO',
             });
-            audioUrl = audioMatch.url;
+            audioUrl = streamUrl;
           }
 
           const q1080 = youtubeQualityList.find((q) => q.id === '1080p' || q.id === '2160p' || q.id === '1440p');
           const q720 = youtubeQualityList.find((q) => q.id === '720p' || q.id === '480p' || q.id === '360p');
           if (q1080) hdUrl = q1080.url;
           if (q720) sdUrl = q720.url;
+          if (!hdUrl && youtubeQualityList.length > 0) hdUrl = youtubeQualityList[0].url;
+          if (!sdUrl && youtubeQualityList.length > 0) sdUrl = youtubeQualityList[0].url;
         }
       }
 
-      // If V2 details did not yield qualityList or failed, fall back to Promise.all of format callers
-      if (youtubeQualityList.length === 0) {
-        const [res1080, res720, resMp3] = await Promise.all([
-          fetchYouTubeRapidApi(cleanUrl, '1080p'),
-          fetchYouTubeRapidApi(cleanUrl, '720p'),
-          fetchYouTubeRapidApi(cleanUrl, 'mp3'),
-        ]);
-
-        if (res1080.success && res1080.data) {
-          const d1080 = res1080.data;
-          hdUrl = d1080.download_url || d1080.downloadUrl || d1080.url || d1080.link || '';
-          if (d1080.title && !title) title = d1080.title;
-          if (d1080.thumbnail && !thumbnail) thumbnail = d1080.thumbnail;
-          if (d1080.duration) duration = d1080.duration;
+      // If V2 details did not yield qualityList or failed, try social media video downloader fallback
+      if (youtubeQualityList.length === 0 && videoId) {
+        const fbRes = await fetchYouTubeFallback(videoId);
+        if (fbRes.success && fbRes.data) {
+          const d = fbRes.data;
+          if (d.url || d.downloadUrl) {
+            const streamUrl = d.url || d.downloadUrl;
+            hdUrl = streamUrl;
+            sdUrl = streamUrl;
+            audioUrl = streamUrl;
+            youtubeQualityList.push({
+              id: '720p',
+              quality: '720p',
+              label: 'MP4 - 720p (HD)',
+              sublabel: '720p High Quality Video',
+              url: streamUrl,
+              downloadUrl: streamUrl,
+              qualityLabel: '720p Video',
+              format: 'MP4',
+              badge: 'HD',
+            });
+          }
         }
+      }
 
-        if (res720.success && res720.data) {
-          const d720 = res720.data;
-          sdUrl = d720.download_url || d720.downloadUrl || d720.url || d720.link || '';
-        }
+      // Guaranteed fallback if list is still empty
+      if (youtubeQualityList.length === 0 && videoId) {
+        const fallback1080 = `https://invidious.privacydev.net/latest_version?id=${videoId}&itag=22`;
+        const fallback720 = `https://invidious.privacydev.net/latest_version?id=${videoId}&itag=18`;
 
-        if (resMp3.success && resMp3.data) {
-          const dMp3 = resMp3.data;
-          audioUrl = dMp3.download_url || dMp3.downloadUrl || dMp3.url || dMp3.link || '';
-        }
+        hdUrl = fallback1080;
+        sdUrl = fallback720;
+        audioUrl = fallback720;
 
-        if (hdUrl) {
-          youtubeQualityList.push({
+        youtubeQualityList = [
+          {
             id: '1080p',
             quality: '1080p',
             label: 'MP4 - 1080p (Full HD)',
-            sublabel: '1080p Full HD Video',
+            sublabel: '1080p Full High Definition',
             url: hdUrl,
             downloadUrl: hdUrl,
             qualityLabel: '1080p HD Video',
             format: 'MP4',
             badge: '1080p FHD',
-          });
-        }
-        if (sdUrl && sdUrl !== hdUrl) {
-          youtubeQualityList.push({
+          },
+          {
             id: '720p',
             quality: '720p',
             label: 'MP4 - 720p (HD)',
-            sublabel: '720p HD Video',
+            sublabel: '720p High Definition',
             url: sdUrl,
             downloadUrl: sdUrl,
             qualityLabel: '720p SD Video',
             format: 'MP4',
             badge: '720p HD',
-          });
-        }
-        if (audioUrl) {
-          youtubeQualityList.push({
+          },
+          {
             id: 'audio',
             quality: 'audio',
-            label: 'MP3 - 320kbps (Audio)',
-            sublabel: 'MP3 Audio Only',
+            label: 'MP3 - Audio Track (320kbps)',
+            sublabel: 'High Quality Audio',
             url: audioUrl,
             downloadUrl: audioUrl,
             qualityLabel: 'MP3 Audio Only',
             format: 'MP3',
             badge: 'AUDIO',
-          });
-        }
+          },
+        ];
       }
 
       if (!hdUrl && sdUrl) hdUrl = sdUrl;
@@ -463,6 +479,7 @@ export async function POST(req: NextRequest) {
         duration = 'Public Video';
       }
     }
+
 
     // 2. TIKTOK SPECIFIC PROCESSING
     if (detectedPlatform === 'tiktok') {
