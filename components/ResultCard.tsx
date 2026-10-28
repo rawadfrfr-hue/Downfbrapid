@@ -78,7 +78,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
   const [downloadingType, setDownloadingType] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
-  const handleDownload = async (
+  const handleDownload = (
     type: string,
     downloadUrl: string,
     qualityLabel: string,
@@ -102,21 +102,20 @@ export const ResultCard: React.FC<ResultCardProps> = ({
     const cleanTitle = data.title.replace(/[^\w\.-]/g, '_').slice(0, 30) || 'SaveVibe_Media';
     const targetFilename = `${cleanTitle}_${type}${safeExt}`;
 
-    const proxyDownloadUrl = `/api/download?url=${encodeURIComponent(directCdnUrl)}&filename=${encodeURIComponent(targetFilename)}`;
+    // 100% Direct Client-Side Download Trigger (Zero backend proxying/saving)
+    const link = document.createElement('a');
+    link.href = directCdnUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.setAttribute('download', targetFilename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 
-    // Invisible iframe download method (does NOT open new tab, triggers browser direct file download)
-    let iframe = document.getElementById('download_iframe') as HTMLIFrameElement;
-    if (!iframe) {
-      iframe = document.createElement('iframe');
-      iframe.id = 'download_iframe';
-      iframe.style.display = 'none';
-      document.body.appendChild(iframe);
-    }
-    iframe.src = proxyDownloadUrl;
-
+    // Stop spinner immediately after 800ms
     setTimeout(() => {
       setDownloadingType(null);
-    }, 2000);
+    }, 800);
   };
 
   const handleCopyLink = () => {
@@ -274,9 +273,9 @@ export const ResultCard: React.FC<ResultCardProps> = ({
             key={opt.type}
             onClick={() => handleDownload(opt.type, opt.downloadUrl, opt.qualityLabel, opt.format || 'mp4')}
             disabled={downloadingType === opt.type}
-            className="w-full group bg-slate-50 hover:bg-slate-100/90 active:bg-slate-200/80 text-slate-900 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-slate-200/80 transition-all duration-200 flex items-center justify-between gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 shadow-2xs disabled:opacity-75 cursor-pointer"
+            className="w-full group bg-slate-50 hover:bg-slate-100/90 active:bg-slate-200/80 text-slate-900 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-slate-200/80 transition-all duration-200 flex items-center justify-between gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 shadow-2xs cursor-pointer"
           >
-            {/* Left side: Clean Typography - Main Title & Subtitle in same line or clean row */}
+            {/* Left side: Clean Typography - Main Title & Subtitle */}
             <div className="flex flex-col min-w-0 flex-1">
               <span className="font-bold text-xs sm:text-sm text-slate-800 font-sans tracking-tight truncate">
                 {opt.mainTitle}
@@ -316,7 +315,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
             </>
           )}
         </button>
-        <span className="text-slate-400 text-[11px]">Direct Binary Stream Download</span>
+        <span className="text-slate-400 text-[11px]">Direct CDN Download</span>
       </div>
 
       {/* Video Preview Modal */}
