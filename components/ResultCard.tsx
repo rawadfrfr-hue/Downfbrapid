@@ -12,6 +12,18 @@ import {
 } from 'lucide-react';
 import { PLATFORMS, PlatformType } from '@/lib/platforms';
 
+export interface QualityItem {
+  id: string;
+  quality: string;
+  label: string;
+  sublabel: string;
+  url: string;
+  downloadUrl: string;
+  qualityLabel: string;
+  format: string;
+  badge?: string;
+}
+
 export interface VideoData {
   id: string;
   originalUrl: string;
@@ -22,6 +34,7 @@ export interface VideoData {
   thumbnail: string;
   platform?: string;
   isSingleQuality?: boolean;
+  qualityList?: QualityItem[];
   qualities: {
     hd: {
       quality: string;
@@ -65,7 +78,12 @@ export const ResultCard: React.FC<ResultCardProps> = ({
   const [downloadingType, setDownloadingType] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
-  const handleDownload = async (type: 'hd' | 'sd' | 'audio', downloadUrl: string, qualityLabel: string) => {
+  const handleDownload = async (
+    type: string,
+    downloadUrl: string,
+    qualityLabel: string,
+    formatExt: string = 'mp4'
+  ) => {
     setDownloadingType(type);
     onRecordDownload(qualityLabel);
 
@@ -74,11 +92,14 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         ? data.qualities.hd.url
         : type === 'sd'
         ? data.qualities.sd?.url || data.qualities.hd.url
-        : data.qualities.audio?.url || data.qualities.hd.url;
+        : type === 'audio'
+        ? data.qualities.audio?.url || data.qualities.hd.url
+        : data.qualities.hd.url;
 
     const directCdnUrl = downloadUrl || fallbackDirectUrl;
-    const safeExt = type === 'audio' ? '.mp3' : '.mp4';
-    const cleanTitle = data.title.replace(/[^\w\.-]/g, '_').slice(0, 30) || 'TikTok_Video';
+    const isAudio = formatExt.toLowerCase() === 'mp3' || type === 'audio';
+    const safeExt = isAudio ? '.mp3' : formatExt.toLowerCase() === 'webm' ? '.webm' : '.mp4';
+    const cleanTitle = data.title.replace(/[^\w\.-]/g, '_').slice(0, 30) || 'SaveVibe_Media';
     const targetFilename = `${cleanTitle}_${type}${safeExt}`;
 
     const proxyDownloadUrl = `/api/download?url=${encodeURIComponent(directCdnUrl)}&filename=${encodeURIComponent(targetFilename)}`;
@@ -103,39 +124,58 @@ export const ResultCard: React.FC<ResultCardProps> = ({
 
   const isTikTokOrSingleQuality = platform === 'tiktok' || data.isSingleQuality || data.platform === 'TikTok';
 
-  const downloadOptions = isTikTokOrSingleQuality
-    ? [
-        {
-          type: 'hd' as const,
-          label: 'Max Quality without watermark',
-          size: 'MP4 Video • Watermark-Free',
-          downloadUrl: data.qualities.hd.downloadUrl,
-          qualityLabel: 'Max Quality without watermark',
-        },
-      ]
-    : [
-        {
-          type: 'hd' as const,
-          label: 'MP4 - 1080p (Full HD)',
-          size: data.qualities.hd.size,
-          downloadUrl: data.qualities.hd.downloadUrl,
-          qualityLabel: '1080p HD Video',
-        },
-        {
-          type: 'sd' as const,
-          label: 'MP4 - 720p (HD)',
-          size: data.qualities.sd?.size || '720p HD',
-          downloadUrl: data.qualities.sd?.downloadUrl || '',
-          qualityLabel: '720p SD Video',
-        },
-        {
-          type: 'audio' as const,
-          label: 'MP3 - 320kbps (Audio)',
-          size: data.qualities.audio?.size || 'MP3 Audio',
-          downloadUrl: data.qualities.audio?.downloadUrl || '',
-          qualityLabel: 'MP3 Audio Only',
-        },
-      ];
+  const downloadOptions =
+    data.qualityList && data.qualityList.length > 0
+      ? data.qualityList.map((item) => ({
+          type: item.id,
+          label: item.label,
+          size: item.sublabel,
+          downloadUrl: item.downloadUrl,
+          qualityLabel: item.qualityLabel,
+          format: item.format,
+          badge: item.badge,
+        }))
+      : isTikTokOrSingleQuality
+      ? [
+          {
+            type: 'hd',
+            label: 'Max Quality without watermark',
+            size: 'MP4 Video • Watermark-Free',
+            downloadUrl: data.qualities.hd.downloadUrl,
+            qualityLabel: 'Max Quality without watermark',
+            format: 'MP4',
+            badge: 'MAX',
+          },
+        ]
+      : [
+          {
+            type: 'hd',
+            label: 'MP4 - 1080p (Full HD)',
+            size: data.qualities.hd.size,
+            downloadUrl: data.qualities.hd.downloadUrl,
+            qualityLabel: '1080p HD Video',
+            format: 'MP4',
+            badge: '1080p',
+          },
+          {
+            type: 'sd',
+            label: 'MP4 - 720p (HD)',
+            size: data.qualities.sd?.size || '720p HD',
+            downloadUrl: data.qualities.sd?.downloadUrl || '',
+            qualityLabel: '720p SD Video',
+            format: 'MP4',
+            badge: '720p',
+          },
+          {
+            type: 'audio',
+            label: 'MP3 - 320kbps (Audio)',
+            size: data.qualities.audio?.size || 'MP3 Audio',
+            downloadUrl: data.qualities.audio?.downloadUrl || '',
+            qualityLabel: 'MP3 Audio Only',
+            format: 'MP3',
+            badge: 'MP3',
+          },
+        ];
 
   return (
     <motion.div
@@ -215,16 +255,37 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         {downloadOptions.map((opt) => (
           <button
             key={opt.type}
-            onClick={() => handleDownload(opt.type, opt.downloadUrl, opt.qualityLabel)}
+            onClick={() => handleDownload(opt.type, opt.downloadUrl, opt.qualityLabel, opt.format || 'mp4')}
             disabled={downloadingType === opt.type}
-            className="w-full group bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white p-4 rounded-xl transition-all duration-200 flex items-center justify-between gap-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 shadow-sm disabled:opacity-80"
+            className="w-full group bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white p-3.5 sm:p-4 rounded-xl transition-all duration-200 flex items-center justify-between gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 shadow-sm disabled:opacity-80 border border-slate-800/50"
           >
-            {/* Left side: Format & Quality, with File Size below */}
-            <div className="flex flex-col min-w-0">
-              <span className="font-semibold text-sm text-white font-sans">
-                {opt.label}
-              </span>
-              <span className="text-[11px] text-slate-400 font-normal mt-0.5 font-sans">
+            {/* Left side: Format & Quality badge, with File Size below */}
+            <div className="flex flex-col min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-semibold text-xs sm:text-sm text-white font-sans truncate">
+                  {opt.label}
+                </span>
+                {opt.badge && (
+                  <span
+                    className={`text-[10px] font-bold font-mono px-1.5 py-0.5 rounded uppercase tracking-wide shrink-0 ${
+                      opt.badge.includes('4K')
+                        ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-xs'
+                        : opt.badge.includes('2K')
+                        ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-xs'
+                        : opt.badge.includes('1080p')
+                        ? 'bg-blue-600 text-white'
+                        : opt.badge.includes('720p')
+                        ? 'bg-sky-600 text-white'
+                        : opt.badge.includes('AUDIO') || opt.badge.includes('MP3')
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-slate-700 text-slate-200'
+                    }`}
+                  >
+                    {opt.badge}
+                  </span>
+                )}
+              </div>
+              <span className="text-[11px] text-slate-400 font-normal mt-1 font-sans truncate">
                 {opt.size}
               </span>
             </div>
