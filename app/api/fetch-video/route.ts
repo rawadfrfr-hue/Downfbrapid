@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Ytdl } from '@distube/ytdl-core';
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 const ytdlInstance = new Ytdl();
 
 // RapidAPI caller for YouTube download (V2 details API fallback)

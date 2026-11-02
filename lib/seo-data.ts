@@ -1,7 +1,10 @@
 import type { Metadata } from 'next';
 import { PlatformType } from './platforms';
 
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://savevibe.com';
+export const SITE_URL = (
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://downfbrapid.vercel.app')
+).replace(/\/$/, '');
 
 export interface FAQItem {
   question: string;
@@ -21,7 +24,7 @@ export interface PlatformSeoConfig {
 
 export const SEO_DATA: Record<PlatformType, PlatformSeoConfig> = {
   facebook: {
-    title: 'Facebook Video Downloader - Save FB Videos HD Free',
+    title: 'Facebook Video Downloader - Save FB Reels & Videos HD',
     description:
       'Download Facebook videos, reels, and watch clips in 1080p Full HD & MP3. Free, fast, and secure online FB downloader with no login required.',
     canonicalUrl: `${SITE_URL}/facebook`,
@@ -33,7 +36,7 @@ export const SEO_DATA: Record<PlatformType, PlatformSeoConfig> = {
       'FB video to MP4',
       'Facebook video downloader 1080p',
     ],
-    ogTitle: 'Facebook Video Downloader - Save FB Videos & Reels HD',
+    ogTitle: 'Facebook Video Downloader - Save FB Reels & Videos HD',
     ogDescription:
       'Effortlessly download public Facebook videos and reels in high definition with SaveVibe. Free, fast, and zero software installation.',
     faqs: [
@@ -60,7 +63,7 @@ export const SEO_DATA: Record<PlatformType, PlatformSeoConfig> = {
     ],
   },
   youtube: {
-    title: 'YouTube Video Downloader - Download YT Videos & Shorts HD',
+    title: 'YouTube Video Downloader - Save YT Shorts & MP4 HD',
     description:
       'Download YouTube videos, shorts, and audio tracks in 4K, 1080p HD MP4 and 320kbps MP3. Fast, free YouTube video downloader with high-speed CDN.',
     canonicalUrl: `${SITE_URL}/youtube`,
@@ -72,7 +75,7 @@ export const SEO_DATA: Record<PlatformType, PlatformSeoConfig> = {
       'YouTube audio extractor 320kbps',
       'Fast YT downloader',
     ],
-    ogTitle: 'YouTube Video Downloader - Download YT Shorts & Videos HD',
+    ogTitle: 'YouTube Video Downloader - Save YT Shorts & Videos HD',
     ogDescription:
       'Save public YouTube videos, shorts, and audio clips instantly in 4K, 1080p HD, or high-bitrate MP3 format using SaveVibe.',
     faqs: [
@@ -138,7 +141,7 @@ export const SEO_DATA: Record<PlatformType, PlatformSeoConfig> = {
     ],
   },
   tiktok: {
-    title: 'TikTok Video Downloader Without Watermark - Save TikTok HD',
+    title: 'TikTok Downloader Without Watermark - Save TikTok HD',
     description:
       'Download TikTok videos without watermark in HD MP4 or MP3 audio. Free, fast TikTok saver for mobile & desktop with direct download links.',
     canonicalUrl: `${SITE_URL}/tiktok`,
@@ -150,7 +153,7 @@ export const SEO_DATA: Record<PlatformType, PlatformSeoConfig> = {
       'Free TikTok downloader no watermark',
       'Save TikTok videos mobile',
     ],
-    ogTitle: 'TikTok Video Downloader Without Watermark - Save TikTok HD',
+    ogTitle: 'TikTok Downloader Without Watermark - Save TikTok HD',
     ogDescription:
       'Download TikTok videos in maximum quality without watermark using SaveVibe. Direct high-speed download for mobile and desktop.',
     faqs: [
@@ -178,24 +181,27 @@ export const SEO_DATA: Record<PlatformType, PlatformSeoConfig> = {
   },
 };
 
-export function generatePageMetadata(platform: PlatformType): Metadata {
+export function generatePageMetadata(platform: PlatformType, isHome: boolean = false): Metadata {
   const data = SEO_DATA[platform];
+  const canonicalUrl = isHome ? `${SITE_URL}/` : data.canonicalUrl;
+  const pageTitle = isHome ? 'SaveVibe - Fast & Secure Social Media Video Downloader' : data.title;
+
   return {
-    title: data.title,
+    title: pageTitle,
     description: data.description,
     keywords: data.keywords,
     alternates: {
-      canonical: data.canonicalUrl,
+      canonical: canonicalUrl,
     },
     openGraph: {
       title: data.ogTitle,
       description: data.ogDescription,
-      url: data.canonicalUrl,
+      url: canonicalUrl,
       siteName: 'SaveVibe',
       type: 'website',
       images: [
         {
-          url: `${SITE_URL}/assets/aistudio/bnrsavevibe_b7be51c6.svg`,
+          url: `${SITE_URL}/assets/aistudio/logoosavevibe_afe0d13c.svg`,
           width: 1200,
           height: 630,
           alt: `SaveVibe ${platform} Video Downloader`,
@@ -206,7 +212,7 @@ export function generatePageMetadata(platform: PlatformType): Metadata {
       card: 'summary_large_image',
       title: data.ogTitle,
       description: data.ogDescription,
-      images: [`${SITE_URL}/assets/aistudio/bnrsavevibe_b7be51c6.svg`],
+      images: [`${SITE_URL}/assets/aistudio/logoosavevibe_afe0d13c.svg`],
     },
     robots: {
       index: true,
@@ -222,29 +228,73 @@ export function generatePageMetadata(platform: PlatformType): Metadata {
   };
 }
 
-export function generateJsonLdSchema(platform: PlatformType) {
+export function generateJsonLdSchema(platform: PlatformType, isHome: boolean = false) {
   const data = SEO_DATA[platform];
+  const pageUrl = isHome ? `${SITE_URL}/` : data.canonicalUrl;
+  const platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
+
+  const websiteSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    '@id': `${SITE_URL}/#website`,
+    url: SITE_URL,
+    name: 'SaveVibe',
+    description: 'Fast & Secure Social Media Video Downloader',
+  };
+
+  const webPageSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    '@id': `${pageUrl}#webpage`,
+    url: pageUrl,
+    name: isHome ? 'SaveVibe - Fast & Secure Social Media Video Downloader' : data.title,
+    description: data.description,
+    isPartOf: { '@id': `${SITE_URL}/#website` },
+    breadcrumb: { '@id': `${pageUrl}#breadcrumb` },
+  };
+
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    '@id': `${pageUrl}#breadcrumb`,
+    itemListElement: isHome
+      ? [
+          {
+            '@type': 'ListItem',
+            position: 1,
+            name: 'Home',
+            item: `${SITE_URL}/`,
+          },
+        ]
+      : [
+          {
+            '@type': 'ListItem',
+            position: 1,
+            name: 'Home',
+            item: `${SITE_URL}/`,
+          },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: `${platformName} Downloader`,
+            item: pageUrl,
+          },
+        ],
+  };
 
   const softwareAppSchema = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
-    name: `SaveVibe ${platform.charAt(0).toUpperCase() + platform.slice(1)} Downloader`,
+    name: `SaveVibe ${platformName} Downloader`,
     operatingSystem: 'All',
     applicationCategory: 'MultimediaApplication',
-    url: data.canonicalUrl,
+    url: pageUrl,
     description: data.description,
     offers: {
       '@type': 'Offer',
       price: '0',
       priceCurrency: 'USD',
       availability: 'https://schema.org/InStock',
-    },
-    aggregateRating: {
-      '@type': 'AggregateRating',
-      ratingValue: '4.9',
-      ratingCount: '12850',
-      bestRating: '5',
-      worstRating: '1',
     },
   };
 
@@ -264,15 +314,15 @@ export function generateJsonLdSchema(platform: PlatformType) {
   const howToSchema = {
     '@context': 'https://schema.org',
     '@type': 'HowTo',
-    name: `How to Download ${platform.charAt(0).toUpperCase() + platform.slice(1)} Videos`,
+    name: `How to Download ${platformName} Videos Online`,
     description: `Step by step guide to download high quality ${platform} videos using SaveVibe online tool.`,
     step: data.howToSteps.map((stepText, idx) => ({
       '@type': 'HowToStep',
       position: idx + 1,
-      name: `Step ${idx + 1}`,
+      name: `Step ${idx + 1}: ${idx === 0 ? 'Copy Video Link' : idx === 1 ? 'Paste URL in SaveVibe' : 'Download MP4 File'}`,
       text: stepText,
     })),
   };
 
-  return [softwareAppSchema, faqSchema, howToSchema];
+  return [websiteSchema, webPageSchema, breadcrumbSchema, softwareAppSchema, faqSchema, howToSchema];
 }

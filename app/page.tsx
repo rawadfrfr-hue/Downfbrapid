@@ -3,10 +3,10 @@ import type { Metadata } from 'next';
 import { generatePageMetadata, generateJsonLdSchema } from '@/lib/seo-data';
 import { PlatformPageClient } from '@/components/PlatformPageClient';
 
-export const metadata: Metadata = generatePageMetadata('facebook');
+export const metadata: Metadata = generatePageMetadata('facebook', true);
 
 export default function HomePage() {
-  const schemas = generateJsonLdSchema('facebook');
+  const schemas = generateJsonLdSchema('facebook', true);
 
   return (
     <>

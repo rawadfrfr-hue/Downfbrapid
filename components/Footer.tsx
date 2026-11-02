@@ -1,24 +1,25 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { ShieldCheck, Zap } from 'lucide-react';
 import { ModalType } from './PrivacyTermsModal';
 
 interface FooterProps {
-  onOpenModal: (type: ModalType) => void;
-  totalDownloadsCount: number;
+  onOpenModal?: (type: ModalType) => void;
+  totalDownloadsCount?: number;
 }
 
 export const Footer: React.FC<FooterProps> = ({
   onOpenModal,
-  totalDownloadsCount,
+  totalDownloadsCount = 0,
 }) => {
   return (
     <footer className="w-full border-t border-slate-200 py-6 px-4 mt-auto bg-white">
       <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
         {/* Left copyright & security badge */}
         <div className="flex items-center flex-wrap gap-2">
-          <span className="font-medium text-slate-700">© {new Date().getFullYear()} SaveVibe Downloader</span>
+          <span className="font-medium text-slate-700">© 2026 SaveVibe Downloader</span>
           <span aria-hidden="true">·</span>
           <span className="flex items-center gap-1 text-slate-600 font-medium">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
@@ -35,28 +36,40 @@ export const Footer: React.FC<FooterProps> = ({
           )}
         </div>
 
-        {/* Right: Standard Professional Links */}
-        <div className="flex items-center gap-3 text-xs font-medium">
-          <button
-            onClick={() => onOpenModal('privacy')}
+        {/* Right: Crawlable Links for Search Engine Indexing & E-E-A-T */}
+        <div className="flex items-center flex-wrap gap-3 text-xs font-medium">
+          <Link
+            href="/privacy-policy"
             className="hover:text-slate-900 transition-colors"
           >
             Privacy Policy
-          </button>
+          </Link>
           <span aria-hidden="true" className="text-slate-300">|</span>
-          <button
-            onClick={() => onOpenModal('terms')}
+          <Link
+            href="/terms-of-service"
             className="hover:text-slate-900 transition-colors"
           >
             Terms of Service
-          </button>
+          </Link>
           <span aria-hidden="true" className="text-slate-300">|</span>
-          <button
-            onClick={() => onOpenModal('contact')}
+          <Link
+            href="/dmca"
             className="hover:text-slate-900 transition-colors"
           >
-            Contact Us
-          </button>
+            DMCA Policy
+          </Link>
+          {onOpenModal && (
+            <>
+              <span aria-hidden="true" className="text-slate-300">|</span>
+              <button
+                type="button"
+                onClick={() => onOpenModal('contact')}
+                className="hover:text-slate-900 transition-colors"
+              >
+                Contact
+              </button>
+            </>
+          )}
         </div>
       </div>
     </footer>
