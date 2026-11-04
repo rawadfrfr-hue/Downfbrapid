@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Ytdl } from '@distube/ytdl-core';
 
 export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
-
-const ytdlInstance = new Ytdl();
+export const runtime = 'edge';
 
 // RapidAPI caller for YouTube download (V2 details API fallback)
 async function fetchYouTubeDetailsV2(videoId: string) {
@@ -254,94 +251,8 @@ export async function POST(req: NextRequest) {
         thumbnail = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
       }
 
-      // Primary Extractor: Native YouTube Extractor (@distube/ytdl-core)
+      // Edge-compatible Extractor: V2 Details API (RapidAPI)
       if (videoId) {
-        try {
-          const info = await ytdlInstance.getInfo(videoId);
-          if (info && info.videoDetails) {
-            if (info.videoDetails.title) title = info.videoDetails.title;
-            if (info.videoDetails.author?.name) author = info.videoDetails.author.name;
-            if (info.videoDetails.lengthSeconds) {
-              const sec = parseInt(String(info.videoDetails.lengthSeconds), 10);
-              if (!isNaN(sec)) {
-                const m = Math.floor(sec / 60);
-                const s = sec % 60;
-                duration = `${m}:${s < 10 ? '0' : ''}${s}`;
-              }
-            }
-            if (info.videoDetails.thumbnails?.length > 0) {
-              const maxThumb = info.videoDetails.thumbnails[info.videoDetails.thumbnails.length - 1];
-              if (maxThumb?.url) thumbnail = maxThumb.url;
-            }
-
-            const targetQualities = [
-              { id: '2160p', label: 'MP4 - 2160p (4K Ultra HD)', sublabel: '2160p 4K • Ultra High Definition', badge: '4K UHD' },
-              { id: '1440p', label: 'MP4 - 1440p (2K Quad HD)', sublabel: '1440p 2K • Quad High Definition', badge: '2K QHD' },
-              { id: '1080p', label: 'MP4 - 1080p (Full HD)', sublabel: '1080p • Full High Definition', badge: '1080p FHD' },
-              { id: '720p', label: 'MP4 - 720p (HD)', sublabel: '720p • High Definition', badge: '720p HD' },
-              { id: '480p', label: 'MP4 - 480p (SD)', sublabel: '480p • Standard Definition', badge: '480p' },
-              { id: '360p', label: 'MP4 - 360p (Medium)', sublabel: '360p • Medium Quality', badge: '360p' },
-              { id: '240p', label: 'MP4 - 240p (Low)', sublabel: '240p • Low Quality', badge: '240p' },
-              { id: '144p', label: 'MP4 - 144p (Very Low)', sublabel: '144p • Data Saver', badge: '144p' },
-            ];
-
-            for (const tq of targetQualities) {
-              const match = info.formats.find(
-                (f: any) =>
-                  f.hasVideo &&
-                  (f.qualityLabel === tq.id || f.qualityLabel?.startsWith(tq.id)) &&
-                  typeof f.url === 'string' &&
-                  f.url
-              );
-              if (match && typeof match.url === 'string') {
-                const streamUrl: string = match.url;
-                const formatExt = match.container ? match.container.toUpperCase() : 'MP4';
-                youtubeQualityList.push({
-                  id: tq.id,
-                  quality: tq.id,
-                  label: tq.label,
-                  sublabel: `${tq.sublabel} • ${formatExt}`,
-                  url: streamUrl,
-                  downloadUrl: streamUrl,
-                  qualityLabel: `${tq.id} Video`,
-                  format: formatExt,
-                  badge: tq.badge,
-                });
-              }
-            }
-
-            const audioMatch = info.formats.find((f: any) => f.hasAudio && !f.hasVideo && typeof f.url === 'string' && f.url);
-            if (audioMatch && typeof audioMatch.url === 'string') {
-              const streamUrl: string = audioMatch.url;
-              const formatExt = audioMatch.container ? audioMatch.container.toUpperCase() : 'MP3';
-              youtubeQualityList.push({
-                id: 'audio',
-                quality: 'audio',
-                label: 'MP3 - Audio Track (High Quality)',
-                sublabel: `High Quality Audio • ${formatExt}`,
-                url: streamUrl,
-                downloadUrl: streamUrl,
-                qualityLabel: 'MP3 Audio Only',
-                format: 'MP3',
-                badge: 'AUDIO',
-              });
-              audioUrl = streamUrl;
-            }
-
-            const q1080 = youtubeQualityList.find((q) => q.id === '1080p' || q.id === '2160p' || q.id === '1440p');
-            const q720 = youtubeQualityList.find((q) => q.id === '720p' || q.id === '480p' || q.id === '360p');
-            if (q1080) hdUrl = q1080.url;
-            if (q720) sdUrl = q720.url;
-            if (!hdUrl && youtubeQualityList.length > 0) hdUrl = youtubeQualityList[0].url;
-            if (!sdUrl && youtubeQualityList.length > 0) sdUrl = youtubeQualityList[0].url;
-          }
-        } catch {
-          // Primary extractor fallback
-        }
-      }
-
-      // Secondary Extractor Fallback: V2 Details API
-      if (youtubeQualityList.length === 0 && videoId) {
         try {
           const v2Res = await fetchYouTubeDetailsV2(videoId);
           if (v2Res.success && v2Res.data) {
@@ -404,9 +315,16 @@ export async function POST(req: NextRequest) {
               });
               audioUrl = streamUrl;
             }
+
+            const q1080 = youtubeQualityList.find((q) => q.id === '1080p' || q.id === '2160p' || q.id === '1440p');
+            const q720 = youtubeQualityList.find((q) => q.id === '720p' || q.id === '480p' || q.id === '360p');
+            if (q1080) hdUrl = q1080.url;
+            if (q720) sdUrl = q720.url;
+            if (!hdUrl && youtubeQualityList.length > 0) hdUrl = youtubeQualityList[0].url;
+            if (!sdUrl && youtubeQualityList.length > 0) sdUrl = youtubeQualityList[0].url;
           }
         } catch {
-          // Secondary fallback
+          // Fallback
         }
       }
 

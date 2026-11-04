@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
 import { ShieldCheck, Zap } from 'lucide-react';
 import { ModalType } from './PrivacyTermsModal';
 
@@ -36,30 +35,25 @@ export const Footer: React.FC<FooterProps> = ({
           )}
         </div>
 
-        {/* Right: Crawlable Links for Search Engine Indexing & E-E-A-T */}
+        {/* Right: Modal Action Buttons */}
         <div className="flex items-center flex-wrap gap-3 text-xs font-medium">
-          <Link
-            href="/privacy-policy"
-            className="hover:text-slate-900 transition-colors"
-          >
-            Privacy Policy
-          </Link>
-          <span aria-hidden="true" className="text-slate-300">|</span>
-          <Link
-            href="/terms-of-service"
-            className="hover:text-slate-900 transition-colors"
-          >
-            Terms of Service
-          </Link>
-          <span aria-hidden="true" className="text-slate-300">|</span>
-          <Link
-            href="/dmca"
-            className="hover:text-slate-900 transition-colors"
-          >
-            DMCA Policy
-          </Link>
           {onOpenModal && (
             <>
+              <button
+                type="button"
+                onClick={() => onOpenModal('privacy')}
+                className="hover:text-slate-900 transition-colors"
+              >
+                Privacy Policy
+              </button>
+              <span aria-hidden="true" className="text-slate-300">|</span>
+              <button
+                type="button"
+                onClick={() => onOpenModal('terms')}
+                className="hover:text-slate-900 transition-colors"
+              >
+                Terms of Service
+              </button>
               <span aria-hidden="true" className="text-slate-300">|</span>
               <button
                 type="button"

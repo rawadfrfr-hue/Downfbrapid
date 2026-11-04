@@ -63,7 +63,7 @@ export default function TermsOfServicePage() {
 
             <h2 className="text-lg font-bold text-slate-900 pt-2">3. Disclaimer of Warranties</h2>
             <p>
-              The service is provided on an "AS IS" and "AS AVAILABLE" basis without warranties of any kind. We do not guarantee uninterrupted service or compatibility with all third-party media URLs.
+              The service is provided on an &quot;AS IS&quot; and &quot;AS AVAILABLE&quot; basis without warranties of any kind. We do not guarantee uninterrupted service or compatibility with all third-party media URLs.
             </p>
 
             <h2 className="text-lg font-bold text-slate-900 pt-2">4. Changes to Terms</h2>
