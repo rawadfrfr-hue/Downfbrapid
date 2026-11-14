@@ -35,6 +35,15 @@ const CORE_CDN_BASES = [
 let ffmpegSingleton: FFmpeg | null = null;
 let ffmpegLoadPromise: Promise<FFmpeg> | null = null;
 
+function formatUnknownError(err: unknown): string {
+  if (err instanceof Error) return err.message || err.toString();
+  if (typeof err === 'string' && err.trim()) return err;
+  if (err && typeof err === 'object' && 'message' in err && typeof err.message === 'string') {
+    return err.message;
+  }
+  return 'Unknown initialization error';
+}
+
 async function getFFmpegInstance(
   onProgress?: (progress: MergeProgress) => void
 ): Promise<FFmpeg> {
@@ -58,17 +67,26 @@ async function getFFmpegInstance(
       import('@ffmpeg/util'),
     ]);
 
-    const instance = new FFmpeg();
+    const classWorkerURL =
+      typeof window !== 'undefined'
+        ? `${window.location.origin}/ffmpeg/worker.js`
+        : '/ffmpeg/worker.js';
+
     let lastError: unknown = null;
 
     for (const baseURL of CORE_CDN_BASES) {
+      const instance = new FFmpeg();
       try {
         const [coreURL, wasmURL] = await Promise.all([
           toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
           toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
         ]);
 
-        await instance.load({ coreURL, wasmURL });
+        await instance.load({
+          classWorkerURL,
+          coreURL,
+          wasmURL,
+        });
         ffmpegSingleton = instance;
         onProgress?.({
           stage: 'loading',
@@ -78,15 +96,16 @@ async function getFFmpegInstance(
         return instance;
       } catch (err) {
         lastError = err;
+        try {
+          instance.terminate();
+        } catch {
+          // ignore cleanup errors
+        }
       }
     }
 
     ffmpegLoadPromise = null;
-    throw new Error(
-      lastError instanceof Error
-        ? `Failed to initialize browser FFmpeg: ${lastError.message}`
-        : 'Failed to initialize browser FFmpeg engine.'
-    );
+    throw new Error(`Failed to initialize browser FFmpeg: ${formatUnknownError(lastError)}`);
   })();
 
   return ffmpegLoadPromise;
