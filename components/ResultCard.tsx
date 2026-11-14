@@ -93,6 +93,43 @@ interface ResultCardProps {
   onRecordDownload: (quality: string) => void;
 }
 
+function getNowMs(): number {
+  return Date.now();
+}
+
+function hasActiveUserGesture(startedAtMs: number): boolean {
+  if (typeof navigator !== 'undefined' && 'userActivation' in navigator) {
+    const ua = (navigator as Navigator & { userActivation?: { isActive?: boolean } }).userActivation;
+    if (ua && typeof ua.isActive === 'boolean') {
+      return ua.isActive;
+    }
+  }
+  return getNowMs() - startedAtMs < 1500;
+}
+
+function triggerFileDownload(href: string, filename: string): void {
+  const isBlobOrRelative = href.startsWith('blob:') || href.startsWith('/');
+  const isSameOrigin =
+    isBlobOrRelative ||
+    (typeof window !== 'undefined' && href.startsWith(window.location.origin));
+
+  const a = document.createElement('a');
+  a.href = href;
+  if (!isSameOrigin) {
+    a.target = '_blank';
+  }
+  a.rel = 'noopener noreferrer';
+  if (isSameOrigin) {
+    a.setAttribute('download', filename);
+  }
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    a.remove();
+  }, 1500);
+}
+
 export const ResultCard: React.FC<ResultCardProps> = ({
   data,
   platform = 'facebook',
@@ -105,6 +142,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
   const [mergeProgress, setMergeProgress] = useState<MergeProgress | null>(null);
   const [mergeError, setMergeError] = useState<string | null>(null);
   const [mergedBlobs, setMergedBlobs] = useState<Record<string, { url: string; filename: string }>>({});
+  const [readyMergeUrls, setReadyMergeUrls] = useState<Record<string, string>>({});
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const mergedBlobUrlsRef = useRef<string[]>([]);
   const preparedMergeUrlsRef = useRef<Set<string>>(new Set());
@@ -118,25 +156,49 @@ export const ResultCard: React.FC<ResultCardProps> = ({
 
   const isTikTok = platform === 'tiktok' || data.platform === 'TikTok';
 
-  const triggerFileDownload = (href: string, filename: string, inPlace: boolean) => {
-    const a = document.createElement('a');
-    a.href = href;
-    if (!inPlace) {
-      a.target = '_blank';
-    }
-    a.rel = 'noopener noreferrer';
-    a.setAttribute('download', filename);
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  const getOptionTarget = (opt: DownloadOption) => {
+    const formatExt = opt.format || 'mp4';
+    const cleanExt = formatExt.toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp4';
+    const safeExt = `.${cleanExt}`;
+    const cleanTitle = data.title.replace(/[^\w.\-]/g, '_').slice(0, 30) || 'SaveVibe_Media';
+    const targetFilename = `${cleanTitle}_${opt.type}${safeExt}`;
+
+    const fallbackDirectUrl =
+      opt.type === 'hd'
+        ? data.qualities.hd.url
+        : opt.type === 'sd'
+        ? data.qualities.sd?.url || data.qualities.hd.url
+        : opt.type === 'audio'
+        ? data.qualities.audio?.url || data.qualities.hd.url
+        : data.qualities.hd.url;
+
+    const rawTargetUrl = opt.downloadUrl || fallbackDirectUrl;
+    const isAlreadyProxiedOrMerged =
+      rawTargetUrl.startsWith('/api/') ||
+      rawTargetUrl.includes('/api/merge') ||
+      rawTargetUrl.includes('/api/proxy') ||
+      rawTargetUrl.includes('/api/download');
+
+    const finalDownloadUrl =
+      !isAlreadyProxiedOrMerged && /^https?:\/\//i.test(rawTargetUrl)
+        ? `/api/download?url=${encodeURIComponent(rawTargetUrl)}&filename=${encodeURIComponent(targetFilename)}&dl=1`
+        : rawTargetUrl;
+
+    const isServerMergeUrl = finalDownloadUrl.includes('/api/merge?');
+
+    return {
+      cleanTitle,
+      targetFilename,
+      rawTargetUrl,
+      finalDownloadUrl,
+      isServerMergeUrl,
+    };
   };
 
   const handleDownload = async (opt: DownloadOption) => {
     const {
       type,
-      downloadUrl,
       qualityLabel,
-      format: formatExt = 'mp4',
       requiresClientMerge,
       videoUrl,
       audioUrl,
@@ -146,20 +208,19 @@ export const ResultCard: React.FC<ResultCardProps> = ({
       audioExt,
     } = opt;
 
+    const { cleanTitle, targetFilename, rawTargetUrl, finalDownloadUrl, isServerMergeUrl } =
+      getOptionTarget(opt);
+
     setMergeError(null);
     setDownloadingType(type);
+    const startedAt = getNowMs();
 
-    const cleanExt = formatExt.toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp4';
-    const safeExt = `.${cleanExt}`;
-    const cleanTitle = data.title.replace(/[^\w.\-]/g, '_').slice(0, 30) || 'SaveVibe_Media';
-    const targetFilename = `${cleanTitle}_${type}${safeExt}`;
-
-    // Client-side merging path using ffmpeg.wasm (0% server FFmpeg / bandwidth when direct CDN allows CORS)
+    // Client-side merging path using ffmpeg.wasm (fallback when server FFmpeg is unavailable)
     if (requiresClientMerge && videoUrl && audioUrl) {
       const cachedBlob = mergedBlobs[type];
       if (cachedBlob) {
         onRecordDownload(qualityLabel);
-        triggerFileDownload(cachedBlob.url, cachedBlob.filename, true);
+        triggerFileDownload(cachedBlob.url, cachedBlob.filename);
         setTimeout(() => setDownloadingType(null), 600);
         return;
       }
@@ -191,7 +252,9 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         }));
 
         onRecordDownload(qualityLabel);
-        triggerFileDownload(blobUrl, finalFilename, true);
+        if (hasActiveUserGesture(startedAt)) {
+          triggerFileDownload(blobUrl, finalFilename);
+        }
       } catch (err: unknown) {
         const msg =
           err instanceof Error
@@ -205,19 +268,6 @@ export const ResultCard: React.FC<ResultCardProps> = ({
       return;
     }
 
-    const fallbackDirectUrl =
-      type === 'hd'
-        ? data.qualities.hd.url
-        : type === 'sd'
-        ? data.qualities.sd?.url || data.qualities.hd.url
-        : type === 'audio'
-        ? data.qualities.audio?.url || data.qualities.hd.url
-        : data.qualities.hd.url;
-
-    const rawTargetUrl = downloadUrl || fallbackDirectUrl;
-
-    const isServerMergeUrl = rawTargetUrl.includes('/api/merge?');
-
     if (isServerMergeUrl && !preparedMergeUrlsRef.current.has(rawTargetUrl)) {
       try {
         setMergeProgress({
@@ -226,17 +276,23 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           message: 'Preparing video & audio on server...',
         });
 
-        const prepareUrl = rawTargetUrl.replace('/api/merge?', '/api/merge/prepare?').replace(/&dl=\d+/, '');
+        const prepareUrl = rawTargetUrl
+          .replace('/api/merge?', '/api/merge/prepare?')
+          .replace(/&dl=\d+/, '');
         const prepRes = await fetch(prepareUrl, { method: 'POST', cache: 'no-store' });
 
         if (prepRes.ok) {
           preparedMergeUrlsRef.current.add(rawTargetUrl);
+          setReadyMergeUrls((prev) => ({ ...prev, [type]: finalDownloadUrl }));
           setMergeProgress({
             stage: 'saving',
             percent: 100,
-            message: `Saving ${targetFilename}...`,
+            message: `Ready: ${targetFilename}`,
           });
-        } else if (prepRes.status !== 404 && prepRes.status !== 405) {
+        } else if (prepRes.status === 404 || prepRes.status === 405) {
+          preparedMergeUrlsRef.current.add(rawTargetUrl);
+          setReadyMergeUrls((prev) => ({ ...prev, [type]: finalDownloadUrl }));
+        } else {
           const errPayload = await prepRes.json().catch(() => null);
           throw new Error(
             errPayload?.detail || errPayload?.error || 'Failed to prepare video download. Please fetch again.'
@@ -249,35 +305,21 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           setDownloadingType(null);
           return;
         }
-        // Network/CORS issue on prepare endpoint: fall back to direct /api/merge download navigation
+        // Network/CORS issue on prepare endpoint: expose direct /api/merge link
+        preparedMergeUrlsRef.current.add(rawTargetUrl);
+        setReadyMergeUrls((prev) => ({ ...prev, [type]: finalDownloadUrl }));
       }
     }
 
     onRecordDownload(qualityLabel);
-
-    const isAlreadyProxiedOrMerged =
-      rawTargetUrl.startsWith('/api/') ||
-      rawTargetUrl.includes('/api/merge') ||
-      rawTargetUrl.includes('/api/proxy') ||
-      rawTargetUrl.includes('/api/download');
-
-    const finalDownloadUrl =
-      !isAlreadyProxiedOrMerged && /^https?:\/\//i.test(rawTargetUrl)
-        ? `/api/download?url=${encodeURIComponent(rawTargetUrl)}&filename=${encodeURIComponent(targetFilename)}&dl=1`
-        : rawTargetUrl;
-
-    const useInPlaceDownload =
-      finalDownloadUrl.startsWith('/api/') ||
-      finalDownloadUrl.includes('/api/merge') ||
-      finalDownloadUrl.includes('/api/proxy') ||
-      finalDownloadUrl.includes('/api/download');
-
-    triggerFileDownload(finalDownloadUrl, targetFilename, useInPlaceDownload);
+    if (!isServerMergeUrl || hasActiveUserGesture(startedAt)) {
+      triggerFileDownload(finalDownloadUrl, targetFilename);
+    }
 
     setTimeout(() => {
       setMergeProgress(null);
       setDownloadingType(null);
-    }, isServerMergeUrl ? 1200 : 800);
+    }, isServerMergeUrl ? 700 : 500);
   };
 
   const handleCopyLink = () => {
@@ -506,13 +548,23 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           const isAnyClientMerging = downloadingType !== null && mergeProgress !== null;
           const showInlineProgress = isThisDownloading && mergeProgress !== null;
 
-          return (
-            <button
-              key={opt.type}
-              onClick={() => handleDownload(opt)}
-              disabled={isThisDownloading || isAnyClientMerging}
-              className="w-full group relative overflow-hidden bg-slate-50 hover:bg-slate-100/90 active:bg-slate-200/80 disabled:opacity-80 disabled:cursor-not-allowed text-slate-900 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-slate-200/80 transition-all duration-200 flex flex-col gap-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 shadow-2xs cursor-pointer"
-            >
+          const { targetFilename, finalDownloadUrl, isServerMergeUrl } = getOptionTarget(opt);
+          const readyBlob = mergedBlobs[opt.type];
+          const readyServerUrl = readyMergeUrls[opt.type];
+
+          const isReadyClientMerge = Boolean(opt.requiresClientMerge && readyBlob);
+          const isDirectNonMerge = !opt.requiresClientMerge && !isServerMergeUrl;
+          const isReadyServerMerge = Boolean(isServerMergeUrl && readyServerUrl);
+          const shouldRenderNativeAnchor =
+            (isReadyClientMerge || isDirectNonMerge || isReadyServerMerge) && !isAnyClientMerging;
+
+          const anchorHref = readyBlob?.url || readyServerUrl || finalDownloadUrl;
+          const anchorFilename = readyBlob?.filename || targetFilename;
+          const isSameOriginOrBlobAnchor =
+            anchorHref.startsWith('/') || anchorHref.startsWith('blob:');
+
+          const cardInner = (
+            <>
               <div className="w-full flex items-center justify-between gap-3">
                 {/* Left side: Clean Typography - Main Title & Subtitle */}
                 <div className="flex flex-col min-w-0 flex-1">
@@ -522,8 +574,10 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                   <span className="text-[11px] text-slate-500 font-normal font-sans mt-0.5 truncate">
                     {showInlineProgress
                       ? mergeProgress.message
-                      : mergedBlobs[opt.type]
-                      ? `${opt.format} • Ready in browser (Instant Save)`
+                      : readyBlob
+                      ? `${opt.format} • Ready — Click to Save`
+                      : readyServerUrl
+                      ? `${opt.format} • Ready — Click to Save`
                       : opt.subDetails}
                   </span>
                 </div>
@@ -532,7 +586,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                 <div className="w-8 h-8 rounded-full bg-slate-900 text-white group-hover:bg-slate-800 flex items-center justify-center shrink-0 transition-colors shadow-2xs">
                   {isThisDownloading ? (
                     <RefreshCw className="w-3.5 h-3.5 text-white animate-spin" />
-                  ) : mergedBlobs[opt.type] ? (
+                  ) : readyBlob || readyServerUrl ? (
                     <Check className="w-3.5 h-3.5 text-emerald-400" />
                   ) : (
                     <ArrowDown className="w-3.5 h-3.5 text-white group-hover:translate-y-0.5 transition-transform" />
@@ -548,6 +602,40 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                   />
                 </div>
               )}
+            </>
+          );
+
+          const cardClasses =
+            'w-full group relative overflow-hidden bg-slate-50 hover:bg-slate-100/90 active:bg-slate-200/80 disabled:opacity-80 disabled:cursor-not-allowed text-slate-900 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-slate-200/80 transition-all duration-200 flex flex-col gap-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 shadow-2xs cursor-pointer';
+
+          if (shouldRenderNativeAnchor) {
+            return (
+              <a
+                key={opt.type}
+                href={anchorHref}
+                download={isSameOriginOrBlobAnchor ? anchorFilename : undefined}
+                target={isSameOriginOrBlobAnchor ? undefined : '_blank'}
+                rel="noopener noreferrer"
+                onClick={() => {
+                  setMergeError(null);
+                  onRecordDownload(opt.qualityLabel);
+                }}
+                className={cardClasses}
+              >
+                {cardInner}
+              </a>
+            );
+          }
+
+          return (
+            <button
+              key={opt.type}
+              type="button"
+              onClick={() => handleDownload(opt)}
+              disabled={isThisDownloading || isAnyClientMerging}
+              className={cardClasses}
+            >
+              {cardInner}
             </button>
           );
         })}

@@ -17,7 +17,7 @@ from urllib.parse import parse_qsl, quote, urlencode, urlparse, urlunparse
 from cachetools import TTLCache
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse
 import httpx
 from pydantic import BaseModel, HttpUrl
 from starlette.background import BackgroundTask
@@ -1539,7 +1539,7 @@ async def prepare_merged_video(token: str = Query(..., min_length=10)):
     return {"success": True, "ready": True, "sizeBytes": size_bytes}
 
 
-@app.get("/api/merge")
+@app.api_route("/api/merge", methods=["GET", "HEAD"])
 async def download_merged_video(
     token: str = Query(..., min_length=10),
     dl: int = Query(default=1),
@@ -1555,26 +1555,62 @@ async def download_merged_video(
         path=output_path,
         media_type="video/mp4",
         headers={
-            "Content-Disposition": f'{disposition}; filename="{filename}"',
+            "Content-Disposition": f'{disposition}; filename="{filename}"; filename*=UTF-8\'\'{quote(filename)}',
             "Cache-Control": "private, max-age=600",
+            "Accept-Ranges": "bytes",
         },
     )
 
 
-async def close_proxy_stream(upstream: httpx.Response, client: httpx.AsyncClient) -> None:
+_proxy_clients_lock = asyncio.Lock()
+_proxy_clients: dict[str, httpx.AsyncClient] = {}
+
+
+async def get_shared_proxy_client(proxy_url: Optional[str]) -> httpx.AsyncClient:
+    key = proxy_url or "__direct__"
+    async with _proxy_clients_lock:
+        client = _proxy_clients.get(key)
+        if client is not None and not client.is_closed:
+            return client
+        client = httpx.AsyncClient(
+            proxy=proxy_url,
+            follow_redirects=True,
+            timeout=httpx.Timeout(connect=20.0, read=60.0, write=30.0, pool=20.0),
+            limits=httpx.Limits(max_connections=100, max_keepalive_connections=30, keepalive_expiry=60.0),
+        )
+        _proxy_clients[key] = client
+        return client
+
+
+@app.on_event("shutdown")
+async def shutdown_shared_proxy_clients() -> None:
+    async with _proxy_clients_lock:
+        clients = list(_proxy_clients.values())
+        _proxy_clients.clear()
+    for client in clients:
+        try:
+            await client.aclose()
+        except Exception:
+            pass
+
+
+async def close_proxy_stream(upstream: httpx.Response) -> None:
     try:
         await upstream.aclose()
-    finally:
-        await client.aclose()
+    except Exception:
+        pass
 
 
 async def iter_proxy_bytes(upstream: httpx.Response):
-    async for chunk in upstream.aiter_bytes(chunk_size=131072):
-        if chunk:
-            yield chunk
+    try:
+        async for chunk in upstream.aiter_bytes(chunk_size=524288):
+            if chunk:
+                yield chunk
+    finally:
+        await close_proxy_stream(upstream)
 
 
-@app.get("/api/proxy")
+@app.api_route("/api/proxy", methods=["GET", "HEAD"])
 async def proxy_media_stream(
     request: Request,
     token: str = Query(..., min_length=10),
@@ -1603,22 +1639,23 @@ async def proxy_media_stream(
     if range_header:
         headers["Range"] = range_header
 
-    client = httpx.AsyncClient(
-        proxy=proxy_url,
-        follow_redirects=True,
-        timeout=httpx.Timeout(connect=20.0, read=60.0, write=30.0, pool=20.0),
-    )
+    client = await get_shared_proxy_client(proxy_url)
 
     try:
-        req = client.build_request("GET", media_url, headers=headers)
+        upstream_method = "HEAD" if request.method == "HEAD" else "GET"
+        req = client.build_request(upstream_method, media_url, headers=headers)
         upstream = await client.send(req, stream=True)
+        if request.method == "HEAD" and upstream.status_code in (403, 405, 501):
+            await close_proxy_stream(upstream)
+            probe_headers = {**headers, "Range": "bytes=0-0"}
+            req = client.build_request("GET", media_url, headers=probe_headers)
+            upstream = await client.send(req, stream=True)
     except Exception as exc:
-        await client.aclose()
         raise HTTPException(status_code=502, detail=f"Failed to stream media via proxy: {str(exc)}")
 
     if upstream.status_code >= 400 and upstream.status_code != 206:
         status_code = 410 if upstream.status_code in (403, 404) else 502
-        await close_proxy_stream(upstream, client)
+        await close_proxy_stream(upstream)
         raise HTTPException(
             status_code=status_code,
             detail=f"Media source returned HTTP {upstream.status_code}. Please fetch the link again.",
@@ -1638,7 +1675,7 @@ async def proxy_media_stream(
     disposition = "attachment" if dl != 0 else "inline"
 
     resp_headers: dict[str, str] = {
-        "Content-Disposition": f'{disposition}; filename="{filename}"',
+        "Content-Disposition": f'{disposition}; filename="{filename}"; filename*=UTF-8\'\'{quote(filename)}',
         "Cache-Control": "private, max-age=300",
         "X-Content-Type-Options": "nosniff",
         "Accept-Ranges": upstream.headers.get("accept-ranges") or "bytes",
@@ -1648,10 +1685,26 @@ async def proxy_media_stream(
     if upstream.headers.get("content-range"):
         resp_headers["Content-Range"] = upstream.headers["content-range"]
 
+    if request.method == "HEAD":
+        status_code = upstream.status_code
+        content_range = upstream.headers.get("content-range")
+        if status_code == 206 and content_range:
+            match = re.search(r"/(\d+)$", content_range)
+            if match:
+                resp_headers["Content-Length"] = match.group(1)
+                resp_headers.pop("Content-Range", None)
+                status_code = 200
+        await close_proxy_stream(upstream)
+        return Response(
+            status_code=status_code,
+            media_type=content_type,
+            headers=resp_headers,
+        )
+
     return StreamingResponse(
         iter_proxy_bytes(upstream),
         status_code=upstream.status_code,
         media_type=content_type,
         headers=resp_headers,
-        background=BackgroundTask(close_proxy_stream, upstream, client),
+        background=BackgroundTask(close_proxy_stream, upstream),
     )

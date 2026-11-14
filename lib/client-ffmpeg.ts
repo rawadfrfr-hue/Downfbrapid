@@ -66,7 +66,7 @@ async function getFFmpegInstance(
 
     const [{ FFmpeg }] = await Promise.all([import('@ffmpeg/ffmpeg')]);
 
-    const fetchBlobUrl = async (url: string, mimeType: string, timeoutMs: number = 15000) => {
+    const fetchBlobUrl = async (url: string, mimeType: string, timeoutMs: number = 45000) => {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeoutMs);
       try {
@@ -92,8 +92,8 @@ async function getFFmpegInstance(
       const instance = new FFmpeg();
       try {
         const [coreURL, wasmURL] = await Promise.all([
-          fetchBlobUrl(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-          fetchBlobUrl(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+          fetchBlobUrl(`${baseURL}/ffmpeg-core.js`, 'text/javascript', 20000),
+          fetchBlobUrl(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm', 45000),
         ]);
 
         await instance.load({
