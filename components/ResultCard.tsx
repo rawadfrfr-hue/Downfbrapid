@@ -98,16 +98,16 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         : data.qualities.hd.url;
 
     const directCdnUrl = downloadUrl || fallbackDirectUrl;
-    const isAudio = formatExt.toLowerCase() === 'mp3' || type === 'audio';
-    const safeExt = isAudio ? '.mp3' : formatExt.toLowerCase() === 'webm' ? '.webm' : '.mp4';
+    const cleanExt = formatExt.toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp4';
+    const safeExt = `.${cleanExt}`;
     const cleanTitle = data.title.replace(/[^\w\.-]/g, '_').slice(0, 30) || 'SaveVibe_Media';
     const targetFilename = `${cleanTitle}_${type}${safeExt}`;
 
-    // Same-origin attachment endpoint for forced download save dialog (zero backend file storage)
-    const proxyDownloadUrl = `/api/download?url=${encodeURIComponent(directCdnUrl)}&filename=${encodeURIComponent(targetFilename)}`;
-
+    // Direct CDN download link (0% server bandwidth)
     const a = document.createElement('a');
-    a.href = proxyDownloadUrl;
+    a.href = directCdnUrl;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
     a.setAttribute('download', targetFilename);
     document.body.appendChild(a);
     a.click();
@@ -115,7 +115,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
 
     setTimeout(() => {
       setDownloadingType(null);
-    }, 1500);
+    }, 1000);
   };
 
   const handleCopyLink = () => {
@@ -126,9 +126,56 @@ export const ResultCard: React.FC<ResultCardProps> = ({
 
   const isTikTokOrSingleQuality = platform === 'tiktok' || data.isSingleQuality || data.platform === 'TikTok';
 
+  const fallbackOptions = isTikTokOrSingleQuality
+    ? [
+        {
+          type: 'hd',
+          mainTitle: 'Max Quality (No Watermark)',
+          subDetails: 'MP4 • Watermark-Free • High Quality',
+          downloadUrl: data.qualities.hd.downloadUrl,
+          qualityLabel: 'Max Quality without watermark',
+          format: data.qualities.hd.format || 'MP4',
+        },
+      ]
+    : [
+        {
+          type: 'hd',
+          mainTitle: data.qualities.hd.quality || '1080p (Full HD)',
+          subDetails: `${data.qualities.hd.format || 'MP4'} • High Quality • ${data.qualities.hd.size}`,
+          downloadUrl: data.qualities.hd.downloadUrl,
+          qualityLabel: data.qualities.hd.quality || 'HD Video',
+          format: data.qualities.hd.format || 'MP4',
+        },
+        ...(data.qualities.sd?.downloadUrl
+          ? [
+              {
+                type: 'sd',
+                mainTitle: data.qualities.sd.quality || '720p (SD)',
+                subDetails: `${data.qualities.sd.format || 'MP4'} • Standard Quality • ${data.qualities.sd.size}`,
+                downloadUrl: data.qualities.sd.downloadUrl,
+                qualityLabel: data.qualities.sd.quality || 'SD Video',
+                format: data.qualities.sd.format || 'MP4',
+              },
+            ]
+          : []),
+        ...(data.qualities.audio?.downloadUrl
+          ? [
+              {
+                type: 'audio',
+                mainTitle: `${data.qualities.audio.format || 'M4A'} (Audio Only)`,
+                subDetails: `${data.qualities.audio.format || 'M4A'} • Audio Track • ${data.qualities.audio.size}`,
+                downloadUrl: data.qualities.audio.downloadUrl,
+                qualityLabel: 'Audio Only',
+                format: data.qualities.audio.format || 'M4A',
+              },
+            ]
+          : []),
+      ];
+
   const downloadOptions =
     data.qualityList && data.qualityList.length > 0
       ? data.qualityList.map((item) => {
+          const formatText = item.format || (item.id === 'audio' ? 'M4A' : 'MP4');
           let mainTitle = '';
           if (item.id === '2160p') mainTitle = '2160p (4K Ultra HD)';
           else if (item.id === '1440p') mainTitle = '1440p (2K Quad HD)';
@@ -138,10 +185,9 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           else if (item.id === '360p') mainTitle = '360p (Standard)';
           else if (item.id === '240p') mainTitle = '240p (Low)';
           else if (item.id === '144p') mainTitle = '144p (Data Saver)';
-          else if (item.id === 'audio') mainTitle = 'MP3 (Audio Only)';
+          else if (item.id === 'audio') mainTitle = `${formatText} (Audio Only)`;
           else mainTitle = item.label;
 
-          const formatText = item.format || (item.id === 'audio' ? 'MP3' : 'MP4');
           let cleanSub = item.sublabel;
           cleanSub = cleanSub.replace(/^MP\d\s*•?\s*/i, '');
           cleanSub = cleanSub.replace(/\(([^)]+)\)/, '• $1');
@@ -152,46 +198,10 @@ export const ResultCard: React.FC<ResultCardProps> = ({
             subDetails: `${formatText} • ${cleanSub}`,
             downloadUrl: item.downloadUrl,
             qualityLabel: item.qualityLabel,
-            format: item.format,
+            format: formatText,
           };
         })
-      : isTikTokOrSingleQuality
-      ? [
-          {
-            type: 'hd',
-            mainTitle: 'Max Quality (No Watermark)',
-            subDetails: 'MP4 • Watermark-Free • High Quality',
-            downloadUrl: data.qualities.hd.downloadUrl,
-            qualityLabel: 'Max Quality without watermark',
-            format: 'MP4',
-          },
-        ]
-      : [
-          {
-            type: 'hd',
-            mainTitle: '1080p (Full HD)',
-            subDetails: `MP4 • High Quality • ${data.qualities.hd.size}`,
-            downloadUrl: data.qualities.hd.downloadUrl,
-            qualityLabel: '1080p HD Video',
-            format: 'MP4',
-          },
-          {
-            type: 'sd',
-            mainTitle: '720p (HD)',
-            subDetails: `MP4 • Standard Quality • ${data.qualities.sd?.size || '720p'}`,
-            downloadUrl: data.qualities.sd?.downloadUrl || '',
-            qualityLabel: '720p SD Video',
-            format: 'MP4',
-          },
-          {
-            type: 'audio',
-            mainTitle: 'MP3 (Audio Only)',
-            subDetails: `MP3 • High Quality Audio • ${data.qualities.audio?.size || '320kbps'}`,
-            downloadUrl: data.qualities.audio?.downloadUrl || '',
-            qualityLabel: 'MP3 Audio Only',
-            format: 'MP3',
-          },
-        ];
+      : fallbackOptions;
 
   return (
     <motion.div
