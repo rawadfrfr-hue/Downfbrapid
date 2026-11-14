@@ -150,6 +150,8 @@ export async function GET(req: NextRequest) {
     );
     responseHeaders.set('Cache-Control', 'private, max-age=300');
     responseHeaders.set('X-Content-Type-Options', 'nosniff');
+    responseHeaders.set('Access-Control-Allow-Origin', '*');
+    responseHeaders.set('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
 
     const contentLength = upstreamRes.headers.get('content-length');
     if (contentLength) {

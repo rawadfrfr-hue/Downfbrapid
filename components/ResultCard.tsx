@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowDown,
@@ -10,8 +10,10 @@ import {
   RefreshCw,
   X,
   ExternalLink,
+  AlertCircle,
 } from 'lucide-react';
 import { PLATFORMS, PlatformType } from '@/lib/platforms';
+import { mergeVideoAndAudioInBrowser, MergeProgress } from '@/lib/client-ffmpeg';
 
 export interface QualityItem {
   id: string;
@@ -23,6 +25,28 @@ export interface QualityItem {
   qualityLabel: string;
   format: string;
   badge?: string;
+  requiresClientMerge?: boolean;
+  videoUrl?: string;
+  audioUrl?: string;
+  vcodec?: string;
+  acodec?: string;
+  videoExt?: string;
+  audioExt?: string;
+}
+
+export interface QualityInfo {
+  quality: string;
+  url: string;
+  downloadUrl: string;
+  size: string;
+  format: string;
+  requiresClientMerge?: boolean;
+  videoUrl?: string;
+  audioUrl?: string;
+  vcodec?: string;
+  acodec?: string;
+  videoExt?: string;
+  audioExt?: string;
 }
 
 export interface VideoData {
@@ -35,30 +59,31 @@ export interface VideoData {
   thumbnail: string;
   platform?: string;
   isSingleQuality?: boolean;
+  previewUrl?: string;
+  bestVideoUrl?: string;
+  bestAudioUrl?: string | null;
   qualityList?: QualityItem[];
   qualities: {
-    hd: {
-      quality: string;
-      url: string;
-      downloadUrl: string;
-      size: string;
-      format: string;
-    };
-    sd?: {
-      quality: string;
-      url: string;
-      downloadUrl: string;
-      size: string;
-      format: string;
-    };
-    audio?: {
-      quality: string;
-      url: string;
-      downloadUrl: string;
-      size: string;
-      format: string;
-    };
+    hd: QualityInfo;
+    sd?: QualityInfo;
+    audio?: QualityInfo;
   };
+}
+
+interface DownloadOption {
+  type: string;
+  mainTitle: string;
+  subDetails: string;
+  downloadUrl: string;
+  qualityLabel: string;
+  format: string;
+  requiresClientMerge?: boolean;
+  videoUrl?: string;
+  audioUrl?: string;
+  vcodec?: string;
+  acodec?: string;
+  videoExt?: string;
+  audioExt?: string;
 }
 
 interface ResultCardProps {
@@ -77,17 +102,104 @@ export const ResultCard: React.FC<ResultCardProps> = ({
   const platformConfig = PLATFORMS[platform] || PLATFORMS.facebook;
   const [copiedLink, setCopiedLink] = useState(false);
   const [downloadingType, setDownloadingType] = useState<string | null>(null);
+  const [mergeProgress, setMergeProgress] = useState<MergeProgress | null>(null);
+  const [mergeError, setMergeError] = useState<string | null>(null);
+  const [mergedBlobs, setMergedBlobs] = useState<Record<string, string>>({});
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const mergedBlobUrlsRef = useRef<string[]>([]);
+
+  useEffect(() => {
+    const urls = mergedBlobUrlsRef.current;
+    return () => {
+      urls.forEach((u) => URL.revokeObjectURL(u));
+    };
+  }, []);
 
   const isTikTok = platform === 'tiktok' || data.platform === 'TikTok';
 
-  const handleDownload = (
-    type: string,
-    downloadUrl: string,
-    qualityLabel: string,
-    formatExt: string = 'mp4'
-  ) => {
+  const triggerFileDownload = (href: string, filename: string, inPlace: boolean) => {
+    const a = document.createElement('a');
+    a.href = href;
+    if (!inPlace) {
+      a.target = '_blank';
+    }
+    a.rel = 'noopener noreferrer';
+    a.setAttribute('download', filename);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const handleDownload = async (opt: DownloadOption) => {
+    const {
+      type,
+      downloadUrl,
+      qualityLabel,
+      format: formatExt = 'mp4',
+      requiresClientMerge,
+      videoUrl,
+      audioUrl,
+      vcodec,
+      acodec,
+      videoExt,
+      audioExt,
+    } = opt;
+
+    setMergeError(null);
     setDownloadingType(type);
+
+    const cleanExt = formatExt.toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp4';
+    const safeExt = `.${cleanExt}`;
+    const cleanTitle = data.title.replace(/[^\w.\-]/g, '_').slice(0, 30) || 'SaveVibe_Media';
+    const targetFilename = `${cleanTitle}_${type}${safeExt}`;
+
+    // Client-side merging path using ffmpeg.wasm (0% server FFmpeg / bandwidth when direct CDN allows CORS)
+    if (requiresClientMerge && videoUrl && audioUrl) {
+      const cachedBlobUrl = mergedBlobs[type];
+      if (cachedBlobUrl) {
+        onRecordDownload(qualityLabel);
+        triggerFileDownload(cachedBlobUrl, targetFilename, true);
+        setTimeout(() => setDownloadingType(null), 600);
+        return;
+      }
+
+      try {
+        setMergeProgress({
+          stage: 'loading',
+          percent: 5,
+          message: 'Preparing browser FFmpeg...',
+        });
+
+        const { blob } = await mergeVideoAndAudioInBrowser({
+          videoUrl,
+          audioUrl,
+          filename: targetFilename,
+          vcodec,
+          acodec,
+          videoExt,
+          audioExt,
+          onProgress: (progress) => setMergeProgress(progress),
+        });
+
+        const blobUrl = URL.createObjectURL(blob);
+        mergedBlobUrlsRef.current.push(blobUrl);
+        setMergedBlobs((prev) => ({ ...prev, [type]: blobUrl }));
+
+        onRecordDownload(qualityLabel);
+        triggerFileDownload(blobUrl, targetFilename, true);
+      } catch (err: unknown) {
+        const msg =
+          err instanceof Error
+            ? err.message
+            : 'Browser merge failed. Please try fetching the video link again.';
+        setMergeError(msg);
+      } finally {
+        setMergeProgress(null);
+        setDownloadingType(null);
+      }
+      return;
+    }
+
     onRecordDownload(qualityLabel);
 
     const fallbackDirectUrl =
@@ -100,10 +212,6 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         : data.qualities.hd.url;
 
     const rawTargetUrl = downloadUrl || fallbackDirectUrl;
-    const cleanExt = formatExt.toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp4';
-    const safeExt = `.${cleanExt}`;
-    const cleanTitle = data.title.replace(/[^\w\.-]/g, '_').slice(0, 30) || 'SaveVibe_Media';
-    const targetFilename = `${cleanTitle}_${type}${safeExt}`;
 
     const isAlreadyProxiedOrMerged =
       rawTargetUrl.startsWith('/api/') ||
@@ -122,16 +230,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
       finalDownloadUrl.includes('/api/proxy') ||
       finalDownloadUrl.includes('/api/download');
 
-    const a = document.createElement('a');
-    a.href = finalDownloadUrl;
-    if (!useInPlaceDownload) {
-      a.target = '_blank';
-    }
-    a.rel = 'noopener noreferrer';
-    a.setAttribute('download', targetFilename);
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    triggerFileDownload(finalDownloadUrl, targetFilename, useInPlaceDownload);
 
     setTimeout(() => {
       setDownloadingType(null);
@@ -144,7 +243,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
-  const fallbackOptions = isTikTok
+  const fallbackOptions: DownloadOption[] = isTikTok
     ? [
         {
           type: 'sd',
@@ -153,6 +252,13 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           downloadUrl: data.qualities.sd?.downloadUrl || data.qualities.hd.downloadUrl,
           qualityLabel: 'Standard quality (without watermark)',
           format: data.qualities.sd?.format || 'MP4',
+          requiresClientMerge: data.qualities.sd?.requiresClientMerge,
+          videoUrl: data.qualities.sd?.videoUrl,
+          audioUrl: data.qualities.sd?.audioUrl,
+          vcodec: data.qualities.sd?.vcodec,
+          acodec: data.qualities.sd?.acodec,
+          videoExt: data.qualities.sd?.videoExt,
+          audioExt: data.qualities.sd?.audioExt,
         },
         {
           type: 'hd',
@@ -161,6 +267,13 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           downloadUrl: data.qualities.hd.downloadUrl,
           qualityLabel: 'High quality (without watermark)',
           format: data.qualities.hd.format || 'MP4',
+          requiresClientMerge: data.qualities.hd.requiresClientMerge,
+          videoUrl: data.qualities.hd.videoUrl,
+          audioUrl: data.qualities.hd.audioUrl,
+          vcodec: data.qualities.hd.vcodec,
+          acodec: data.qualities.hd.acodec,
+          videoExt: data.qualities.hd.videoExt,
+          audioExt: data.qualities.hd.audioExt,
         },
       ]
     : [
@@ -171,6 +284,13 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           downloadUrl: data.qualities.hd.downloadUrl,
           qualityLabel: data.qualities.hd.quality || 'HD Video',
           format: data.qualities.hd.format || 'MP4',
+          requiresClientMerge: data.qualities.hd.requiresClientMerge,
+          videoUrl: data.qualities.hd.videoUrl,
+          audioUrl: data.qualities.hd.audioUrl,
+          vcodec: data.qualities.hd.vcodec,
+          acodec: data.qualities.hd.acodec,
+          videoExt: data.qualities.hd.videoExt,
+          audioExt: data.qualities.hd.audioExt,
         },
         ...(data.qualities.sd?.downloadUrl
           ? [
@@ -181,6 +301,13 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                 downloadUrl: data.qualities.sd.downloadUrl,
                 qualityLabel: data.qualities.sd.quality || 'SD Video',
                 format: data.qualities.sd.format || 'MP4',
+                requiresClientMerge: data.qualities.sd.requiresClientMerge,
+                videoUrl: data.qualities.sd.videoUrl,
+                audioUrl: data.qualities.sd.audioUrl,
+                vcodec: data.qualities.sd.vcodec,
+                acodec: data.qualities.sd.acodec,
+                videoExt: data.qualities.sd.videoExt,
+                audioExt: data.qualities.sd.audioExt,
               },
             ]
           : []),
@@ -198,7 +325,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           : []),
       ];
 
-  const downloadOptions =
+  const downloadOptions: DownloadOption[] =
     data.qualityList && data.qualityList.length > 0
       ? data.qualityList.map((item) => {
           const formatText = item.format || (item.id === 'audio' ? 'M4A' : 'MP4');
@@ -226,9 +353,24 @@ export const ResultCard: React.FC<ResultCardProps> = ({
             downloadUrl: item.downloadUrl,
             qualityLabel: item.qualityLabel,
             format: formatText,
+            requiresClientMerge: item.requiresClientMerge,
+            videoUrl: item.videoUrl,
+            audioUrl: item.audioUrl,
+            vcodec: item.vcodec,
+            acodec: item.acodec,
+            videoExt: item.videoExt,
+            audioExt: item.audioExt,
           };
         })
       : fallbackOptions;
+
+  const firstMergedBlob = Object.values(mergedBlobs)[0];
+  const previewVideoSrc =
+    firstMergedBlob || data.previewUrl || data.qualities.sd?.url || data.qualities.hd.url;
+  const isPreviewVideoOnly =
+    !firstMergedBlob &&
+    !data.previewUrl &&
+    Boolean(data.qualities.hd.requiresClientMerge);
 
   return (
     <motion.div
@@ -303,35 +445,66 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         </div>
       </div>
 
+      {/* Client-side merge error banner */}
+      {mergeError && (
+        <div className="mb-3 flex items-start gap-2 text-xs font-medium text-rose-700 bg-rose-50 border border-rose-200 p-3 rounded-xl text-left">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>{mergeError}</span>
+        </div>
+      )}
+
       {/* 3 & 4. Slim, Modern, Clean Download Cards Section */}
       <div className="space-y-2">
-        {downloadOptions.map((opt) => (
-          <button
-            key={opt.type}
-            onClick={() => handleDownload(opt.type, opt.downloadUrl, opt.qualityLabel, opt.format || 'mp4')}
-            disabled={downloadingType === opt.type}
-            className="w-full group bg-slate-50 hover:bg-slate-100/90 active:bg-slate-200/80 text-slate-900 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-slate-200/80 transition-all duration-200 flex items-center justify-between gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 shadow-2xs cursor-pointer"
-          >
-            {/* Left side: Clean Typography - Main Title & Subtitle */}
-            <div className="flex flex-col min-w-0 flex-1">
-              <span className="font-bold text-xs sm:text-sm text-slate-800 font-sans tracking-tight truncate">
-                {opt.mainTitle}
-              </span>
-              <span className="text-[11px] text-slate-500 font-normal font-sans mt-0.5 truncate">
-                {opt.subDetails}
-              </span>
-            </div>
+        {downloadOptions.map((opt) => {
+          const isThisDownloading = downloadingType === opt.type;
+          const isAnyClientMerging = downloadingType !== null && mergeProgress !== null;
+          const showInlineProgress = isThisDownloading && mergeProgress !== null;
 
-            {/* Right side: Minimalist Circular Action Button */}
-            <div className="w-8 h-8 rounded-full bg-slate-900 text-white group-hover:bg-slate-800 flex items-center justify-center shrink-0 transition-colors shadow-2xs">
-              {downloadingType === opt.type ? (
-                <RefreshCw className="w-3.5 h-3.5 text-white animate-spin" />
-              ) : (
-                <ArrowDown className="w-3.5 h-3.5 text-white group-hover:translate-y-0.5 transition-transform" />
+          return (
+            <button
+              key={opt.type}
+              onClick={() => handleDownload(opt)}
+              disabled={isThisDownloading || isAnyClientMerging}
+              className="w-full group relative overflow-hidden bg-slate-50 hover:bg-slate-100/90 active:bg-slate-200/80 disabled:opacity-80 disabled:cursor-not-allowed text-slate-900 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-slate-200/80 transition-all duration-200 flex flex-col gap-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 shadow-2xs cursor-pointer"
+            >
+              <div className="w-full flex items-center justify-between gap-3">
+                {/* Left side: Clean Typography - Main Title & Subtitle */}
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="font-bold text-xs sm:text-sm text-slate-800 font-sans tracking-tight truncate">
+                    {opt.mainTitle}
+                  </span>
+                  <span className="text-[11px] text-slate-500 font-normal font-sans mt-0.5 truncate">
+                    {showInlineProgress
+                      ? mergeProgress.message
+                      : mergedBlobs[opt.type]
+                      ? `${opt.format} • Ready in browser (Instant Save)`
+                      : opt.subDetails}
+                  </span>
+                </div>
+
+                {/* Right side: Minimalist Circular Action Button */}
+                <div className="w-8 h-8 rounded-full bg-slate-900 text-white group-hover:bg-slate-800 flex items-center justify-center shrink-0 transition-colors shadow-2xs">
+                  {isThisDownloading ? (
+                    <RefreshCw className="w-3.5 h-3.5 text-white animate-spin" />
+                  ) : mergedBlobs[opt.type] ? (
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  ) : (
+                    <ArrowDown className="w-3.5 h-3.5 text-white group-hover:translate-y-0.5 transition-transform" />
+                  )}
+                </div>
+              </div>
+
+              {showInlineProgress && (
+                <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-slate-900 rounded-full transition-all duration-200"
+                    style={{ width: `${Math.max(5, Math.min(100, mergeProgress.percent))}%` }}
+                  />
+                </div>
               )}
-            </div>
-          </button>
-        ))}
+            </button>
+          );
+        })}
       </div>
 
       {/* Footer Actions */}
@@ -382,12 +555,19 @@ export const ResultCard: React.FC<ResultCardProps> = ({
               className="relative w-full max-w-2xl bg-slate-900 rounded-2xl overflow-hidden shadow-2xl border border-slate-800"
             >
               <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-900">
-                <span className="text-xs sm:text-sm font-medium text-white truncate max-w-md">
-                  {data.title}
-                </span>
+                <div className="min-w-0 pr-3">
+                  <span className="text-xs sm:text-sm font-medium text-white truncate block max-w-md">
+                    {data.title}
+                  </span>
+                  {isPreviewVideoOnly && (
+                    <span className="text-[11px] text-slate-400 block mt-0.5">
+                      Muted preview — download an HD option to merge audio in your browser
+                    </span>
+                  )}
+                </div>
                 <button
                   onClick={() => setIsPreviewOpen(false)}
-                  className="p-1.5 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+                  className="p-1.5 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors shrink-0"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -395,7 +575,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
 
               <div className="aspect-video w-full bg-black relative flex items-center justify-center">
                 <video
-                  src={data.qualities.hd.url}
+                  src={previewVideoSrc}
                   controls
                   autoPlay
                   className="w-full h-full object-contain"

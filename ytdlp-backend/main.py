@@ -302,7 +302,8 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
     any_audio_formats = direct_audio_formats or [f for f in formats if is_audio_only(f, allow_dash_hls=True)]
 
     # Direct HTTP video-only streams (Facebook/Instagram 720p/1080p/2K/4K DASH streams)
-    video_only_formats = [f for f in formats if is_video_only_stream(f, allow_dash_hls=False)]
+    direct_video_only_formats = [f for f in formats if is_video_only_stream(f, allow_dash_hls=False)]
+    video_only_formats = list(direct_video_only_formats)
     if not video_only_formats and FFMPEG_PATH:
         video_only_formats = [f for f in formats if is_video_only_stream(f, allow_dash_hls=True)]
 
@@ -336,7 +337,8 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
     if direct_audio_formats:
         direct_audio_formats.sort(
             key=lambda f: (
-                1 if (f.get("ext") or "").lower() in ("m4a", "mp3") else 0,
+                1 if (f.get("ext") or "").lower() in ("m4a", "mp3", "aac") else 0,
+                1 if "mp4a" in (f.get("acodec") or "").lower() or "aac" in (f.get("acodec") or "").lower() else 0,
                 float(f.get("abr") or f.get("tbr") or 0.0),
             ),
             reverse=True,
@@ -412,8 +414,10 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
         return str(note) if note else default_label
 
     # Build deduplicated video candidates by height:
-    # 1. Prefer confirmed progressive format at a given height (0 server load)
-    # 2. For higher resolutions that only exist as video-only, merge with best_merge_audio via FFmpeg
+    # 1. Prefer confirmed progressive format at a given height (single file, already has audio)
+    # 2. For higher resolutions that only exist as video-only + separate audio:
+    #    - If both are direct HTTP streams, send both URLs to the frontend for client-side ffmpeg.wasm merging (0% server bandwidth)
+    #    - Otherwise (HLS/DASH manifests), fall back to server /api/merge only if FFmpeg is available on server
     candidates: list[dict[str, Any]] = []
     seen_heights: set[int] = set()
 
@@ -423,10 +427,10 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
             continue
         if h > 0:
             seen_heights.add(h)
-        candidates.append({"fmt": f, "requires_merge": False})
+        candidates.append({"fmt": f, "requires_merge": False, "client_merge": False})
 
-    if FFMPEG_PATH and best_merge_audio:
-        for f in video_only_formats:
+    if best_direct_audio:
+        for f in direct_video_only_formats:
             h = int(f.get("height") or 0)
             if h > 0 and h in seen_heights:
                 continue
@@ -434,7 +438,34 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
                 seen_heights.add(h)
             elif len(candidates) > 0:
                 continue
-            candidates.append({"fmt": f, "requires_merge": True})
+            candidates.append(
+                {
+                    "fmt": f,
+                    "audio_fmt": best_direct_audio,
+                    "requires_merge": True,
+                    "client_merge": True,
+                }
+            )
+
+    if FFMPEG_PATH and best_merge_audio:
+        for f in video_only_formats:
+            if is_direct_http_protocol(f) and best_direct_audio:
+                continue  # Already added as client_merge candidate above
+            h = int(f.get("height") or 0)
+            if h > 0 and h in seen_heights:
+                continue
+            if h > 0:
+                seen_heights.add(h)
+            elif len(candidates) > 0:
+                continue
+            candidates.append(
+                {
+                    "fmt": f,
+                    "audio_fmt": best_merge_audio,
+                    "requires_merge": True,
+                    "client_merge": False,
+                }
+            )
 
     # Fallback: if no progressive and no paired video+audio candidates, try generic yt-dlp+ffmpeg HLS/DASH merge
     if not candidates and FFMPEG_PATH and formats:
@@ -459,15 +490,15 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
                     "download_url": f"/api/merge?token={token}&dl=1",
                 },
                 "requires_merge": True,
+                "client_merge": False,
                 "synthetic": True,
             }
         )
 
     if not candidates:
-        if video_only_formats and not FFMPEG_PATH:
+        if video_only_formats and not best_direct_audio and not FFMPEG_PATH:
             raise ValueError(
-                "High quality video requires FFmpeg to merge audio on the server, "
-                "but FFmpeg is not installed. Check nixpacks.toml / Railway builder settings."
+                "No direct audio stream found for client-side merging, and server FFmpeg is unavailable."
             )
         raise ValueError(
             "No direct downloadable MP4 link found. The video may be private or require login."
@@ -483,15 +514,39 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
         reverse=True,
     )
 
-    # Materialize final URLs (direct CDN vs signed FFmpeg /api/merge URL)
+    best_progressive_preview = progressive_formats[0]["url"] if progressive_formats else None
+
+    # Materialize final URLs (direct CDN / client-side merge pair / fallback server /api/merge)
     resolved_videos: list[dict[str, Any]] = []
     for item in candidates:
         vfmt = item["fmt"]
+        afmt = item.get("audio_fmt") or best_merge_audio
         h = int(vfmt.get("height") or 0)
+        is_client_merge = bool(item.get("client_merge"))
+
         if item.get("synthetic"):
             preview_url = vfmt["url"]
             download_url = vfmt["download_url"]
+            video_url = None
+            audio_url = None
+            vcodec = ""
+            acodec = ""
+            video_ext = "mp4"
+            audio_ext = "m4a"
             est_size = None
+            ext = "MP4"
+        elif is_client_merge and afmt:
+            video_url = vfmt["url"]
+            audio_url = afmt["url"]
+            preview_url = best_progressive_preview or video_url
+            download_url = video_url
+            vcodec = (vfmt.get("vcodec") or "").lower()
+            acodec = (afmt.get("acodec") or "").lower()
+            video_ext = (vfmt.get("ext") or "mp4").lower()
+            audio_ext = (afmt.get("ext") or "m4a").lower()
+            v_bytes = vfmt.get("filesize") or vfmt.get("filesize_approx") or 0
+            a_bytes = afmt.get("filesize") or afmt.get("filesize_approx") or 0
+            est_size = format_filesize(v_bytes + a_bytes) if (v_bytes and a_bytes) else format_filesize(v_bytes)
             ext = "MP4"
         elif item["requires_merge"]:
             token = register_merge_job(
@@ -499,17 +554,29 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
                 title=title,
                 height=h,
                 video_fmt=vfmt,
-                audio_fmt=best_merge_audio,
+                audio_fmt=afmt,
             )
             preview_url = f"/api/merge?token={token}&dl=0"
             download_url = f"/api/merge?token={token}&dl=1"
+            video_url = None
+            audio_url = None
+            vcodec = (vfmt.get("vcodec") or "").lower()
+            acodec = (afmt.get("acodec") or "").lower() if afmt else ""
+            video_ext = (vfmt.get("ext") or "mp4").lower()
+            audio_ext = (afmt.get("ext") or "m4a").lower() if afmt else "m4a"
             v_bytes = vfmt.get("filesize") or vfmt.get("filesize_approx") or 0
-            a_bytes = (best_merge_audio.get("filesize") or best_merge_audio.get("filesize_approx") or 0) if best_merge_audio else 0
+            a_bytes = (afmt.get("filesize") or afmt.get("filesize_approx") or 0) if afmt else 0
             est_size = format_filesize(v_bytes + a_bytes) if (v_bytes and a_bytes) else format_filesize(v_bytes)
             ext = "MP4"
         else:
             preview_url = vfmt["url"]
             download_url = vfmt["url"]
+            video_url = vfmt["url"]
+            audio_url = None
+            vcodec = (vfmt.get("vcodec") or "").lower()
+            acodec = (vfmt.get("acodec") or "").lower()
+            video_ext = (vfmt.get("ext") or "mp4").lower()
+            audio_ext = ""
             est_size = format_filesize(vfmt.get("filesize") or vfmt.get("filesize_approx"))
             ext = (vfmt.get("ext") or "mp4").upper()
 
@@ -518,8 +585,15 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
                 "fmt": vfmt,
                 "height": h,
                 "requires_merge": item["requires_merge"],
+                "requires_client_merge": is_client_merge,
                 "preview_url": preview_url,
                 "download_url": download_url,
+                "video_url": video_url,
+                "audio_url": audio_url,
+                "vcodec": vcodec,
+                "acodec": acodec,
+                "video_ext": video_ext,
+                "audio_ext": audio_ext,
                 "size": est_size,
                 "ext": ext,
             }
@@ -534,6 +608,28 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
 
     hd_label = make_quality_label(hd_entry["fmt"], "HD Quality")
     hd_size = hd_entry["size"] or hd_label
+
+    def build_quality_payload(entry: dict[str, Any], q_title: str) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "quality": q_title,
+            "url": entry["preview_url"],
+            "downloadUrl": entry["download_url"],
+            "size": entry["size"] or q_title,
+            "format": entry["ext"],
+            "requiresClientMerge": entry["requires_client_merge"],
+        }
+        if entry["requires_client_merge"] and entry["video_url"] and entry["audio_url"]:
+            payload.update(
+                {
+                    "videoUrl": entry["video_url"],
+                    "audioUrl": entry["audio_url"],
+                    "vcodec": entry["vcodec"],
+                    "acodec": entry["acodec"],
+                    "videoExt": entry["video_ext"],
+                    "audioExt": entry["audio_ext"],
+                }
+            )
+        return payload
 
     quality_list: list[dict[str, Any]] = []
     if platform == "tiktok":
@@ -553,6 +649,13 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
                     "qualityLabel": "Standard quality (without watermark)",
                     "format": sd_target["ext"],
                     "badge": "NO WATERMARK",
+                    "requiresClientMerge": sd_target["requires_client_merge"],
+                    "videoUrl": sd_target["video_url"],
+                    "audioUrl": sd_target["audio_url"],
+                    "vcodec": sd_target["vcodec"],
+                    "acodec": sd_target["acodec"],
+                    "videoExt": sd_target["video_ext"],
+                    "audioExt": sd_target["audio_ext"],
                 },
                 {
                     "id": "hd",
@@ -564,6 +667,13 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
                     "qualityLabel": "High quality (without watermark)",
                     "format": hd_entry["ext"],
                     "badge": "HD • NO WATERMARK",
+                    "requiresClientMerge": hd_entry["requires_client_merge"],
+                    "videoUrl": hd_entry["video_url"],
+                    "audioUrl": hd_entry["audio_url"],
+                    "vcodec": hd_entry["vcodec"],
+                    "acodec": hd_entry["acodec"],
+                    "videoExt": hd_entry["video_ext"],
+                    "audioExt": hd_entry["audio_ext"],
                 },
             ]
         )
@@ -576,20 +686,37 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
             )
             v_ext = entry["ext"]
             v_size = entry["size"] or ("HD Audio + Video" if entry["requires_merge"] else "Direct MP4")
-            audio_note = "Audio + Video (FFmpeg)" if entry["requires_merge"] else "Audio Included"
-            quality_list.append(
-                {
-                    "id": q_id,
-                    "quality": q_title,
-                    "label": f"{v_ext} - {q_title}",
-                    "sublabel": f"{v_size} • {audio_note}",
-                    "url": entry["preview_url"],
-                    "downloadUrl": entry["download_url"],
-                    "qualityLabel": f"{q_title} Video",
-                    "format": v_ext,
-                    "badge": q_title,
-                }
-            )
+            if entry["requires_client_merge"]:
+                audio_note = "Audio + Video (Browser Merge)"
+            elif entry["requires_merge"]:
+                audio_note = "Audio + Video (FFmpeg)"
+            else:
+                audio_note = "Audio Included"
+
+            q_item: dict[str, Any] = {
+                "id": q_id,
+                "quality": q_title,
+                "label": f"{v_ext} - {q_title}",
+                "sublabel": f"{v_size} • {audio_note}",
+                "url": entry["preview_url"],
+                "downloadUrl": entry["download_url"],
+                "qualityLabel": f"{q_title} Video",
+                "format": v_ext,
+                "badge": q_title,
+                "requiresClientMerge": entry["requires_client_merge"],
+            }
+            if entry["requires_client_merge"] and entry["video_url"] and entry["audio_url"]:
+                q_item.update(
+                    {
+                        "videoUrl": entry["video_url"],
+                        "audioUrl": entry["audio_url"],
+                        "vcodec": entry["vcodec"],
+                        "acodec": entry["acodec"],
+                        "videoExt": entry["video_ext"],
+                        "audioExt": entry["audio_ext"],
+                    }
+                )
+            quality_list.append(q_item)
 
         if best_direct_audio:
             a_ext = (best_direct_audio.get("ext") or "m4a").upper()
@@ -608,38 +735,25 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
                     "qualityLabel": f"{a_ext} Audio Only",
                     "format": a_ext,
                     "badge": "AUDIO",
+                    "requiresClientMerge": False,
                 }
             )
 
     qualities: dict[str, Any] = {
-        "hd": {
-            "quality": "High quality (without watermark)" if platform == "tiktok" else hd_label,
-            "url": hd_entry["preview_url"],
-            "downloadUrl": hd_entry["download_url"],
-            "size": hd_size,
-            "format": hd_entry["ext"],
-        }
+        "hd": build_quality_payload(
+            hd_entry,
+            "High quality (without watermark)" if platform == "tiktok" else hd_label,
+        )
     }
 
     if platform == "tiktok":
         sd_target = sd_entry or hd_entry
-        sd_label = make_quality_label(sd_target["fmt"], "Standard Quality")
-        qualities["sd"] = {
-            "quality": "Standard quality (without watermark)",
-            "url": sd_target["preview_url"],
-            "downloadUrl": sd_target["download_url"],
-            "size": sd_target["size"] or sd_label,
-            "format": sd_target["ext"],
-        }
+        qualities["sd"] = build_quality_payload(
+            sd_target, "Standard quality (without watermark)"
+        )
     elif sd_entry:
         sd_label = make_quality_label(sd_entry["fmt"], "SD")
-        qualities["sd"] = {
-            "quality": sd_label,
-            "url": sd_entry["preview_url"],
-            "downloadUrl": sd_entry["download_url"],
-            "size": sd_entry["size"] or sd_label,
-            "format": sd_entry["ext"],
-        }
+        qualities["sd"] = build_quality_payload(sd_entry, sd_label)
 
     if best_direct_audio and platform != "tiktok":
         a_ext = (best_direct_audio.get("ext") or "m4a").upper()
@@ -653,6 +767,7 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
             "downloadUrl": best_direct_audio["url"],
             "size": a_size,
             "format": a_ext,
+            "requiresClientMerge": False,
         }
 
     return {
@@ -665,6 +780,9 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
         "thumbnail": thumbnail,
         "platform": platform_display,
         "isSingleQuality": False,
+        "previewUrl": best_progressive_preview or hd_entry["preview_url"],
+        "bestVideoUrl": hd_entry["video_url"] or hd_entry["download_url"],
+        "bestAudioUrl": best_direct_audio["url"] if best_direct_audio else None,
         "qualityList": quality_list,
         "qualities": qualities,
     }

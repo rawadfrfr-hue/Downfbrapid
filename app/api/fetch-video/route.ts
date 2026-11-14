@@ -497,6 +497,7 @@ export async function POST(req: NextRequest) {
 
       const preparedData = {
         ...data,
+        previewUrl: data.previewUrl ? resolveBackendUrl(data.previewUrl) : undefined,
         qualityList: normalizedQualityList,
         qualities: normalizedQualities,
         thumbnail: data.thumbnail || fallbackThumb,
