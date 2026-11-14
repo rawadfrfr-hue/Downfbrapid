@@ -342,6 +342,230 @@ function normalizeTikTokBackendData(
   };
 }
 
+function parseFacebookResolution(item: Record<string, unknown>): number | 'audio' {
+  const id = String(item.id || '').toLowerCase();
+  const quality = String(item.quality || '').toLowerCase();
+  const label = String(item.label || '').toLowerCase();
+  const qualityLabel = String(item.qualityLabel || '').toLowerCase();
+  const combined = `${id} ${quality} ${label} ${qualityLabel}`;
+
+  if (id === 'audio' || combined.includes('audio only') || quality === 'audio' || label === 'audio') {
+    return 'audio';
+  }
+  if (id === '2k' || combined.includes('highest 2k')) {
+    return 1440;
+  }
+  const match = combined.match(/(\d{3,4})p/);
+  if (match) {
+    return Number(match[1]);
+  }
+  if (id === 'hd') return 1080;
+  if (id === 'sd') return 720;
+  return 0;
+}
+
+function normalizeFacebookBackendData(data: Record<string, unknown>): Record<string, unknown> {
+  const rawList = Array.isArray(data.qualityList)
+    ? (data.qualityList as Array<Record<string, unknown>>)
+    : [];
+  const qualities = (data.qualities || {}) as Record<string, Record<string, unknown> | undefined>;
+
+  const candidates: Array<Record<string, unknown>> = [...rawList];
+  if (candidates.length === 0) {
+    if (qualities.hd) {
+      candidates.push({
+        id: '1080p',
+        ...qualities.hd,
+        label: qualities.hd.quality || 'HD 1080p',
+        sublabel: qualities.hd.size || 'MP4',
+        qualityLabel: qualities.hd.quality || 'HD 1080p',
+      });
+    }
+    if (qualities.sd) {
+      candidates.push({
+        id: '720p',
+        ...qualities.sd,
+        label: qualities.sd.quality || 'SD 720p',
+        sublabel: qualities.sd.size || 'MP4',
+        qualityLabel: qualities.sd.quality || 'SD 720p',
+      });
+    }
+    if (qualities.audio) {
+      candidates.push({
+        id: 'audio',
+        ...qualities.audio,
+        label: 'Audio',
+        sublabel: qualities.audio.size || 'Audio Track',
+        qualityLabel: 'Audio',
+      });
+    }
+  }
+
+  let highest2k: { res: number; item: Record<string, unknown> } | null = null;
+  let hd1080: { res: number; item: Record<string, unknown> } | null = null;
+  let sd720: { res: number; item: Record<string, unknown> } | null = null;
+  let audioItem: Record<string, unknown> | null = null;
+  let unknownVideoItem: Record<string, unknown> | null = null;
+
+  for (const item of candidates) {
+    const parsed = parseFacebookResolution(item);
+    if (parsed === 'audio') {
+      if (!audioItem) audioItem = item;
+      continue;
+    }
+
+    if (parsed >= 1440) {
+      if (!highest2k || parsed > highest2k.res) {
+        highest2k = { res: parsed, item };
+      }
+    } else if (parsed >= 900) {
+      if (
+        !hd1080 ||
+        (parsed === 1080 && hd1080.res !== 1080) ||
+        (hd1080.res !== 1080 && parsed > hd1080.res)
+      ) {
+        hd1080 = { res: parsed, item };
+      }
+    } else if (parsed > 0) {
+      if (!sd720 || parsed > sd720.res) {
+        sd720 = { res: parsed, item };
+      }
+    } else if (!unknownVideoItem) {
+      unknownVideoItem = item;
+    }
+  }
+
+  if (!highest2k && !hd1080 && !sd720 && unknownVideoItem) {
+    sd720 = { res: 720, item: unknownVideoItem };
+  }
+
+  if (!audioItem && qualities.audio) {
+    audioItem = {
+      id: 'audio',
+      quality: 'Audio',
+      label: 'Audio',
+      sublabel: `${qualities.audio.size || 'Direct Audio'} • High Quality Audio`,
+      url: qualities.audio.url,
+      downloadUrl: qualities.audio.downloadUrl,
+      qualityLabel: 'Audio',
+      format: qualities.audio.format || 'M4A',
+      badge: 'AUDIO',
+      requiresClientMerge: false,
+    };
+  }
+
+  const normalizedList: Array<Record<string, unknown>> = [];
+
+  if (highest2k) {
+    normalizedList.push({
+      ...highest2k.item,
+      id: '2k',
+      quality: 'Highest 2K',
+      label: 'Highest 2K',
+      qualityLabel: 'Highest 2K',
+      badge: 'Highest 2K',
+    });
+  }
+
+  if (hd1080) {
+    normalizedList.push({
+      ...hd1080.item,
+      id: '1080p',
+      quality: 'HD 1080p',
+      label: 'HD 1080p',
+      qualityLabel: 'HD 1080p',
+      badge: 'HD 1080p',
+    });
+  }
+
+  if (sd720) {
+    normalizedList.push({
+      ...sd720.item,
+      id: '720p',
+      quality: 'SD 720p',
+      label: 'SD 720p',
+      qualityLabel: 'SD 720p',
+      badge: 'SD 720p',
+    });
+  }
+
+  if (audioItem) {
+    normalizedList.push({
+      ...audioItem,
+      id: 'audio',
+      quality: 'Audio',
+      label: 'Audio',
+      qualityLabel: 'Audio',
+      badge: 'AUDIO',
+    });
+  }
+
+  const bestHdItem = highest2k?.item || hd1080?.item || sd720?.item;
+  const bestSdItem = sd720?.item || hd1080?.item;
+
+  return {
+    ...data,
+    platform: 'Facebook',
+    qualityList: normalizedList,
+    qualities: {
+      ...qualities,
+      ...(bestHdItem
+        ? {
+            hd: {
+              ...(qualities.hd || {}),
+              quality: highest2k ? 'Highest 2K' : hd1080 ? 'HD 1080p' : 'SD 720p',
+              url: bestHdItem.url || qualities.hd?.url,
+              downloadUrl: bestHdItem.downloadUrl || qualities.hd?.downloadUrl,
+              format: bestHdItem.format || qualities.hd?.format || 'MP4',
+              size:
+                qualities.hd?.size ||
+                (highest2k ? 'Highest 2K' : hd1080 ? 'HD 1080p' : 'SD 720p'),
+              requiresClientMerge: bestHdItem.requiresClientMerge ?? qualities.hd?.requiresClientMerge,
+              videoUrl: bestHdItem.videoUrl ?? qualities.hd?.videoUrl,
+              audioUrl: bestHdItem.audioUrl ?? qualities.hd?.audioUrl,
+              vcodec: bestHdItem.vcodec ?? qualities.hd?.vcodec,
+              acodec: bestHdItem.acodec ?? qualities.hd?.acodec,
+              videoExt: bestHdItem.videoExt ?? qualities.hd?.videoExt,
+              audioExt: bestHdItem.audioExt ?? qualities.hd?.audioExt,
+            },
+          }
+        : {}),
+      ...(bestSdItem
+        ? {
+            sd: {
+              ...(qualities.sd || {}),
+              quality: sd720 ? 'SD 720p' : 'HD 1080p',
+              url: bestSdItem.url || qualities.sd?.url,
+              downloadUrl: bestSdItem.downloadUrl || qualities.sd?.downloadUrl,
+              format: bestSdItem.format || qualities.sd?.format || 'MP4',
+              size: qualities.sd?.size || (sd720 ? 'SD 720p' : 'HD 1080p'),
+              requiresClientMerge: bestSdItem.requiresClientMerge ?? qualities.sd?.requiresClientMerge,
+              videoUrl: bestSdItem.videoUrl ?? qualities.sd?.videoUrl,
+              audioUrl: bestSdItem.audioUrl ?? qualities.sd?.audioUrl,
+              vcodec: bestSdItem.vcodec ?? qualities.sd?.vcodec,
+              acodec: bestSdItem.acodec ?? qualities.sd?.acodec,
+              videoExt: bestSdItem.videoExt ?? qualities.sd?.videoExt,
+              audioExt: bestSdItem.audioExt ?? qualities.sd?.audioExt,
+            },
+          }
+        : {}),
+      ...(audioItem
+        ? {
+            audio: {
+              ...(qualities.audio || {}),
+              quality: 'Audio',
+              url: audioItem.url || qualities.audio?.url,
+              downloadUrl: audioItem.downloadUrl || qualities.audio?.downloadUrl,
+              format: audioItem.format || qualities.audio?.format || 'M4A',
+              size: qualities.audio?.size || 'Audio',
+              requiresClientMerge: false,
+            },
+          }
+        : {}),
+    },
+  };
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -508,6 +732,8 @@ export async function POST(req: NextRequest) {
         data:
           detectedPlatform === 'tiktok'
             ? normalizeTikTokBackendData(preparedData, cleanUrl)
+            : detectedPlatform === 'facebook'
+            ? normalizeFacebookBackendData(preparedData)
             : preparedData,
       });
     } catch (fetchErr: unknown) {

@@ -116,6 +116,8 @@ export const ResultCard: React.FC<ResultCardProps> = ({
   }, []);
 
   const isTikTok = platform === 'tiktok' || data.platform === 'TikTok';
+  const isFacebook =
+    !isTikTok && (data.platform ? data.platform === 'Facebook' : platform === 'facebook');
 
   const triggerFileDownload = (href: string, filename: string, inPlace: boolean) => {
     const a = document.createElement('a');
@@ -283,10 +285,10 @@ export const ResultCard: React.FC<ResultCardProps> = ({
     : [
         {
           type: 'hd',
-          mainTitle: data.qualities.hd.quality || '1080p (Full HD)',
+          mainTitle: isFacebook ? 'HD 1080p' : data.qualities.hd.quality || '1080p (Full HD)',
           subDetails: `${data.qualities.hd.format || 'MP4'} • High Quality • ${data.qualities.hd.size}`,
           downloadUrl: data.qualities.hd.downloadUrl,
-          qualityLabel: data.qualities.hd.quality || 'HD Video',
+          qualityLabel: isFacebook ? 'HD 1080p' : data.qualities.hd.quality || 'HD Video',
           format: data.qualities.hd.format || 'MP4',
           requiresClientMerge: data.qualities.hd.requiresClientMerge,
           videoUrl: data.qualities.hd.videoUrl,
@@ -300,10 +302,10 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           ? [
               {
                 type: 'sd',
-                mainTitle: data.qualities.sd.quality || '720p (SD)',
+                mainTitle: isFacebook ? 'SD 720p' : data.qualities.sd.quality || '720p (SD)',
                 subDetails: `${data.qualities.sd.format || 'MP4'} • Standard Quality • ${data.qualities.sd.size}`,
                 downloadUrl: data.qualities.sd.downloadUrl,
-                qualityLabel: data.qualities.sd.quality || 'SD Video',
+                qualityLabel: isFacebook ? 'SD 720p' : data.qualities.sd.quality || 'SD Video',
                 format: data.qualities.sd.format || 'MP4',
                 requiresClientMerge: data.qualities.sd.requiresClientMerge,
                 videoUrl: data.qualities.sd.videoUrl,
@@ -319,23 +321,39 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           ? [
               {
                 type: 'audio',
-                mainTitle: `${data.qualities.audio.format || 'M4A'} (Audio Only)`,
+                mainTitle: isFacebook ? 'Audio' : `${data.qualities.audio.format || 'M4A'} (Audio Only)`,
                 subDetails: `${data.qualities.audio.format || 'M4A'} • Audio Track • ${data.qualities.audio.size}`,
                 downloadUrl: data.qualities.audio.downloadUrl,
-                qualityLabel: 'Audio Only',
+                qualityLabel: isFacebook ? 'Audio' : 'Audio Only',
                 format: data.qualities.audio.format || 'M4A',
               },
             ]
           : []),
       ];
 
+  const sourceQualityList =
+    isFacebook && data.qualityList && data.qualityList.length > 0
+      ? data.qualityList.filter((item) =>
+          ['2k', '2160p', '1440p', '1080p', '720p', 'audio'].includes(item.id)
+        )
+      : data.qualityList;
+
+  const effectiveQualityList =
+    sourceQualityList && sourceQualityList.length > 0 ? sourceQualityList : data.qualityList;
+
   const downloadOptions: DownloadOption[] =
-    data.qualityList && data.qualityList.length > 0
-      ? data.qualityList.map((item) => {
+    effectiveQualityList && effectiveQualityList.length > 0
+      ? effectiveQualityList.map((item) => {
           const formatText = item.format || (item.id === 'audio' ? 'M4A' : 'MP4');
           let mainTitle = '';
           if (isTikTok) mainTitle = item.label;
-          else if (item.id === '2160p') mainTitle = '2160p (4K Ultra HD)';
+          else if (isFacebook) {
+            if (item.id === '2k' || item.id === '2160p' || item.id === '1440p') mainTitle = 'Highest 2K';
+            else if (item.id === '1080p') mainTitle = 'HD 1080p';
+            else if (item.id === '720p') mainTitle = 'SD 720p';
+            else if (item.id === 'audio') mainTitle = 'Audio';
+            else mainTitle = item.label;
+          } else if (item.id === '2160p') mainTitle = '2160p (4K Ultra HD)';
           else if (item.id === '1440p') mainTitle = '1440p (2K Quad HD)';
           else if (item.id === '1080p') mainTitle = '1080p (Full HD)';
           else if (item.id === '720p') mainTitle = '720p (HD)';

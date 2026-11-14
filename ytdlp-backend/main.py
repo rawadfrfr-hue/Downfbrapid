@@ -406,8 +406,21 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
             any_audio_formats[0],
         )
 
+    def effective_height(fmt: dict[str, Any]) -> int:
+        w = int(fmt.get("width") or 0)
+        h = int(fmt.get("height") or 0)
+        if w > 0 and h > 0:
+            if w >= 2560 and h >= 1000:
+                return max(1440, h)
+            if w >= 1920 and h >= 800:
+                return max(1080, h)
+            if w >= 1280 and h >= 500 and w > h:
+                return max(720, h)
+            return min(w, h)
+        return h
+
     def sort_key(f: dict[str, Any]) -> tuple[int, int, int, float]:
-        height = int(f.get("height") or 0)
+        height = effective_height(f)
         is_mp4 = 1 if (f.get("ext") or "").lower() == "mp4" else 0
         v_score = video_codec_score(f.get("vcodec") or "")
         tbr = float(f.get("tbr") or 0.0)
@@ -473,16 +486,16 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
     seen_heights: set[int] = set()
 
     for f in progressive_formats:
-        h = int(f.get("height") or 0)
+        h = effective_height(f)
         if h > 0 and h in seen_heights:
             continue
         if h > 0:
             seen_heights.add(h)
-        candidates.append({"fmt": f, "requires_merge": False, "client_merge": False})
+        candidates.append({"fmt": f, "eff_height": h, "requires_merge": False, "client_merge": False})
 
     if best_direct_audio:
         for f in direct_video_only_formats:
-            h = int(f.get("height") or 0)
+            h = effective_height(f)
             if h > 0 and h in seen_heights:
                 continue
             if h > 0:
@@ -497,6 +510,7 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
             candidates.append(
                 {
                     "fmt": f,
+                    "eff_height": h,
                     "audio_fmt": paired_audio,
                     "requires_merge": True,
                     "client_merge": True,
@@ -507,7 +521,7 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
         for f in video_only_formats:
             if is_direct_http_protocol(f) and best_direct_audio:
                 continue  # Already added as client_merge candidate above
-            h = int(f.get("height") or 0)
+            h = effective_height(f)
             if h > 0 and h in seen_heights:
                 continue
             if h > 0:
@@ -517,6 +531,7 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
             candidates.append(
                 {
                     "fmt": f,
+                    "eff_height": h,
                     "audio_fmt": best_merge_audio,
                     "requires_merge": True,
                     "client_merge": False,
@@ -563,7 +578,7 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
     # Sort all final candidates highest resolution first
     candidates.sort(
         key=lambda item: (
-            int(item["fmt"].get("height") or 0),
+            int(item.get("eff_height") if item.get("eff_height") is not None else effective_height(item["fmt"])),
             0 if item["requires_merge"] else 1,
             float(item["fmt"].get("tbr") or 0.0),
         ),
@@ -577,7 +592,7 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
     for item in candidates:
         vfmt = item["fmt"]
         afmt = item.get("audio_fmt") or best_merge_audio
-        h = int(vfmt.get("height") or 0)
+        h = int(item.get("eff_height") if item.get("eff_height") is not None else effective_height(vfmt))
         is_client_merge = bool(item.get("client_merge"))
 
         if item.get("synthetic"):
@@ -733,6 +748,77 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
                 },
             ]
         )
+    elif platform == "facebook":
+        highest_2k = next((e for e in resolved_videos if e["height"] >= 1440), None)
+        hd_1080 = next((e for e in resolved_videos if 900 <= e["height"] < 1440), None)
+        sd_720 = next((e for e in resolved_videos if 0 < e["height"] < 900), None)
+
+        if not highest_2k and not hd_1080 and not sd_720 and resolved_videos:
+            sd_720 = resolved_videos[0]
+
+        fb_slots: list[tuple[str, str, dict[str, Any]]] = []
+        if highest_2k:
+            fb_slots.append(("2k", "Highest 2K", highest_2k))
+        if hd_1080:
+            fb_slots.append(("1080p", "HD 1080p", hd_1080))
+        if sd_720:
+            fb_slots.append(("720p", "SD 720p", sd_720))
+
+        for q_id, q_title, entry in fb_slots:
+            v_ext = entry["ext"]
+            v_size = entry["size"] or ("HD Audio + Video" if entry["requires_merge"] else "Direct MP4")
+            if entry["requires_client_merge"]:
+                audio_note = "Audio + Video (Browser Merge)"
+            elif entry["requires_merge"]:
+                audio_note = "Audio + Video (FFmpeg)"
+            else:
+                audio_note = "Audio Included"
+
+            q_item: dict[str, Any] = {
+                "id": q_id,
+                "quality": q_title,
+                "label": q_title,
+                "sublabel": f"{v_size} • {audio_note}",
+                "url": entry["preview_url"],
+                "downloadUrl": entry["download_url"],
+                "qualityLabel": q_title,
+                "format": v_ext,
+                "badge": q_title,
+                "requiresClientMerge": entry["requires_client_merge"],
+            }
+            if entry["requires_client_merge"] and entry["video_url"] and entry["audio_url"]:
+                q_item.update(
+                    {
+                        "videoUrl": entry["video_url"],
+                        "audioUrl": entry["audio_url"],
+                        "vcodec": entry["vcodec"],
+                        "acodec": entry["acodec"],
+                        "videoExt": entry["video_ext"],
+                        "audioExt": entry["audio_ext"],
+                    }
+                )
+            quality_list.append(q_item)
+
+        if best_direct_audio:
+            a_ext = (best_direct_audio.get("ext") or "m4a").upper()
+            a_size = (
+                format_filesize(best_direct_audio.get("filesize") or best_direct_audio.get("filesize_approx"))
+                or "Direct Audio"
+            )
+            quality_list.append(
+                {
+                    "id": "audio",
+                    "quality": "Audio",
+                    "label": "Audio",
+                    "sublabel": f"{a_size} • High Quality Audio",
+                    "url": best_direct_audio["url"],
+                    "downloadUrl": best_direct_audio["url"],
+                    "qualityLabel": "Audio",
+                    "format": a_ext,
+                    "badge": "AUDIO",
+                    "requiresClientMerge": False,
+                }
+            )
     else:
         for idx, entry in enumerate(resolved_videos[:4]):
             h = entry["height"]
