@@ -262,6 +262,48 @@ def is_audio_only(fmt: dict[str, Any], allow_dash_hls: bool = False) -> bool:
     return vcodec in ("", "none") and acodec not in ("", "none")
 
 
+def video_codec_score(vcodec: str) -> int:
+    c = vcodec.lower()
+    if any(k in c for k in ("avc", "h264")):
+        return 4
+    if any(k in c for k in ("hevc", "h265", "hvc1", "hev1", "mp4v")):
+        return 3
+    if any(k in c for k in ("av01", "av1")):
+        return 2
+    if any(k in c for k in ("vp9", "vp09", "vp8")):
+        return 1
+    return 0
+
+
+def audio_codec_score(acodec: str) -> int:
+    c = acodec.lower()
+    if any(k in c for k in ("mp4a", "aac")):
+        return 4
+    if "mp3" in c:
+        return 3
+    if any(k in c for k in ("opus", "vorbis")):
+        return 2
+    return 0
+
+
+def is_webm_video(fmt: dict[str, Any]) -> bool:
+    ext = (fmt.get("ext") or "").lower()
+    vcodec = (fmt.get("vcodec") or "").lower()
+    return ext == "webm" or (any(k in vcodec for k in ("vp8", "vp9", "vp09")) and ext != "mp4")
+
+
+def is_webm_audio(fmt: dict[str, Any]) -> bool:
+    ext = (fmt.get("ext") or "").lower()
+    acodec = (fmt.get("acodec") or "").lower()
+    return ext == "webm" or (any(k in acodec for k in ("opus", "vorbis")) and ext not in ("mp4", "m4a", "aac"))
+
+
+def is_mp4_compatible_audio(fmt: dict[str, Any]) -> bool:
+    ext = (fmt.get("ext") or "").lower()
+    acodec = (fmt.get("acodec") or "").lower()
+    return any(k in acodec for k in ("mp4a", "aac", "mp3")) or ext in ("m4a", "mp4", "aac", "mp3")
+
+
 def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
     ydl_opts: dict[str, Any] = {
         "quiet": True,
@@ -270,6 +312,7 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
         "noplaylist": True,
         "socket_timeout": 20,
         "extract_flat": False,
+        "format_sort": ["vcodec:h264", "acodec:aac", "ext:mp4:m4a"],
         "http_headers": {
             "User-Agent": DEFAULT_USER_AGENT,
             "Accept-Language": "en-US,en;q=0.9",
@@ -332,35 +375,43 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
             and (f.get("acodec") or "").lower() != "none"
         ]
 
-    # Best audio format (prefer m4a/aac/mp3)
+    def audio_sort_key(f: dict[str, Any]) -> tuple[int, int, float]:
+        a_score = audio_codec_score(f.get("acodec") or "")
+        ext = (f.get("ext") or "").lower()
+        is_m4a_mp4 = 1 if ext in ("m4a", "mp4", "aac") else 0
+        abr = float(f.get("abr") or f.get("tbr") or 0.0)
+        return (a_score, is_m4a_mp4, abr)
+
+    # Best audio formats (prefer AAC/MP4A in m4a/mp4 for MP4 container, and keep WebM/Opus pair if video is WebM)
     best_direct_audio = None
+    best_direct_mp4_audio = None
+    best_direct_webm_audio = None
     if direct_audio_formats:
-        direct_audio_formats.sort(
-            key=lambda f: (
-                1 if (f.get("ext") or "").lower() in ("m4a", "mp3", "aac") else 0,
-                1 if "mp4a" in (f.get("acodec") or "").lower() or "aac" in (f.get("acodec") or "").lower() else 0,
-                float(f.get("abr") or f.get("tbr") or 0.0),
-            ),
-            reverse=True,
-        )
+        direct_audio_formats.sort(key=audio_sort_key, reverse=True)
         best_direct_audio = direct_audio_formats[0]
-
-    best_merge_audio = best_direct_audio
-    if not best_merge_audio and any_audio_formats:
-        any_audio_formats.sort(
-            key=lambda f: (
-                1 if (f.get("ext") or "").lower() in ("m4a", "mp4", "aac") else 0,
-                float(f.get("abr") or f.get("tbr") or 0.0),
-            ),
-            reverse=True,
+        best_direct_mp4_audio = next(
+            (f for f in direct_audio_formats if is_mp4_compatible_audio(f)),
+            None,
         )
-        best_merge_audio = any_audio_formats[0]
+        best_direct_webm_audio = next(
+            (f for f in direct_audio_formats if is_webm_audio(f)),
+            None,
+        )
 
-    def sort_key(f: dict[str, Any]) -> tuple[int, int, float]:
-        is_mp4 = 1 if (f.get("ext") or "").lower() == "mp4" else 0
+    best_merge_audio = best_direct_mp4_audio or best_direct_audio
+    if not best_merge_audio and any_audio_formats:
+        any_audio_formats.sort(key=audio_sort_key, reverse=True)
+        best_merge_audio = next(
+            (f for f in any_audio_formats if is_mp4_compatible_audio(f)),
+            any_audio_formats[0],
+        )
+
+    def sort_key(f: dict[str, Any]) -> tuple[int, int, int, float]:
         height = int(f.get("height") or 0)
+        is_mp4 = 1 if (f.get("ext") or "").lower() == "mp4" else 0
+        v_score = video_codec_score(f.get("vcodec") or "")
         tbr = float(f.get("tbr") or 0.0)
-        return (is_mp4, height, tbr)
+        return (height, is_mp4, v_score, tbr)
 
     progressive_formats.sort(key=sort_key, reverse=True)
     video_only_formats.sort(key=sort_key, reverse=True)
@@ -438,10 +489,15 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
                 seen_heights.add(h)
             elif len(candidates) > 0:
                 continue
+            paired_audio = (
+                (best_direct_webm_audio or best_direct_audio)
+                if is_webm_video(f)
+                else (best_direct_mp4_audio or best_direct_audio)
+            )
             candidates.append(
                 {
                     "fmt": f,
-                    "audio_fmt": best_direct_audio,
+                    "audio_fmt": paired_audio,
                     "requires_merge": True,
                     "client_merge": True,
                 }
@@ -547,7 +603,7 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
             v_bytes = vfmt.get("filesize") or vfmt.get("filesize_approx") or 0
             a_bytes = afmt.get("filesize") or afmt.get("filesize_approx") or 0
             est_size = format_filesize(v_bytes + a_bytes) if (v_bytes and a_bytes) else format_filesize(v_bytes)
-            ext = "MP4"
+            ext = "WEBM" if (is_webm_video(vfmt) and is_webm_audio(afmt)) else "MP4"
         elif item["requires_merge"]:
             token = register_merge_job(
                 original_url=url_str,
@@ -818,10 +874,13 @@ def merge_media_to_mp4(job_id: str, job: dict[str, Any], output_path: str) -> No
 
         if can_direct_ffmpeg:
             can_copy_video = (
-                any(c in vcodec for c in ("avc", "h264", "hevc", "h265", "hvc1", "mp4v"))
+                any(
+                    c in vcodec
+                    for c in ("avc", "h264", "hevc", "h265", "hvc1", "hev1", "mp4v", "av01", "av1", "vp09", "vp9")
+                )
                 or vcodec == ""
             )
-            can_copy_audio = any(c in acodec for c in ("mp4a", "aac"))
+            can_copy_audio = any(c in acodec for c in ("mp4a", "aac", "mp3")) or acodec == ""
 
             v_codec_arg = "copy" if can_copy_video else "libx264"
             a_codec_arg = "copy" if can_copy_audio else "aac"
@@ -852,7 +911,7 @@ def merge_media_to_mp4(job_id: str, job: dict[str, Any], output_path: str) -> No
                 cmd.extend(["-b:a", "192k"])
             if v_codec_arg == "libx264":
                 cmd.extend(["-preset", "veryfast", "-crf", "22"])
-            cmd.extend(["-movflags", "+faststart", "-f", "mp4", part_path])
+            cmd.extend(["-movflags", "+faststart", "-shortest", "-f", "mp4", part_path])
 
             res = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
             if res.returncode == 0 and os.path.exists(part_path) and os.path.getsize(part_path) > 0:
@@ -869,9 +928,18 @@ def merge_media_to_mp4(job_id: str, job: dict[str, Any], output_path: str) -> No
                 v_id = job.get("video_fmt_id")
                 a_id = job.get("audio_fmt_id")
                 if v_id and a_id:
-                    fmt_spec = f"{v_id}+{a_id}/bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best"
+                    fmt_spec = (
+                        f"{v_id}+{a_id}/"
+                        "bestvideo[vcodec^=avc]+bestaudio[acodec^=mp4a]/"
+                        "bestvideo[ext=mp4]+bestaudio[ext=m4a]/"
+                        "bestvideo+bestaudio/best"
+                    )
                 else:
-                    fmt_spec = "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best"
+                    fmt_spec = (
+                        "bestvideo[vcodec^=avc]+bestaudio[acodec^=mp4a]/"
+                        "bestvideo[ext=mp4]+bestaudio[ext=m4a]/"
+                        "bestvideo+bestaudio/best"
+                    )
 
             ydl_opts: dict[str, Any] = {
                 "quiet": True,
@@ -879,6 +947,7 @@ def merge_media_to_mp4(job_id: str, job: dict[str, Any], output_path: str) -> No
                 "noplaylist": True,
                 "socket_timeout": 30,
                 "format": fmt_spec,
+                "format_sort": ["vcodec:h264", "acodec:aac", "ext:mp4:m4a"],
                 "merge_output_format": "mp4",
                 "ffmpeg_location": os.path.dirname(FFMPEG_PATH),
                 "outtmpl": part_path,
@@ -888,7 +957,7 @@ def merge_media_to_mp4(job_id: str, job: dict[str, Any], output_path: str) -> No
                     "Accept-Language": "en-US,en;q=0.9",
                 },
                 "postprocessor_args": {
-                    "merger": ["-movflags", "+faststart"],
+                    "merger": ["-c", "copy", "-movflags", "+faststart"],
                 },
             }
             if ACTIVE_COOKIE_FILE and os.path.exists(ACTIVE_COOKIE_FILE):

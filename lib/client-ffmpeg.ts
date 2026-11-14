@@ -25,6 +25,8 @@ export interface ClientMergeParams {
 export interface ClientMergeResult {
   blob: Blob;
   usedProxyFallback: boolean;
+  ext: 'mp4' | 'webm';
+  mimeType: string;
 }
 
 const CORE_CDN_BASES = [
@@ -212,6 +214,34 @@ function sanitizeExt(ext: string | undefined, fallback: string): string {
   return cleaned || fallback;
 }
 
+function detectContainerFromBytes(data: Uint8Array, fallbackExt: string): string {
+  if (data.byteLength >= 12) {
+    // ISO Base Media File Format (MP4 / M4A): "ftyp" at offset 4
+    if (data[4] === 0x66 && data[5] === 0x74 && data[6] === 0x79 && data[7] === 0x70) {
+      return fallbackExt === 'm4a' ? 'm4a' : 'mp4';
+    }
+    // EBML header: Matroska / WebM
+    if (data[0] === 0x1a && data[1] === 0x45 && data[2] === 0xdf && data[3] === 0xa3) {
+      return 'webm';
+    }
+    // Ogg container
+    if (data[0] === 0x4f && data[1] === 0x67 && data[2] === 0x67 && data[3] === 0x53) {
+      return 'ogg';
+    }
+    // MP3 (ID3 tag or MPEG audio sync frame)
+    if (
+      (data[0] === 0x49 && data[1] === 0x44 && data[2] === 0x33) ||
+      (data[0] === 0xff && (data[1] & 0xe0) === 0xe0)
+    ) {
+      return 'mp3';
+    }
+  }
+  if (data.byteLength >= 377 && data[0] === 0x47 && data[188] === 0x47 && data[376] === 0x47) {
+    return 'ts';
+  }
+  return fallbackExt;
+}
+
 export async function mergeVideoAndAudioInBrowser({
   videoUrl,
   audioUrl,
@@ -249,16 +279,16 @@ export async function mergeVideoAndAudioInBrowser({
     message: 'Downloading video & audio streams...',
   });
 
-  const vExt = sanitizeExt(videoExt, 'mp4');
-  const aExt = sanitizeExt(audioExt, 'm4a');
+  const requestedVExt = sanitizeExt(videoExt, 'mp4');
+  const requestedAExt = sanitizeExt(audioExt, 'm4a');
 
   const [videoResult, audioResult] = await Promise.all([
-    fetchMediaBytes(videoUrl, `video.${vExt}`, (rec, tot) => {
+    fetchMediaBytes(videoUrl, `video.${requestedVExt}`, (rec, tot) => {
       videoReceived = rec;
       videoTotal = tot;
       emitDownloadProgress();
     }),
-    fetchMediaBytes(audioUrl, `audio.${aExt}`, (rec, tot) => {
+    fetchMediaBytes(audioUrl, `audio.${requestedAExt}`, (rec, tot) => {
       audioReceived = rec;
       audioTotal = tot;
       emitDownloadProgress();
@@ -267,10 +297,36 @@ export async function mergeVideoAndAudioInBrowser({
 
   const usedProxyFallback = videoResult.usedProxyFallback || audioResult.usedProxyFallback;
 
+  const vExt = detectContainerFromBytes(videoResult.data, requestedVExt);
+  const aExt = detectContainerFromBytes(audioResult.data, requestedAExt);
+
+  const lowerV = vcodec.toLowerCase();
+  const lowerA = acodec.toLowerCase();
+
+  const isVideoWebm = vExt === 'webm' || (/(vp8|vp9|vp09)/.test(lowerV) && vExt !== 'mp4');
+  const isAudioWebm =
+    aExt === 'webm' || aExt === 'ogg' || (/(opus|vorbis)/.test(lowerA) && aExt !== 'mp4' && aExt !== 'm4a');
+
+  const outputExt: 'mp4' | 'webm' = isVideoWebm && isAudioWebm ? 'webm' : 'mp4';
+
   const jobKey = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const videoPath = `v_${jobKey}.${vExt}`;
   const audioPath = `a_${jobKey}.${aExt}`;
-  const outputPath = `out_${jobKey}.mp4`;
+  const primaryOutputPath = `out_${jobKey}.${outputExt}`;
+  const fallbackMp4Path = `out_${jobKey}_fallback.mp4`;
+
+  let finalOutputPath = primaryOutputPath;
+  let finalExt: 'mp4' | 'webm' = outputExt;
+  let finalMimeType = outputExt === 'webm' ? 'video/webm' : 'video/mp4';
+
+  const ffmpegLogs: string[] = [];
+  const logHandler = ({ message }: { message: string }) => {
+    if (!message) return;
+    ffmpegLogs.push(message);
+    if (ffmpegLogs.length > 20) {
+      ffmpegLogs.shift();
+    }
+  };
 
   const progressHandler = ({ progress }: { progress: number }) => {
     if (!Number.isFinite(progress)) return;
@@ -284,6 +340,7 @@ export async function mergeVideoAndAudioInBrowser({
     });
   };
 
+  ffmpeg.on('log', logHandler);
   ffmpeg.on('progress', progressHandler);
 
   try {
@@ -297,18 +354,28 @@ export async function mergeVideoAndAudioInBrowser({
     await ffmpeg.writeFile(videoPath, videoResult.data);
     await ffmpeg.writeFile(audioPath, audioResult.data);
 
-    const lowerV = vcodec.toLowerCase();
-    const lowerA = acodec.toLowerCase();
-
     const canCopyVideo =
-      lowerV === '' || /(avc|h264|hevc|h265|hvc1|hev1|mp4v)/.test(lowerV);
-    const canCopyAudio = lowerA === '' || /(mp4a|aac)/.test(lowerA);
+      outputExt === 'webm'
+        ? lowerV === '' || /(vp8|vp9|vp09|av01|av1)/.test(lowerV)
+        : lowerV === '' || /(avc|h264|hevc|h265|hvc1|hev1|mp4v|av01|av1|vp09|vp9)/.test(lowerV);
+
+    const canCopyAudio =
+      outputExt === 'webm'
+        ? lowerA === '' || /(opus|vorbis)/.test(lowerA)
+        : lowerA === '' || /(mp4a|aac|mp3|opus|ac-3|ec-3)/.test(lowerA);
 
     const vArg = canCopyVideo ? 'copy' : 'libx264';
-    const aArg = canCopyAudio ? 'copy' : 'aac';
+    const aArg = canCopyAudio ? 'copy' : outputExt === 'webm' ? 'libopus' : 'aac';
 
-    const buildArgs = (vc: string, ac: string) => {
+    const buildArgs = (
+      vc: string,
+      ac: string,
+      outFile: string,
+      outContainer: 'mp4' | 'webm',
+      options?: { faststart?: boolean; strictExperimental?: boolean }
+    ) => {
       const args = [
+        '-y',
         '-i',
         videoPath,
         '-i',
@@ -327,26 +394,72 @@ export async function mergeVideoAndAudioInBrowser({
       }
       if (ac === 'aac') {
         args.push('-b:a', '192k');
+      } else if (ac === 'libopus') {
+        args.push('-b:a', '128k');
       }
-      args.push('-movflags', '+faststart', '-shortest', outputPath);
+      if (options?.strictExperimental) {
+        args.push('-strict', '-2');
+      }
+      if (outContainer === 'mp4' && options?.faststart !== false) {
+        args.push('-movflags', '+faststart');
+      }
+      args.push('-avoid_negative_ts', 'make_zero', '-shortest', outFile);
       return args;
     };
 
-    let exitCode = await ffmpeg.exec(buildArgs(vArg, aArg));
+    // 1. Primary attempt: pure stream copy (-c:v copy -c:a copy) into matching container (1-2s)
+    let exitCode = await ffmpeg.exec(
+      buildArgs(vArg, aArg, primaryOutputPath, outputExt, {
+        faststart: outputExt === 'mp4',
+        strictExperimental: outputExt === 'mp4' && lowerA.includes('opus'),
+      })
+    );
 
-    // If direct stream copy fails (e.g., unusual container/codec), retry with safe re-encode
-    if (exitCode !== 0 && (vArg === 'copy' || aArg === 'copy')) {
-      await ffmpeg.deleteFile(outputPath).catch(() => {});
-      exitCode = await ffmpeg.exec(buildArgs('libx264', 'aac'));
+    // 2. If MP4 stream copy failed due to faststart/fragmented MP4 quirk, retry stream copy without +faststart
+    if (exitCode !== 0 && outputExt === 'mp4' && vArg === 'copy' && aArg === 'copy') {
+      await ffmpeg.deleteFile(primaryOutputPath).catch(() => {});
+      exitCode = await ffmpeg.exec(
+        buildArgs('copy', 'copy', primaryOutputPath, 'mp4', {
+          faststart: false,
+          strictExperimental: true,
+        })
+      );
+    }
+
+    // 3. If audio stream copy failed (e.g. vorbis/opus in mp4), keep -c:v copy and only transcode audio to aac
+    if (exitCode !== 0 && canCopyVideo && !(vArg === 'copy' && aArg === 'aac')) {
+      await ffmpeg.deleteFile(primaryOutputPath).catch(() => {});
+      finalOutputPath = outputExt === 'mp4' ? primaryOutputPath : fallbackMp4Path;
+      finalExt = 'mp4';
+      finalMimeType = 'video/mp4';
+      exitCode = await ffmpeg.exec(
+        buildArgs('copy', 'aac', finalOutputPath, 'mp4', { faststart: true })
+      );
+    }
+
+    // 4. Last resort only: full software re-encode to H.264/AAC MP4
+    if (exitCode !== 0 && (vArg !== 'libx264' || aArg !== 'aac')) {
+      await ffmpeg.deleteFile(finalOutputPath).catch(() => {});
+      finalOutputPath = fallbackMp4Path;
+      finalExt = 'mp4';
+      finalMimeType = 'video/mp4';
+      exitCode = await ffmpeg.exec(
+        buildArgs('libx264', 'aac', fallbackMp4Path, 'mp4', { faststart: true })
+      );
     }
 
     if (exitCode !== 0) {
-      throw new Error('Browser FFmpeg failed to mux video and audio streams.');
+      const tailLog = ffmpegLogs.slice(-3).join(' | ');
+      throw new Error(
+        tailLog
+          ? `Browser FFmpeg failed to mux streams: ${tailLog}`
+          : 'Browser FFmpeg failed to mux video and audio streams.'
+      );
     }
 
-    const rawOutput = await ffmpeg.readFile(outputPath);
+    const rawOutput = await ffmpeg.readFile(finalOutputPath);
     if (!(rawOutput instanceof Uint8Array) || rawOutput.byteLength === 0) {
-      throw new Error('Merged MP4 output was empty.');
+      throw new Error(`Merged ${finalExt.toUpperCase()} output was empty.`);
     }
 
     onProgress?.({
@@ -360,15 +473,19 @@ export async function mergeVideoAndAudioInBrowser({
     stableCopy.set(rawOutput);
 
     return {
-      blob: new Blob([stableCopy.buffer], { type: 'video/mp4' }),
+      blob: new Blob([stableCopy.buffer], { type: finalMimeType }),
       usedProxyFallback,
+      ext: finalExt,
+      mimeType: finalMimeType,
     };
   } finally {
+    ffmpeg.off('log', logHandler);
     ffmpeg.off('progress', progressHandler);
     await Promise.allSettled([
       ffmpeg.deleteFile(videoPath),
       ffmpeg.deleteFile(audioPath),
-      ffmpeg.deleteFile(outputPath),
+      ffmpeg.deleteFile(primaryOutputPath),
+      ffmpeg.deleteFile(fallbackMp4Path),
     ]);
   }
 }

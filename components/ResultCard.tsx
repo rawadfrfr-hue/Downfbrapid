@@ -104,7 +104,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
   const [downloadingType, setDownloadingType] = useState<string | null>(null);
   const [mergeProgress, setMergeProgress] = useState<MergeProgress | null>(null);
   const [mergeError, setMergeError] = useState<string | null>(null);
-  const [mergedBlobs, setMergedBlobs] = useState<Record<string, string>>({});
+  const [mergedBlobs, setMergedBlobs] = useState<Record<string, { url: string; filename: string }>>({});
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const mergedBlobUrlsRef = useRef<string[]>([]);
 
@@ -155,10 +155,10 @@ export const ResultCard: React.FC<ResultCardProps> = ({
 
     // Client-side merging path using ffmpeg.wasm (0% server FFmpeg / bandwidth when direct CDN allows CORS)
     if (requiresClientMerge && videoUrl && audioUrl) {
-      const cachedBlobUrl = mergedBlobs[type];
-      if (cachedBlobUrl) {
+      const cachedBlob = mergedBlobs[type];
+      if (cachedBlob) {
         onRecordDownload(qualityLabel);
-        triggerFileDownload(cachedBlobUrl, targetFilename, true);
+        triggerFileDownload(cachedBlob.url, cachedBlob.filename, true);
         setTimeout(() => setDownloadingType(null), 600);
         return;
       }
@@ -170,7 +170,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           message: 'Preparing browser FFmpeg...',
         });
 
-        const { blob } = await mergeVideoAndAudioInBrowser({
+        const { blob, ext: mergedExt } = await mergeVideoAndAudioInBrowser({
           videoUrl,
           audioUrl,
           filename: targetFilename,
@@ -181,12 +181,16 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           onProgress: (progress) => setMergeProgress(progress),
         });
 
+        const finalFilename = `${cleanTitle}_${type}.${mergedExt}`;
         const blobUrl = URL.createObjectURL(blob);
         mergedBlobUrlsRef.current.push(blobUrl);
-        setMergedBlobs((prev) => ({ ...prev, [type]: blobUrl }));
+        setMergedBlobs((prev) => ({
+          ...prev,
+          [type]: { url: blobUrl, filename: finalFilename },
+        }));
 
         onRecordDownload(qualityLabel);
-        triggerFileDownload(blobUrl, targetFilename, true);
+        triggerFileDownload(blobUrl, finalFilename, true);
       } catch (err: unknown) {
         const msg =
           err instanceof Error
@@ -364,7 +368,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         })
       : fallbackOptions;
 
-  const firstMergedBlob = Object.values(mergedBlobs)[0];
+  const firstMergedBlob = Object.values(mergedBlobs)[0]?.url;
   const previewVideoSrc =
     firstMergedBlob || data.previewUrl || data.qualities.sd?.url || data.qualities.hd.url;
   const isPreviewVideoOnly =
