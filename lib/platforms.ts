@@ -82,7 +82,7 @@ export const PLATFORMS: Record<PlatformType, PlatformConfig> = {
     path: '/tiktok',
     heroTitle: 'Download TikTok Videos Without Watermark',
     heroSubtitle:
-      'Effortlessly download TikTok videos in maximum quality without watermark using SaveVibe. Paste your link below to save instantly.',
+      'Effortlessly download TikTok videos in standard or high quality without watermark using SaveVibe. Paste your link below to save instantly.',
     placeholder: 'Paste TikTok video URL here (e.g., https://vm.tiktok.com/...)...',
     primaryColor: '#000000',
     gradientBg: 'from-cyan-500/10 via-slate-900/10 to-rose-500/10',

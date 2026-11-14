@@ -79,6 +79,8 @@ export const ResultCard: React.FC<ResultCardProps> = ({
   const [downloadingType, setDownloadingType] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
+  const isTikTok = platform === 'tiktok' || data.platform === 'TikTok';
+
   const handleDownload = (
     type: string,
     downloadUrl: string,
@@ -97,17 +99,32 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         ? data.qualities.audio?.url || data.qualities.hd.url
         : data.qualities.hd.url;
 
-    const directCdnUrl = downloadUrl || fallbackDirectUrl;
+    const rawTargetUrl = downloadUrl || fallbackDirectUrl;
     const cleanExt = formatExt.toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp4';
     const safeExt = `.${cleanExt}`;
     const cleanTitle = data.title.replace(/[^\w\.-]/g, '_').slice(0, 30) || 'SaveVibe_Media';
     const targetFilename = `${cleanTitle}_${type}${safeExt}`;
 
-    // Direct CDN or signed backend FFmpeg-merged MP4 download
-    const isBackendMerge = directCdnUrl.includes('/api/merge');
+    const isAlreadyProxiedOrMerged =
+      rawTargetUrl.startsWith('/api/') ||
+      rawTargetUrl.includes('/api/merge') ||
+      rawTargetUrl.includes('/api/proxy') ||
+      rawTargetUrl.includes('/api/download');
+
+    const finalDownloadUrl =
+      isTikTok && !isAlreadyProxiedOrMerged && /^https?:\/\//i.test(rawTargetUrl)
+        ? `/api/download?url=${encodeURIComponent(rawTargetUrl)}&filename=${encodeURIComponent(targetFilename)}&dl=1`
+        : rawTargetUrl;
+
+    const useInPlaceDownload =
+      finalDownloadUrl.startsWith('/api/') ||
+      finalDownloadUrl.includes('/api/merge') ||
+      finalDownloadUrl.includes('/api/proxy') ||
+      finalDownloadUrl.includes('/api/download');
+
     const a = document.createElement('a');
-    a.href = directCdnUrl;
-    if (!isBackendMerge) {
+    a.href = finalDownloadUrl;
+    if (!useInPlaceDownload) {
       a.target = '_blank';
     }
     a.rel = 'noopener noreferrer';
@@ -118,7 +135,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
 
     setTimeout(() => {
       setDownloadingType(null);
-    }, isBackendMerge ? 2500 : 1000);
+    }, finalDownloadUrl.includes('/api/merge') ? 2500 : 1000);
   };
 
   const handleCopyLink = () => {
@@ -127,16 +144,22 @@ export const ResultCard: React.FC<ResultCardProps> = ({
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
-  const isTikTokOrSingleQuality = platform === 'tiktok' || data.isSingleQuality || data.platform === 'TikTok';
-
-  const fallbackOptions = isTikTokOrSingleQuality
+  const fallbackOptions = isTikTok
     ? [
         {
+          type: 'sd',
+          mainTitle: 'Standard quality (without watermark)',
+          subDetails: `MP4 • Watermark-Free • ${data.qualities.sd?.size || 'Standard MP4'}`,
+          downloadUrl: data.qualities.sd?.downloadUrl || data.qualities.hd.downloadUrl,
+          qualityLabel: 'Standard quality (without watermark)',
+          format: data.qualities.sd?.format || 'MP4',
+        },
+        {
           type: 'hd',
-          mainTitle: 'Max Quality (No Watermark)',
-          subDetails: 'MP4 • Watermark-Free • High Quality',
+          mainTitle: 'High quality (without watermark)',
+          subDetails: `MP4 • Watermark-Free • ${data.qualities.hd.size || 'HD MP4'}`,
           downloadUrl: data.qualities.hd.downloadUrl,
-          qualityLabel: 'Max Quality without watermark',
+          qualityLabel: 'High quality (without watermark)',
           format: data.qualities.hd.format || 'MP4',
         },
       ]
@@ -180,7 +203,8 @@ export const ResultCard: React.FC<ResultCardProps> = ({
       ? data.qualityList.map((item) => {
           const formatText = item.format || (item.id === 'audio' ? 'M4A' : 'MP4');
           let mainTitle = '';
-          if (item.id === '2160p') mainTitle = '2160p (4K Ultra HD)';
+          if (isTikTok) mainTitle = item.label;
+          else if (item.id === '2160p') mainTitle = '2160p (4K Ultra HD)';
           else if (item.id === '1440p') mainTitle = '1440p (2K Quad HD)';
           else if (item.id === '1080p') mainTitle = '1080p (Full HD)';
           else if (item.id === '720p') mainTitle = '720p (HD)';

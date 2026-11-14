@@ -306,13 +306,14 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
     if not video_only_formats and FFMPEG_PATH:
         video_only_formats = [f for f in formats if is_video_only_stream(f, allow_dash_hls=True)]
 
-    # For TikTok, strongly prefer non-watermarked MP4 formats
+    # For TikTok, exclude watermarked formats (including download_addr) and prefer MP4
     if platform == "tiktok":
         no_watermark = [
             f
             for f in progressive_formats
             if "watermark" not in (f.get("format_id") or "").lower()
             and "watermark" not in (f.get("format_note") or "").lower()
+            and not (f.get("format_id") or "").lower().startswith("download")
             and (f.get("ext") or "").lower() in ("mp4", "")
         ]
         if no_watermark:
@@ -525,25 +526,46 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
         )
 
     hd_entry = resolved_videos[0]
-    sd_entry = resolved_videos[1] if len(resolved_videos) > 1 else None
+    sd_entry = (
+        resolved_videos[-1]
+        if platform == "tiktok" and len(resolved_videos) > 1
+        else (resolved_videos[1] if len(resolved_videos) > 1 else None)
+    )
 
     hd_label = make_quality_label(hd_entry["fmt"], "HD Quality")
     hd_size = hd_entry["size"] or hd_label
 
     quality_list: list[dict[str, Any]] = []
     if platform == "tiktok":
-        quality_list.append(
-            {
-                "id": "hd",
-                "quality": "Max Quality",
-                "label": "Max Quality (No Watermark)",
-                "sublabel": f"Watermark-Free • {hd_size}",
-                "url": hd_entry["preview_url"],
-                "downloadUrl": hd_entry["download_url"],
-                "qualityLabel": "Max Quality without watermark",
-                "format": hd_entry["ext"],
-                "badge": "NO WATERMARK",
-            }
+        sd_target = sd_entry or hd_entry
+        sd_label = make_quality_label(sd_target["fmt"], "Standard Quality")
+        sd_size = sd_target["size"] or sd_label
+
+        quality_list.extend(
+            [
+                {
+                    "id": "sd",
+                    "quality": "Standard quality (without watermark)",
+                    "label": "Standard quality (without watermark)",
+                    "sublabel": f"Watermark-Free • {sd_size}",
+                    "url": sd_target["preview_url"],
+                    "downloadUrl": sd_target["download_url"],
+                    "qualityLabel": "Standard quality (without watermark)",
+                    "format": sd_target["ext"],
+                    "badge": "NO WATERMARK",
+                },
+                {
+                    "id": "hd",
+                    "quality": "High quality (without watermark)",
+                    "label": "High quality (without watermark)",
+                    "sublabel": f"Watermark-Free • {hd_size}",
+                    "url": hd_entry["preview_url"],
+                    "downloadUrl": hd_entry["download_url"],
+                    "qualityLabel": "High quality (without watermark)",
+                    "format": hd_entry["ext"],
+                    "badge": "HD • NO WATERMARK",
+                },
+            ]
         )
     else:
         for idx, entry in enumerate(resolved_videos[:4]):
@@ -591,15 +613,25 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
 
     qualities: dict[str, Any] = {
         "hd": {
-            "quality": "Max Quality without watermark" if platform == "tiktok" else hd_label,
+            "quality": "High quality (without watermark)" if platform == "tiktok" else hd_label,
             "url": hd_entry["preview_url"],
             "downloadUrl": hd_entry["download_url"],
-            "size": "Max Quality • No Watermark" if platform == "tiktok" else hd_size,
+            "size": hd_size,
             "format": hd_entry["ext"],
         }
     }
 
-    if sd_entry and platform != "tiktok":
+    if platform == "tiktok":
+        sd_target = sd_entry or hd_entry
+        sd_label = make_quality_label(sd_target["fmt"], "Standard Quality")
+        qualities["sd"] = {
+            "quality": "Standard quality (without watermark)",
+            "url": sd_target["preview_url"],
+            "downloadUrl": sd_target["download_url"],
+            "size": sd_target["size"] or sd_label,
+            "format": sd_target["ext"],
+        }
+    elif sd_entry:
         sd_label = make_quality_label(sd_entry["fmt"], "SD")
         qualities["sd"] = {
             "quality": sd_label,
@@ -632,7 +664,7 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
         "duration": duration,
         "thumbnail": thumbnail,
         "platform": platform_display,
-        "isSingleQuality": platform == "tiktok",
+        "isSingleQuality": False,
         "qualityList": quality_list,
         "qualities": qualities,
     }
