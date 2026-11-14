@@ -106,6 +106,38 @@ export async function POST(req: NextRequest) {
       }
 
       const data = payload.data;
+      const resolveBackendUrl = (maybeRelative: unknown) => {
+        if (typeof maybeRelative === 'string' && maybeRelative.startsWith('/api/')) {
+          return `${backendBaseUrl}${maybeRelative}`;
+        }
+        return maybeRelative;
+      };
+
+      const normalizedQualityList = Array.isArray(data.qualityList)
+        ? data.qualityList.map((item: Record<string, unknown>) => ({
+            ...item,
+            url: resolveBackendUrl(item.url),
+            downloadUrl: resolveBackendUrl(item.downloadUrl),
+          }))
+        : data.qualityList;
+
+      const normalizedQualities = data.qualities
+        ? Object.fromEntries(
+            Object.entries(data.qualities as Record<string, Record<string, unknown>>).map(
+              ([key, val]) => [
+                key,
+                val
+                  ? {
+                      ...val,
+                      url: resolveBackendUrl(val.url),
+                      downloadUrl: resolveBackendUrl(val.downloadUrl),
+                    }
+                  : val,
+              ]
+            )
+          )
+        : data.qualities;
+
       const fallbackThumb =
         detectedPlatform === 'tiktok'
           ? 'https://images.unsplash.com/photo-1598899134739-24c46f58b8c0?auto=format&fit=crop&w=800&q=80'
@@ -115,6 +147,8 @@ export async function POST(req: NextRequest) {
         success: true,
         data: {
           ...data,
+          qualityList: normalizedQualityList,
+          qualities: normalizedQualities,
           thumbnail: data.thumbnail || fallbackThumb,
         },
       });

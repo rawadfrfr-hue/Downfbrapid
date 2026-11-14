@@ -103,10 +103,13 @@ export const ResultCard: React.FC<ResultCardProps> = ({
     const cleanTitle = data.title.replace(/[^\w\.-]/g, '_').slice(0, 30) || 'SaveVibe_Media';
     const targetFilename = `${cleanTitle}_${type}${safeExt}`;
 
-    // Direct CDN download link (0% server bandwidth)
+    // Direct CDN or signed backend FFmpeg-merged MP4 download
+    const isBackendMerge = directCdnUrl.includes('/api/merge');
     const a = document.createElement('a');
     a.href = directCdnUrl;
-    a.target = '_blank';
+    if (!isBackendMerge) {
+      a.target = '_blank';
+    }
     a.rel = 'noopener noreferrer';
     a.setAttribute('download', targetFilename);
     document.body.appendChild(a);
@@ -115,7 +118,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
 
     setTimeout(() => {
       setDownloadingType(null);
-    }, 1000);
+    }, isBackendMerge ? 2500 : 1000);
   };
 
   const handleCopyLink = () => {
