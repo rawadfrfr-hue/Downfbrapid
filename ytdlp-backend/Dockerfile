@@ -6,17 +6,19 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Install system dependencies for yt-dlp SSL, networking, and FFmpeg muxing
+# Install system dependencies for yt-dlp SSL, JS runtime, networking, and FFmpeg muxing
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
     ffmpeg \
+    nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
 COPY main.py .
+COPY youtube_proxies.txt* ./
 
 EXPOSE 8000
 

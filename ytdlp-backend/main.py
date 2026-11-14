@@ -9,26 +9,28 @@ import re
 import secrets
 import shutil
 import subprocess
+import threading
 import time
-import urllib.request
 from typing import Any, Optional
-from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+from urllib.parse import parse_qsl, quote, urlencode, urlparse, urlunparse
 
 from cachetools import TTLCache
-from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
+import httpx
 from pydantic import BaseModel, HttpUrl
+from starlette.background import BackgroundTask
 import yt_dlp
 
 app = FastAPI(
     title="SaveVibe yt-dlp Backend",
-    description="Direct media link extractor & FFmpeg muxer for Facebook, Instagram, and TikTok using yt-dlp.",
-    version="1.2.0",
+    description="Direct media link extractor, YouTube proxy streamer & FFmpeg muxer for Facebook, YouTube, Instagram, and TikTok.",
+    version="1.3.0",
 )
 
 # Optional CORS configuration (Next.js server calls this server-to-server,
-# and browser calls /api/merge directly for FFmpeg-merged high-quality MP4s)
+# and browser calls /api/merge or /api/proxy directly)
 allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
@@ -48,6 +50,7 @@ FFPROBE_PATH = shutil.which("ffprobe") or (
     if FFMPEG_PATH and os.path.exists(os.path.join(os.path.dirname(FFMPEG_PATH), "ffprobe"))
     else None
 )
+NODE_PATH = shutil.which("node") or shutil.which("nodejs")
 DEFAULT_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -60,6 +63,8 @@ extract_locks: dict[str, asyncio.Lock] = {}
 # Pending FFmpeg merge jobs cached for 30 minutes
 merge_jobs: TTLCache[str, dict[str, Any]] = TTLCache(maxsize=1000, ttl=1800)
 merge_locks: dict[str, asyncio.Lock] = {}
+# Pending YouTube proxy streaming jobs cached for 30 minutes
+proxy_jobs: TTLCache[str, dict[str, Any]] = TTLCache(maxsize=2000, ttl=1800)
 
 STRIP_QUERY_PARAMS = {
     "fbclid",
@@ -128,6 +133,68 @@ def setup_cookies_file() -> Optional[str]:
 
 ACTIVE_COOKIE_FILE = setup_cookies_file()
 
+YOUTUBE_PROXY_FILE = os.getenv(
+    "YTDLP_YOUTUBE_PROXY_FILE",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "youtube_proxies.txt"),
+).strip()
+
+
+def parse_proxy_entry(raw: str) -> Optional[str]:
+    entry = raw.strip()
+    if not entry or entry.startswith("#"):
+        return None
+    if entry.startswith(("http://", "https://", "socks5://", "socks5h://", "socks4://")):
+        return entry
+    parts = entry.split(":")
+    if len(parts) == 4:
+        host, port, user, password = parts
+        return f"http://{quote(user, safe='')}:{quote(password, safe='')}@{host}:{port}"
+    if len(parts) == 2:
+        host, port = parts
+        return f"http://{host}:{port}"
+    return None
+
+
+def load_youtube_proxies() -> list[str]:
+    raw_env = (
+        os.getenv("YTDLP_YOUTUBE_PROXIES", "").strip()
+        or os.getenv("YTDLP_PROXY", "").strip()
+    )
+    entries: list[str] = []
+    if raw_env:
+        entries = re.split(r"[\s,;]+", raw_env)
+    elif YOUTUBE_PROXY_FILE and os.path.exists(YOUTUBE_PROXY_FILE):
+        try:
+            with open(YOUTUBE_PROXY_FILE, "r", encoding="utf-8") as f:
+                entries = re.split(r"[\s,;]+", f.read())
+        except Exception as exc:
+            print(f"[warn] Failed to read YouTube proxy file: {exc}")
+
+    parsed: list[str] = []
+    seen: set[str] = set()
+    for item in entries:
+        proxy_url = parse_proxy_entry(item)
+        if proxy_url and proxy_url not in seen:
+            seen.add(proxy_url)
+            parsed.append(proxy_url)
+    return parsed
+
+
+YOUTUBE_PROXIES = load_youtube_proxies()
+_youtube_proxy_lock = threading.Lock()
+_youtube_proxy_idx = 0
+
+
+def get_youtube_proxy_candidates(max_tries: int = 4) -> list[Optional[str]]:
+    global _youtube_proxy_idx
+    if not YOUTUBE_PROXIES:
+        return [None]
+    count = min(max_tries, len(YOUTUBE_PROXIES))
+    with _youtube_proxy_lock:
+        start = _youtube_proxy_idx % len(YOUTUBE_PROXIES)
+        _youtube_proxy_idx = (_youtube_proxy_idx + 1) % len(YOUTUBE_PROXIES)
+    return [YOUTUBE_PROXIES[(start + offset) % len(YOUTUBE_PROXIES)] for offset in range(count)]
+
 
 class ExtractRequest(BaseModel):
     url: HttpUrl
@@ -178,12 +245,13 @@ def format_filesize(size_bytes: Any) -> Optional[str]:
     return f"{kb:.0f} KB"
 
 
-def sanitize_filename(name: str, suffix: str = "") -> str:
+def sanitize_filename(name: str, suffix: str = "", ext: str = "mp4") -> str:
     cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", name).strip("._")
     cleaned = (cleaned or "SaveVibe_Video")[:45]
+    safe_ext = re.sub(r"[^a-z0-9]", "", ext.lower()) or "mp4"
     if suffix:
-        return f"{cleaned}_{suffix}.mp4"
-    return f"{cleaned}.mp4"
+        return f"{cleaned}_{suffix}.{safe_ext}"
+    return f"{cleaned}.{safe_ext}"
 
 
 def sign_job_id(job_id: str) -> str:
@@ -191,14 +259,14 @@ def sign_job_id(job_id: str) -> str:
     return f"{job_id}.{sig}"
 
 
-def verify_merge_token(token: str) -> str:
+def verify_signed_token(token: str, store: TTLCache[str, dict[str, Any]]) -> str:
     if "." not in token:
         raise HTTPException(status_code=403, detail="Invalid download token.")
     job_id, provided_sig = token.split(".", 1)
     expected_sig = hmac.new(SIGNING_SECRET, job_id.encode("utf-8"), hashlib.sha256).hexdigest()[:24]
     if not hmac.compare_digest(provided_sig, expected_sig):
         raise HTTPException(status_code=403, detail="Invalid or tampered download token.")
-    if job_id not in merge_jobs:
+    if job_id not in store:
         raise HTTPException(
             status_code=410,
             detail="Download link expired. Please fetch the video link again.",
@@ -211,19 +279,23 @@ def register_merge_job(
     original_url: str,
     title: str,
     height: int,
+    platform: str,
     video_fmt: Optional[dict[str, Any]],
     audio_fmt: Optional[dict[str, Any]],
+    proxy_url: Optional[str] = None,
     ytdlp_format_spec: Optional[str] = None,
 ) -> str:
     v_id = str(video_fmt.get("format_id") or "") if video_fmt else ""
     a_id = str(audio_fmt.get("format_id") or "") if audio_fmt else ""
-    seed = f"{original_url}|{height}|{v_id}|{a_id}|{ytdlp_format_spec or ''}"
+    seed = f"{original_url}|{height}|{v_id}|{a_id}|{proxy_url or ''}|{ytdlp_format_spec or ''}"
     job_id = hashlib.sha256(seed.encode("utf-8")).hexdigest()[:20]
 
     merge_jobs[job_id] = {
         "original_url": original_url,
         "title": title,
         "height": height,
+        "platform": platform,
+        "proxy_url": proxy_url,
         "video_url": video_fmt.get("url") if video_fmt else None,
         "audio_url": audio_fmt.get("url") if audio_fmt else None,
         "video_protocol": (video_fmt.get("protocol") or "").lower() if video_fmt else "",
@@ -233,6 +305,29 @@ def register_merge_job(
         "vcodec": (video_fmt.get("vcodec") or "").lower() if video_fmt else "",
         "acodec": (audio_fmt.get("acodec") or "").lower() if audio_fmt else "",
         "ytdlp_format_spec": ytdlp_format_spec,
+        "created_at": time.time(),
+    }
+    return sign_job_id(job_id)
+
+
+def register_proxy_job(
+    *,
+    media_url: str,
+    title: str,
+    ext: str,
+    suffix: str,
+    proxy_url: Optional[str],
+    referer: Optional[str] = None,
+) -> str:
+    seed = f"proxy|{media_url}|{suffix}|{proxy_url or ''}"
+    job_id = hashlib.sha256(seed.encode("utf-8")).hexdigest()[:20]
+    proxy_jobs[job_id] = {
+        "media_url": media_url,
+        "title": title,
+        "ext": ext,
+        "suffix": suffix,
+        "proxy_url": proxy_url,
+        "referer": referer,
         "created_at": time.time(),
     }
     return sign_job_id(job_id)
@@ -358,7 +453,7 @@ def is_mp4_compatible_audio(fmt: dict[str, Any]) -> bool:
     return any(k in acodec for k in ("mp4a", "aac", "mp3")) or ext in ("m4a", "mp4", "aac", "mp3")
 
 
-def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
+def extract_with_ytdlp(url_str: str, platform: str, proxy_url: Optional[str] = None) -> dict[str, Any]:
     ydl_opts: dict[str, Any] = {
         "quiet": True,
         "no_warnings": True,
@@ -381,6 +476,13 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
             "Accept-Language": "en-US,en;q=0.9",
         },
     }
+
+    # Only use residential proxy for YouTube; Facebook/Instagram/TikTok stay direct
+    if platform == "youtube" and proxy_url:
+        ydl_opts["proxy"] = proxy_url
+
+    if NODE_PATH:
+        ydl_opts["js_runtimes"] = {"node": {}}
 
     if ACTIVE_COOKIE_FILE and os.path.exists(ACTIVE_COOKIE_FILE):
         ydl_opts["cookiefile"] = ACTIVE_COOKIE_FILE
@@ -504,6 +606,7 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
 
     platform_display = {
         "facebook": "Facebook",
+        "youtube": "YouTube",
         "instagram": "Instagram",
         "tiktok": "TikTok",
     }.get(platform, platform.capitalize())
@@ -585,7 +688,7 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
                     "client_merge": False,
                 }
             )
-    elif best_direct_audio:
+    elif best_direct_audio and platform != "youtube":
         for f in direct_video_only_formats:
             h = effective_height(f)
             if h > 0 and h in seen_heights:
@@ -619,8 +722,10 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
             original_url=url_str,
             title=title,
             height=highest,
+            platform=platform,
             video_fmt=None,
             audio_fmt=None,
+            proxy_url=proxy_url if platform == "youtube" else None,
             ytdlp_format_spec="bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best",
         )
         candidates.append(
@@ -695,8 +800,10 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
                 original_url=url_str,
                 title=title,
                 height=h,
+                platform=platform,
                 video_fmt=vfmt,
                 audio_fmt=afmt,
+                proxy_url=proxy_url if platform == "youtube" else None,
             )
             preview_url = f"/api/merge?token={token}&dl=0"
             download_url = f"/api/merge?token={token}&dl=1"
@@ -711,16 +818,29 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
             est_size = format_filesize(v_bytes + a_bytes) if (v_bytes and a_bytes) else format_filesize(v_bytes)
             ext = "MP4"
         else:
-            preview_url = vfmt["url"]
-            download_url = vfmt["url"]
-            video_url = vfmt["url"]
+            raw_ext = (vfmt.get("ext") or "mp4").lower()
+            if platform == "youtube":
+                p_token = register_proxy_job(
+                    media_url=vfmt["url"],
+                    title=title,
+                    ext=raw_ext,
+                    suffix=f"{h}p" if h > 0 else "SD",
+                    proxy_url=proxy_url,
+                    referer="https://www.youtube.com/",
+                )
+                preview_url = f"/api/proxy?token={p_token}&dl=0"
+                download_url = f"/api/proxy?token={p_token}&dl=1"
+            else:
+                preview_url = vfmt["url"]
+                download_url = vfmt["url"]
+            video_url = preview_url
             audio_url = None
             vcodec = (vfmt.get("vcodec") or "").lower()
             acodec = (vfmt.get("acodec") or "").lower()
-            video_ext = (vfmt.get("ext") or "mp4").lower()
+            video_ext = raw_ext
             audio_ext = ""
             est_size = format_filesize(vfmt.get("filesize") or vfmt.get("filesize_approx"))
-            ext = (vfmt.get("ext") or "mp4").upper()
+            ext = raw_ext.upper()
 
         resolved_videos.append(
             {
@@ -859,10 +979,34 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
                 )
             quality_list.append(q_item)
 
-        if best_direct_audio:
-            a_ext = (best_direct_audio.get("ext") or "m4a").upper()
+    selected_audio = (
+        (best_direct_mp4_audio or best_direct_audio)
+        if platform == "youtube"
+        else best_direct_audio
+    )
+    audio_preview_url: Optional[str] = None
+    audio_download_url: Optional[str] = None
+    if selected_audio:
+        raw_a_ext = (selected_audio.get("ext") or "m4a").lower()
+        if platform == "youtube":
+            a_token = register_proxy_job(
+                media_url=selected_audio["url"],
+                title=title,
+                ext=raw_a_ext,
+                suffix="audio",
+                proxy_url=proxy_url,
+                referer="https://www.youtube.com/",
+            )
+            audio_preview_url = f"/api/proxy?token={a_token}&dl=0"
+            audio_download_url = f"/api/proxy?token={a_token}&dl=1"
+        else:
+            audio_preview_url = selected_audio["url"]
+            audio_download_url = selected_audio["url"]
+
+        if platform != "tiktok":
+            a_ext = raw_a_ext.upper()
             a_size = (
-                format_filesize(best_direct_audio.get("filesize") or best_direct_audio.get("filesize_approx"))
+                format_filesize(selected_audio.get("filesize") or selected_audio.get("filesize_approx"))
                 or "Direct Audio"
             )
             quality_list.append(
@@ -871,8 +1015,8 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
                     "quality": "Audio",
                     "label": f"{a_ext} - Audio Only",
                     "sublabel": f"{a_size} • High Quality Audio",
-                    "url": best_direct_audio["url"],
-                    "downloadUrl": best_direct_audio["url"],
+                    "url": audio_preview_url,
+                    "downloadUrl": audio_download_url,
                     "qualityLabel": f"{a_ext} Audio Only",
                     "format": a_ext,
                     "badge": "AUDIO",
@@ -896,20 +1040,34 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
         sd_label = make_quality_label(sd_entry["fmt"], "SD", sd_entry["height"])
         qualities["sd"] = build_quality_payload(sd_entry, sd_label)
 
-    if best_direct_audio and platform != "tiktok":
-        a_ext = (best_direct_audio.get("ext") or "m4a").upper()
+    if selected_audio and audio_preview_url and audio_download_url and platform != "tiktok":
+        a_ext = (selected_audio.get("ext") or "m4a").upper()
         a_size = (
-            format_filesize(best_direct_audio.get("filesize") or best_direct_audio.get("filesize_approx"))
+            format_filesize(selected_audio.get("filesize") or selected_audio.get("filesize_approx"))
             or "Audio Track"
         )
         qualities["audio"] = {
             "quality": f"{a_ext} Audio",
-            "url": best_direct_audio["url"],
-            "downloadUrl": best_direct_audio["url"],
+            "url": audio_preview_url,
+            "downloadUrl": audio_download_url,
             "size": a_size,
             "format": a_ext,
             "requiresClientMerge": False,
         }
+
+    if platform == "youtube" and progressive_formats:
+        yt_prog = progressive_formats[0]
+        yt_prog_token = register_proxy_job(
+            media_url=yt_prog["url"],
+            title=title,
+            ext=(yt_prog.get("ext") or "mp4").lower(),
+            suffix="preview",
+            proxy_url=proxy_url,
+            referer="https://www.youtube.com/",
+        )
+        resolved_preview_url = f"/api/proxy?token={yt_prog_token}&dl=0"
+    else:
+        resolved_preview_url = best_progressive_preview or hd_entry["preview_url"]
 
     return {
         "id": f"{platform}_{info.get('id') or abs(hash(url_str))}",
@@ -921,9 +1079,9 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
         "thumbnail": thumbnail,
         "platform": platform_display,
         "isSingleQuality": False,
-        "previewUrl": best_progressive_preview or hd_entry["preview_url"],
+        "previewUrl": resolved_preview_url,
         "bestVideoUrl": hd_entry["video_url"] or hd_entry["download_url"],
-        "bestAudioUrl": best_direct_audio["url"] if best_direct_audio else None,
+        "bestAudioUrl": audio_download_url,
         "qualityList": quality_list,
         "qualities": qualities,
     }
@@ -931,6 +1089,8 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
 
 def get_referer_for_url(url: str) -> Optional[str]:
     lower = url.lower()
+    if "youtube.com" in lower or "youtu.be" in lower or "googlevideo.com" in lower:
+        return "https://www.youtube.com/"
     if "fbcdn" in lower or "facebook" in lower:
         return "https://www.facebook.com/"
     if "instagram" in lower or "cdninstagram" in lower:
@@ -940,7 +1100,12 @@ def get_referer_for_url(url: str) -> Optional[str]:
     return None
 
 
-def download_stream_to_file(url: str, dest_path: str, timeout: int = 30) -> None:
+def download_stream_to_file(
+    url: str,
+    dest_path: str,
+    timeout: int = 45,
+    proxy_url: Optional[str] = None,
+) -> None:
     headers = {
         "User-Agent": DEFAULT_USER_AGENT,
         "Accept": "*/*",
@@ -950,17 +1115,15 @@ def download_stream_to_file(url: str, dest_path: str, timeout: int = 30) -> None
     if referer:
         headers["Referer"] = referer
 
-    req = urllib.request.Request(url, headers=headers, method="GET")
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        status = getattr(resp, "status", 200)
-        if status >= 400:
-            raise RuntimeError(f"Upstream CDN returned HTTP {status}")
-        with open(dest_path, "wb") as f:
-            while True:
-                chunk = resp.read(262144)
-                if not chunk:
-                    break
-                f.write(chunk)
+    http_timeout = httpx.Timeout(connect=20.0, read=float(timeout), write=30.0, pool=20.0)
+    with httpx.Client(proxy=proxy_url, follow_redirects=True, timeout=http_timeout) as client:
+        with client.stream("GET", url, headers=headers) as resp:
+            if resp.status_code >= 400:
+                raise RuntimeError(f"Upstream CDN returned HTTP {resp.status_code}")
+            with open(dest_path, "wb") as f:
+                for chunk in resp.iter_bytes(chunk_size=262144):
+                    if chunk:
+                        f.write(chunk)
 
     if not os.path.exists(dest_path) or os.path.getsize(dest_path) == 0:
         raise RuntimeError("Downloaded upstream media stream was empty.")
@@ -1065,6 +1228,9 @@ def merge_media_to_mp4(job_id: str, job: dict[str, Any], output_path: str) -> No
 
     video_url = job.get("video_url")
     audio_url = job.get("audio_url")
+    proxy_url = job.get("proxy_url") if job.get("platform") == "youtube" else None
+    job_height = int(job.get("height") or 0)
+    is_youtube_uhd = job.get("platform") == "youtube" and job_height >= 1440
     vcodec = job.get("vcodec") or ""
     acodec = job.get("acodec") or ""
     video_protocol = job.get("video_protocol") or ""
@@ -1084,8 +1250,8 @@ def merge_media_to_mp4(job_id: str, job: dict[str, Any], output_path: str) -> No
             try:
                 # Download video and audio concurrently from CDN to local temp files, then mux locally (much faster than ffmpeg HTTP seeking)
                 with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
-                    fut_v = pool.submit(download_stream_to_file, video_url, v_tmp, 30)
-                    fut_a = pool.submit(download_stream_to_file, audio_url, a_tmp, 30)
+                    fut_v = pool.submit(download_stream_to_file, video_url, v_tmp, 60, proxy_url)
+                    fut_a = pool.submit(download_stream_to_file, audio_url, a_tmp, 60, proxy_url)
                     fut_v.result()
                     fut_a.result()
 
@@ -1099,10 +1265,14 @@ def merge_media_to_mp4(job_id: str, job: dict[str, Any], output_path: str) -> No
                 if v_probe:
                     real_vcodec = (v_probe.get("codec_name") or "").lower()
                     real_pix_fmt = (v_probe.get("pix_fmt") or "").lower()
-                    can_copy_video = real_vcodec == "h264" and real_pix_fmt in ("", "yuv420p", "yuvj420p", "nv12")
+                    if is_youtube_uhd and real_vcodec in ("h264", "vp9", "av1"):
+                        # Avoid multi-minute CPU transcodes for YouTube 2K/4K VP9/AV1
+                        can_copy_video = True
+                    else:
+                        can_copy_video = real_vcodec == "h264" and real_pix_fmt in ("", "yuv420p", "yuvj420p", "nv12")
                 else:
-                    # Only stream-copy when confirmed H.264; never copy VP9/AV1/HEVC into MP4
-                    can_copy_video = is_h264_codec(vcodec)
+                    # Only stream-copy when confirmed H.264; never copy VP9/AV1/HEVC into MP4 unless 2K/4K YT
+                    can_copy_video = is_h264_codec(vcodec) or is_youtube_uhd
 
                 if a_probe:
                     real_acodec = (a_probe.get("codec_name") or "").lower()
@@ -1187,6 +1357,10 @@ def merge_media_to_mp4(job_id: str, job: dict[str, Any], output_path: str) -> No
                     "merger": ["-c", "copy", "-movflags", "+faststart"],
                 },
             }
+            if proxy_url:
+                ydl_opts["proxy"] = proxy_url
+            if NODE_PATH:
+                ydl_opts["js_runtimes"] = {"node": {}}
             if ACTIVE_COOKIE_FILE and os.path.exists(ACTIVE_COOKIE_FILE):
                 ydl_opts["cookiefile"] = ACTIVE_COOKIE_FILE
 
@@ -1198,8 +1372,11 @@ def merge_media_to_mp4(job_id: str, job: dict[str, Any], output_path: str) -> No
             if not os.path.exists(candidate_path) or os.path.getsize(candidate_path) == 0:
                 raise RuntimeError("FFmpeg merge completed without producing an output MP4 file.")
 
-            ensure_h264_mp4(candidate_path, transcode_tmp)
-            os.replace(transcode_tmp, part_path)
+            if is_youtube_uhd:
+                os.replace(candidate_path, part_path)
+            else:
+                ensure_h264_mp4(candidate_path, transcode_tmp)
+                os.replace(transcode_tmp, part_path)
 
         os.replace(part_path, output_path)
     finally:
@@ -1220,9 +1397,33 @@ async def health_check():
         "yt_dlp_version": yt_dlp.version.__version__,
         "ffmpeg_installed": bool(FFMPEG_PATH),
         "ffprobe_installed": bool(FFPROBE_PATH),
+        "node_installed": bool(NODE_PATH),
         "ffmpeg_path": FFMPEG_PATH,
         "cookies_loaded": bool(ACTIVE_COOKIE_FILE and os.path.exists(ACTIVE_COOKIE_FILE)),
+        "youtube_enabled": True,
+        "youtube_proxies_loaded": len(YOUTUBE_PROXIES),
     }
+
+
+def is_retryable_youtube_error(message: str) -> bool:
+    lower = message.lower()
+    retry_markers = (
+        "sign in",
+        "not a bot",
+        "confirm you",
+        "403",
+        "429",
+        "too many requests",
+        "proxy",
+        "tunnel",
+        "timed out",
+        "timeout",
+        "connection",
+        "eof",
+        "reset by peer",
+        "ssl",
+    )
+    return any(marker in lower for marker in retry_markers)
 
 
 @app.post("/api/extract", dependencies=[Depends(verify_api_key)])
@@ -1230,16 +1431,10 @@ async def extract_video(payload: ExtractRequest):
     url_str = str(payload.url).strip()
     platform = detect_platform(url_str, payload.platform)
 
-    if platform == "youtube":
+    if platform not in ("facebook", "youtube", "instagram", "tiktok"):
         raise HTTPException(
             status_code=400,
-            detail="YouTube downloads are currently unavailable. Please use Facebook, Instagram, or TikTok.",
-        )
-
-    if platform not in ("facebook", "instagram", "tiktok"):
-        raise HTTPException(
-            status_code=400,
-            detail="Unsupported URL. Please enter a valid Facebook, Instagram, or TikTok video link.",
+            detail="Unsupported URL. Please enter a valid Facebook, YouTube, Instagram, or TikTok video link.",
         )
 
     canon_url = canonicalize_url(url_str)
@@ -1252,15 +1447,36 @@ async def extract_video(payload: ExtractRequest):
         async with lock:
             if cache_key in extract_cache:
                 return {"success": True, "cached": True, "data": extract_cache[cache_key]}
-            data = await asyncio.to_thread(extract_with_ytdlp, url_str, platform)
+
+            if platform == "youtube":
+                proxy_candidates = get_youtube_proxy_candidates(max_tries=4)
+                last_exc: Optional[Exception] = None
+                data: Optional[dict[str, Any]] = None
+                for idx, candidate_proxy in enumerate(proxy_candidates):
+                    try:
+                        data = await asyncio.to_thread(
+                            extract_with_ytdlp, url_str, platform, candidate_proxy
+                        )
+                        break
+                    except Exception as exc:
+                        last_exc = exc
+                        if idx < len(proxy_candidates) - 1 and is_retryable_youtube_error(str(exc)):
+                            print(f"[warn] YouTube extract attempt {idx + 1} failed, trying next proxy: {exc}")
+                            continue
+                        raise
+                if data is None and last_exc is not None:
+                    raise last_exc
+            else:
+                data = await asyncio.to_thread(extract_with_ytdlp, url_str, platform, None)
+
             extract_cache[cache_key] = data
             return {"success": True, "cached": False, "data": data}
     except yt_dlp.utils.DownloadError as exc:
         msg = str(exc)
-        if "Private" in msg or "login" in msg.lower() or "Sign in" in msg:
+        if "Private" in msg or "login" in msg.lower() or "Sign in" in msg or "not a bot" in msg.lower():
             raise HTTPException(
                 status_code=422,
-                detail=f"This {platform.capitalize()} video is private or requires login.",
+                detail=f"This {platform.capitalize()} video is private, age-restricted, or temporarily blocked.",
             )
         raise HTTPException(
             status_code=422,
@@ -1282,7 +1498,7 @@ async def ensure_merge_job_ready(token: str) -> tuple[dict[str, Any], str]:
             detail="FFmpeg is not installed on the server. Ensure nixpacks.toml and builder=NIXPACKS are configured.",
         )
 
-    job_id = verify_merge_token(token)
+    job_id = verify_signed_token(token, merge_jobs)
     job = merge_jobs.get(job_id)
     if not job:
         raise HTTPException(
@@ -1342,4 +1558,100 @@ async def download_merged_video(
             "Content-Disposition": f'{disposition}; filename="{filename}"',
             "Cache-Control": "private, max-age=600",
         },
+    )
+
+
+async def close_proxy_stream(upstream: httpx.Response, client: httpx.AsyncClient) -> None:
+    try:
+        await upstream.aclose()
+    finally:
+        await client.aclose()
+
+
+async def iter_proxy_bytes(upstream: httpx.Response):
+    async for chunk in upstream.aiter_bytes(chunk_size=131072):
+        if chunk:
+            yield chunk
+
+
+@app.get("/api/proxy")
+async def proxy_media_stream(
+    request: Request,
+    token: str = Query(..., min_length=10),
+    dl: int = Query(default=1),
+):
+    job_id = verify_signed_token(token, proxy_jobs)
+    job = proxy_jobs.get(job_id)
+    if not job:
+        raise HTTPException(
+            status_code=410,
+            detail="Download link expired. Please fetch the video link again.",
+        )
+
+    media_url = job["media_url"]
+    proxy_url = job.get("proxy_url")
+    headers: dict[str, str] = {
+        "User-Agent": DEFAULT_USER_AGENT,
+        "Accept": "*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+    }
+    referer = job.get("referer") or get_referer_for_url(media_url)
+    if referer:
+        headers["Referer"] = referer
+
+    range_header = request.headers.get("range")
+    if range_header:
+        headers["Range"] = range_header
+
+    client = httpx.AsyncClient(
+        proxy=proxy_url,
+        follow_redirects=True,
+        timeout=httpx.Timeout(connect=20.0, read=60.0, write=30.0, pool=20.0),
+    )
+
+    try:
+        req = client.build_request("GET", media_url, headers=headers)
+        upstream = await client.send(req, stream=True)
+    except Exception as exc:
+        await client.aclose()
+        raise HTTPException(status_code=502, detail=f"Failed to stream media via proxy: {str(exc)}")
+
+    if upstream.status_code >= 400 and upstream.status_code != 206:
+        status_code = 410 if upstream.status_code in (403, 404) else 502
+        await close_proxy_stream(upstream, client)
+        raise HTTPException(
+            status_code=status_code,
+            detail=f"Media source returned HTTP {upstream.status_code}. Please fetch the link again.",
+        )
+
+    ext = (job.get("ext") or "mp4").lower()
+    default_mime = "audio/mp4" if ext == "m4a" else ("video/webm" if ext == "webm" else "video/mp4")
+    content_type = upstream.headers.get("content-type") or default_mime
+    if "octet-stream" in content_type.lower():
+        content_type = default_mime
+
+    filename = sanitize_filename(
+        job.get("title") or "SaveVibe_Video",
+        job.get("suffix") or "",
+        ext,
+    )
+    disposition = "attachment" if dl != 0 else "inline"
+
+    resp_headers: dict[str, str] = {
+        "Content-Disposition": f'{disposition}; filename="{filename}"',
+        "Cache-Control": "private, max-age=300",
+        "X-Content-Type-Options": "nosniff",
+        "Accept-Ranges": upstream.headers.get("accept-ranges") or "bytes",
+    }
+    if upstream.headers.get("content-length"):
+        resp_headers["Content-Length"] = upstream.headers["content-length"]
+    if upstream.headers.get("content-range"):
+        resp_headers["Content-Range"] = upstream.headers["content-range"]
+
+    return StreamingResponse(
+        iter_proxy_bytes(upstream),
+        status_code=upstream.status_code,
+        media_type=content_type,
+        headers=resp_headers,
+        background=BackgroundTask(close_proxy_stream, upstream, client),
     )

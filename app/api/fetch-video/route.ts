@@ -371,22 +371,11 @@ export async function POST(req: NextRequest) {
 
     const detectedPlatform = detectPlatform(cleanUrl, requestedPlatform);
 
-    // Keep YouTube UI intact, but disable YouTube processing for now
-    if (detectedPlatform === 'youtube' || requestedPlatform === 'youtube') {
+    if (!['facebook', 'youtube', 'instagram', 'tiktok'].includes(detectedPlatform)) {
       return NextResponse.json(
         {
           success: false,
-          error: 'YouTube downloads are currently unavailable. Please use Facebook, Instagram, or TikTok.',
-        },
-        { status: 400 }
-      );
-    }
-
-    if (!['facebook', 'instagram', 'tiktok'].includes(detectedPlatform)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Unsupported link. Please paste a valid Facebook, Instagram, or TikTok video URL.',
+          error: 'Unsupported link. Please paste a valid Facebook, YouTube, Instagram, or TikTok video URL.',
         },
         { status: 400 }
       );
@@ -424,7 +413,8 @@ export async function POST(req: NextRequest) {
 
     const apiSecret = process.env.YTDLP_API_SECRET?.trim() || '';
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 25000);
+    const timeoutMs = detectedPlatform === 'youtube' ? 35000 : 25000;
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const headers: Record<string, string> = {

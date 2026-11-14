@@ -88,7 +88,9 @@ export async function GET(req: NextRequest) {
   };
 
   const lowerHost = parsedUrl.hostname.toLowerCase();
-  if (lowerHost.includes('tiktok') || lowerHost.includes('tikwm') || lowerHost.includes('byteoversea')) {
+  if (lowerHost.includes('youtube') || lowerHost.includes('youtu.be') || lowerHost.includes('googlevideo')) {
+    headers['Referer'] = 'https://www.youtube.com/';
+  } else if (lowerHost.includes('tiktok') || lowerHost.includes('tikwm') || lowerHost.includes('byteoversea')) {
     headers['Referer'] = 'https://www.tiktok.com/';
   } else if (lowerHost.includes('fbcdn') || lowerHost.includes('facebook')) {
     headers['Referer'] = 'https://www.facebook.com/';
