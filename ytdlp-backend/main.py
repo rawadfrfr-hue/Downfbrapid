@@ -1,14 +1,18 @@
 import asyncio
 import base64
+import concurrent.futures
 import hashlib
 import hmac
+import json
 import os
 import re
 import secrets
 import shutil
 import subprocess
 import time
+import urllib.request
 from typing import Any, Optional
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from cachetools import TTLCache
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
@@ -20,7 +24,7 @@ import yt_dlp
 app = FastAPI(
     title="SaveVibe yt-dlp Backend",
     description="Direct media link extractor & FFmpeg muxer for Facebook, Instagram, and TikTok using yt-dlp.",
-    version="1.1.0",
+    version="1.2.0",
 )
 
 # Optional CORS configuration (Next.js server calls this server-to-server,
@@ -39,17 +43,62 @@ SIGNING_SECRET = (API_SECRET or secrets.token_hex(32)).encode("utf-8")
 COOKIE_FILE_PATH = "/tmp/ytdlp_cookies.txt"
 MERGED_DIR = "/tmp/savevibe_merged"
 FFMPEG_PATH = shutil.which("ffmpeg")
+FFPROBE_PATH = shutil.which("ffprobe") or (
+    os.path.join(os.path.dirname(FFMPEG_PATH), "ffprobe")
+    if FFMPEG_PATH and os.path.exists(os.path.join(os.path.dirname(FFMPEG_PATH), "ffprobe"))
+    else None
+)
 DEFAULT_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/126.0.0.0 Safari/537.36"
 )
 
-# In-memory cache (up to 500 extracted URLs cached for 10 minutes)
-extract_cache: TTLCache[str, dict[str, Any]] = TTLCache(maxsize=500, ttl=600)
+# In-memory cache (up to 500 extracted URLs cached for 15 minutes)
+extract_cache: TTLCache[str, dict[str, Any]] = TTLCache(maxsize=500, ttl=900)
+extract_locks: dict[str, asyncio.Lock] = {}
 # Pending FFmpeg merge jobs cached for 30 minutes
 merge_jobs: TTLCache[str, dict[str, Any]] = TTLCache(maxsize=1000, ttl=1800)
 merge_locks: dict[str, asyncio.Lock] = {}
+
+STRIP_QUERY_PARAMS = {
+    "fbclid",
+    "mibextid",
+    "igsh",
+    "igshid",
+    "utm_source",
+    "utm_medium",
+    "utm_campaign",
+    "utm_term",
+    "utm_content",
+    "rdid",
+    "share_url",
+    "ref",
+    "refsrc",
+}
+
+
+def canonicalize_url(url_str: str) -> str:
+    try:
+        parsed = urlparse(url_str.strip())
+        kept_params = [
+            (k, v)
+            for k, v in parse_qsl(parsed.query, keep_blank_values=True)
+            if k.lower() not in STRIP_QUERY_PARAMS and not k.lower().startswith("utm_")
+        ]
+        clean_path = parsed.path.rstrip("/") or "/"
+        return urlunparse(
+            (
+                parsed.scheme.lower(),
+                parsed.netloc.lower(),
+                clean_path,
+                parsed.params,
+                urlencode(kept_params, doseq=True),
+                "",
+            )
+        )
+    except Exception:
+        return url_str.strip()
 
 
 def setup_cookies_file() -> Optional[str]:
@@ -262,6 +311,11 @@ def is_audio_only(fmt: dict[str, Any], allow_dash_hls: bool = False) -> bool:
     return vcodec in ("", "none") and acodec not in ("", "none")
 
 
+def is_h264_codec(vcodec: str) -> bool:
+    c = vcodec.lower()
+    return any(k in c for k in ("avc", "h264"))
+
+
 def video_codec_score(vcodec: str) -> int:
     c = vcodec.lower()
     if any(k in c for k in ("avc", "h264")):
@@ -310,7 +364,16 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
         "no_warnings": True,
         "skip_download": True,
         "noplaylist": True,
-        "socket_timeout": 20,
+        "socket_timeout": 15,
+        "retries": 2,
+        "extractor_retries": 2,
+        "nocheckcertificate": True,
+        "geo_bypass": True,
+        "writesubtitles": False,
+        "writeautomaticsub": False,
+        "writethumbnail": False,
+        "writeinfojson": False,
+        "getcomments": False,
         "extract_flat": False,
         "format_sort": ["vcodec:h264", "acodec:aac", "ext:mp4:m4a"],
         "http_headers": {
@@ -406,25 +469,35 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
             any_audio_formats[0],
         )
 
+    def snap_standard_height(val: int) -> int:
+        for std in (2160, 1440, 1080, 720, 540, 480, 360, 240, 144):
+            if abs(val - std) <= 12:
+                return std
+        return val
+
     def effective_height(fmt: dict[str, Any]) -> int:
         w = int(fmt.get("width") or 0)
         h = int(fmt.get("height") or 0)
         if w > 0 and h > 0:
+            if w >= 3840 and h >= 1500:
+                return max(2160, snap_standard_height(min(w, h)))
             if w >= 2560 and h >= 1000:
-                return max(1440, h)
+                return max(1440, snap_standard_height(min(w, h)))
             if w >= 1920 and h >= 800:
-                return max(1080, h)
+                return max(1080, snap_standard_height(min(w, h)))
             if w >= 1280 and h >= 500 and w > h:
-                return max(720, h)
-            return min(w, h)
-        return h
+                return max(720, snap_standard_height(min(w, h)))
+            return snap_standard_height(min(w, h))
+        return snap_standard_height(h) if h > 0 else 0
 
-    def sort_key(f: dict[str, Any]) -> tuple[int, int, int, float]:
+    def sort_key(f: dict[str, Any]) -> tuple[int, int, int, int, float]:
         height = effective_height(f)
+        vcodec = f.get("vcodec") or ""
+        h264 = 1 if is_h264_codec(vcodec) else 0
         is_mp4 = 1 if (f.get("ext") or "").lower() == "mp4" else 0
-        v_score = video_codec_score(f.get("vcodec") or "")
+        v_score = video_codec_score(vcodec)
         tbr = float(f.get("tbr") or 0.0)
-        return (height, is_mp4, v_score, tbr)
+        return (height, h264, is_mp4, v_score, tbr)
 
     progressive_formats.sort(key=sort_key, reverse=True)
     video_only_formats.sort(key=sort_key, reverse=True)
@@ -460,8 +533,8 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
         else "Public Video"
     )
 
-    def make_quality_label(fmt: dict[str, Any], default_label: str) -> str:
-        h = int(fmt.get("height") or 0)
+    def make_quality_label(fmt: dict[str, Any], default_label: str, eff_h: Optional[int] = None) -> str:
+        h = eff_h if eff_h is not None else effective_height(fmt)
         if h >= 2160:
             return f"{h}p 4K UHD"
         if h >= 1440:
@@ -477,11 +550,12 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
         note = fmt.get("format_note")
         return str(note) if note else default_label
 
-    # Build deduplicated video candidates by height:
-    # 1. Prefer confirmed progressive format at a given height (single file, already has audio)
-    # 2. For higher resolutions that only exist as video-only + separate audio:
-    #    - If both are direct HTTP streams, send both URLs to the frontend for client-side ffmpeg.wasm merging (0% server bandwidth)
-    #    - Otherwise (HLS/DASH manifests), fall back to server /api/merge only if FFmpeg is available on server
+    # Build deduplicated video candidates by actual video resolution:
+    # 1. Prefer confirmed progressive H.264/MP4 format at a given height (instant direct download, already has audio)
+    # 2. For resolutions that only exist as video-only + separate audio:
+    #    - Prefer fast native server FFmpeg (/api/merge) whenever FFMPEG_PATH is available (handles H.264 copy in <1s
+    #      AND safely transcodes VP9/AV1 to H.264 so mobile/desktop players never get a black screen)
+    #    - Fall back to client-side ffmpeg.wasm only when server FFmpeg is unavailable
     candidates: list[dict[str, Any]] = []
     seen_heights: set[int] = set()
 
@@ -493,7 +567,25 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
             seen_heights.add(h)
         candidates.append({"fmt": f, "eff_height": h, "requires_merge": False, "client_merge": False})
 
-    if best_direct_audio:
+    if FFMPEG_PATH and best_merge_audio:
+        for f in video_only_formats:
+            h = effective_height(f)
+            if h > 0 and h in seen_heights:
+                continue
+            if h > 0:
+                seen_heights.add(h)
+            elif len(candidates) > 0:
+                continue
+            candidates.append(
+                {
+                    "fmt": f,
+                    "eff_height": h,
+                    "audio_fmt": best_merge_audio,
+                    "requires_merge": True,
+                    "client_merge": False,
+                }
+            )
+    elif best_direct_audio:
         for f in direct_video_only_formats:
             h = effective_height(f)
             if h > 0 and h in seen_heights:
@@ -514,27 +606,6 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
                     "audio_fmt": paired_audio,
                     "requires_merge": True,
                     "client_merge": True,
-                }
-            )
-
-    if FFMPEG_PATH and best_merge_audio:
-        for f in video_only_formats:
-            if is_direct_http_protocol(f) and best_direct_audio:
-                continue  # Already added as client_merge candidate above
-            h = effective_height(f)
-            if h > 0 and h in seen_heights:
-                continue
-            if h > 0:
-                seen_heights.add(h)
-            elif len(candidates) > 0:
-                continue
-            candidates.append(
-                {
-                    "fmt": f,
-                    "eff_height": h,
-                    "audio_fmt": best_merge_audio,
-                    "requires_merge": True,
-                    "client_merge": False,
                 }
             )
 
@@ -677,7 +748,7 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
         else (resolved_videos[1] if len(resolved_videos) > 1 else None)
     )
 
-    hd_label = make_quality_label(hd_entry["fmt"], "HD Quality")
+    hd_label = make_quality_label(hd_entry["fmt"], "HD Quality", hd_entry["height"])
     hd_size = hd_entry["size"] or hd_label
 
     def build_quality_payload(entry: dict[str, Any], q_title: str) -> dict[str, Any]:
@@ -748,31 +819,20 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
                 },
             ]
         )
-    elif platform == "facebook":
-        highest_2k = next((e for e in resolved_videos if e["height"] >= 1440), None)
-        hd_1080 = next((e for e in resolved_videos if 900 <= e["height"] < 1440), None)
-        sd_720 = next((e for e in resolved_videos if 0 < e["height"] < 900), None)
-
-        if not highest_2k and not hd_1080 and not sd_720 and resolved_videos:
-            sd_720 = resolved_videos[0]
-
-        fb_slots: list[tuple[str, str, dict[str, Any]]] = []
-        if highest_2k:
-            fb_slots.append(("2k", "Highest 2K", highest_2k))
-        if hd_1080:
-            fb_slots.append(("1080p", "HD 1080p", hd_1080))
-        if sd_720:
-            fb_slots.append(("720p", "SD 720p", sd_720))
-
-        for q_id, q_title, entry in fb_slots:
+    else:
+        # Both Facebook and Instagram: strictly reflect the exact resolutions the video supports,
+        # sorted highest supported quality down to lowest (never fabricating unsupported resolutions).
+        for idx, entry in enumerate(resolved_videos[:6]):
+            h = entry["height"]
+            q_id = f"{h}p" if h > 0 else ("hd" if idx == 0 else f"sd_{idx}")
+            q_title = make_quality_label(
+                entry["fmt"],
+                "Original Quality" if idx == 0 else "Standard Quality",
+                h if h > 0 else None,
+            )
             v_ext = entry["ext"]
-            v_size = entry["size"] or ("HD Audio + Video" if entry["requires_merge"] else "Direct MP4")
-            if entry["requires_client_merge"]:
-                audio_note = "Audio + Video (Browser Merge)"
-            elif entry["requires_merge"]:
-                audio_note = "Audio + Video (FFmpeg)"
-            else:
-                audio_note = "Audio Included"
+            v_size = entry["size"] or ("HD Video + Audio" if entry["requires_merge"] else "Direct MP4")
+            audio_note = "Video + Audio" if entry["requires_merge"] else "Audio Included"
 
             q_item: dict[str, Any] = {
                 "id": q_id,
@@ -782,67 +842,6 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
                 "url": entry["preview_url"],
                 "downloadUrl": entry["download_url"],
                 "qualityLabel": q_title,
-                "format": v_ext,
-                "badge": q_title,
-                "requiresClientMerge": entry["requires_client_merge"],
-            }
-            if entry["requires_client_merge"] and entry["video_url"] and entry["audio_url"]:
-                q_item.update(
-                    {
-                        "videoUrl": entry["video_url"],
-                        "audioUrl": entry["audio_url"],
-                        "vcodec": entry["vcodec"],
-                        "acodec": entry["acodec"],
-                        "videoExt": entry["video_ext"],
-                        "audioExt": entry["audio_ext"],
-                    }
-                )
-            quality_list.append(q_item)
-
-        if best_direct_audio:
-            a_ext = (best_direct_audio.get("ext") or "m4a").upper()
-            a_size = (
-                format_filesize(best_direct_audio.get("filesize") or best_direct_audio.get("filesize_approx"))
-                or "Direct Audio"
-            )
-            quality_list.append(
-                {
-                    "id": "audio",
-                    "quality": "Audio",
-                    "label": "Audio",
-                    "sublabel": f"{a_size} • High Quality Audio",
-                    "url": best_direct_audio["url"],
-                    "downloadUrl": best_direct_audio["url"],
-                    "qualityLabel": "Audio",
-                    "format": a_ext,
-                    "badge": "AUDIO",
-                    "requiresClientMerge": False,
-                }
-            )
-    else:
-        for idx, entry in enumerate(resolved_videos[:4]):
-            h = entry["height"]
-            q_id = f"{h}p" if h > 0 else ("hd" if idx == 0 else f"sd_{idx}")
-            q_title = make_quality_label(
-                entry["fmt"], "High Quality" if idx == 0 else "Standard Quality"
-            )
-            v_ext = entry["ext"]
-            v_size = entry["size"] or ("HD Audio + Video" if entry["requires_merge"] else "Direct MP4")
-            if entry["requires_client_merge"]:
-                audio_note = "Audio + Video (Browser Merge)"
-            elif entry["requires_merge"]:
-                audio_note = "Audio + Video (FFmpeg)"
-            else:
-                audio_note = "Audio Included"
-
-            q_item: dict[str, Any] = {
-                "id": q_id,
-                "quality": q_title,
-                "label": f"{v_ext} - {q_title}",
-                "sublabel": f"{v_size} • {audio_note}",
-                "url": entry["preview_url"],
-                "downloadUrl": entry["download_url"],
-                "qualityLabel": f"{q_title} Video",
                 "format": v_ext,
                 "badge": q_title,
                 "requiresClientMerge": entry["requires_client_merge"],
@@ -894,7 +893,7 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
             sd_target, "Standard quality (without watermark)"
         )
     elif sd_entry:
-        sd_label = make_quality_label(sd_entry["fmt"], "SD")
+        sd_label = make_quality_label(sd_entry["fmt"], "SD", sd_entry["height"])
         qualities["sd"] = build_quality_payload(sd_entry, sd_label)
 
     if best_direct_audio and platform != "tiktok":
@@ -930,6 +929,124 @@ def extract_with_ytdlp(url_str: str, platform: str) -> dict[str, Any]:
     }
 
 
+def get_referer_for_url(url: str) -> Optional[str]:
+    lower = url.lower()
+    if "fbcdn" in lower or "facebook" in lower:
+        return "https://www.facebook.com/"
+    if "instagram" in lower or "cdninstagram" in lower:
+        return "https://www.instagram.com/"
+    if "tiktok" in lower or "tiktokcdn" in lower or "tikwm" in lower:
+        return "https://www.tiktok.com/"
+    return None
+
+
+def download_stream_to_file(url: str, dest_path: str, timeout: int = 30) -> None:
+    headers = {
+        "User-Agent": DEFAULT_USER_AGENT,
+        "Accept": "*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+    }
+    referer = get_referer_for_url(url)
+    if referer:
+        headers["Referer"] = referer
+
+    req = urllib.request.Request(url, headers=headers, method="GET")
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        status = getattr(resp, "status", 200)
+        if status >= 400:
+            raise RuntimeError(f"Upstream CDN returned HTTP {status}")
+        with open(dest_path, "wb") as f:
+            while True:
+                chunk = resp.read(262144)
+                if not chunk:
+                    break
+                f.write(chunk)
+
+    if not os.path.exists(dest_path) or os.path.getsize(dest_path) == 0:
+        raise RuntimeError("Downloaded upstream media stream was empty.")
+
+
+def probe_media_streams(file_path: str) -> dict[str, Any]:
+    if not FFPROBE_PATH or not os.path.exists(FFPROBE_PATH):
+        return {}
+    try:
+        res = subprocess.run(
+            [
+                FFPROBE_PATH,
+                "-v",
+                "error",
+                "-show_entries",
+                "stream=codec_type,codec_name,pix_fmt,width,height",
+                "-of",
+                "json",
+                file_path,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if res.returncode != 0 or not res.stdout:
+            return {}
+        parsed = json.loads(res.stdout)
+        streams = parsed.get("streams") or []
+        video_stream = next((s for s in streams if s.get("codec_type") == "video"), None)
+        audio_stream = next((s for s in streams if s.get("codec_type") == "audio"), None)
+        return {"video": video_stream, "audio": audio_stream}
+    except Exception:
+        return {}
+
+
+def ensure_h264_mp4(input_path: str, output_path: str) -> None:
+    """Verify final MP4 uses universally playable H.264 yuv420p video (fixes black-screen VP9/AV1 MP4s)."""
+    probe = probe_media_streams(input_path)
+    v_stream = probe.get("video")
+    if not v_stream:
+        if input_path != output_path:
+            os.replace(input_path, output_path)
+        return
+
+    codec_name = (v_stream.get("codec_name") or "").lower()
+    pix_fmt = (v_stream.get("pix_fmt") or "").lower()
+    is_universal_h264 = codec_name == "h264" and pix_fmt in ("", "yuv420p", "yuvj420p", "nv12")
+
+    if is_universal_h264:
+        if input_path != output_path:
+            os.replace(input_path, output_path)
+        return
+
+    a_stream = probe.get("audio")
+    a_codec = (a_stream.get("codec_name") or "").lower() if a_stream else ""
+    a_arg = "copy" if a_codec in ("aac", "mp3") else "aac"
+
+    fix_cmd = [
+        FFMPEG_PATH,
+        "-y",
+        "-loglevel",
+        "error",
+        "-i",
+        input_path,
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-preset",
+        "ultrafast",
+        "-crf",
+        "22",
+        "-threads",
+        "0",
+        "-c:a",
+        a_arg,
+    ]
+    if a_arg == "aac":
+        fix_cmd.extend(["-b:a", "192k"])
+    fix_cmd.extend(["-movflags", "+faststart", "-f", "mp4", output_path])
+
+    res = subprocess.run(fix_cmd, capture_output=True, text=True, timeout=180)
+    if res.returncode != 0 or not os.path.exists(output_path) or os.path.getsize(output_path) == 0:
+        raise RuntimeError(f"H.264 compatibility transcode failed: {res.stderr.strip()}")
+
+
 def merge_media_to_mp4(job_id: str, job: dict[str, Any], output_path: str) -> None:
     if not FFMPEG_PATH:
         raise RuntimeError("FFmpeg binary is not installed on the server.")
@@ -940,7 +1057,12 @@ def merge_media_to_mp4(job_id: str, job: dict[str, Any], output_path: str) -> No
     if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
         return
 
-    part_path = f"{output_path}.{secrets.token_hex(4)}.part.mp4"
+    nonce = secrets.token_hex(4)
+    part_path = f"{output_path}.{nonce}.part.mp4"
+    v_tmp = f"{output_path}.{nonce}.v.tmp"
+    a_tmp = f"{output_path}.{nonce}.a.tmp"
+    transcode_tmp = f"{output_path}.{nonce}.h264.mp4"
+
     video_url = job.get("video_url")
     audio_url = job.get("audio_url")
     vcodec = job.get("vcodec") or ""
@@ -948,62 +1070,81 @@ def merge_media_to_mp4(job_id: str, job: dict[str, Any], output_path: str) -> No
     video_protocol = job.get("video_protocol") or ""
     audio_protocol = job.get("audio_protocol") or ""
 
-    can_direct_ffmpeg = (
+    can_direct_download = (
         bool(video_url)
         and bool(audio_url)
-        and not any(p in video_protocol for p in ("dash", "rtmp", "rtsp"))
-        and not any(p in audio_protocol for p in ("dash", "rtmp", "rtsp"))
+        and not any(p in video_protocol for p in ("m3u8", "dash", "rtmp", "rtsp"))
+        and not any(p in audio_protocol for p in ("m3u8", "dash", "rtmp", "rtsp"))
     )
 
     try:
         merged_ok = False
 
-        if can_direct_ffmpeg:
-            can_copy_video = (
-                any(
-                    c in vcodec
-                    for c in ("avc", "h264", "hevc", "h265", "hvc1", "hev1", "mp4v", "av01", "av1", "vp09", "vp9")
-                )
-                or vcodec == ""
-            )
-            can_copy_audio = any(c in acodec for c in ("mp4a", "aac", "mp3")) or acodec == ""
+        if can_direct_download:
+            try:
+                # Download video and audio concurrently from CDN to local temp files, then mux locally (much faster than ffmpeg HTTP seeking)
+                with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+                    fut_v = pool.submit(download_stream_to_file, video_url, v_tmp, 30)
+                    fut_a = pool.submit(download_stream_to_file, audio_url, a_tmp, 30)
+                    fut_v.result()
+                    fut_a.result()
 
-            v_codec_arg = "copy" if can_copy_video else "libx264"
-            a_codec_arg = "copy" if can_copy_audio else "aac"
+                v_probe = probe_media_streams(v_tmp).get("video")
+                a_probe = probe_media_streams(a_tmp).get("audio")
 
-            cmd = [
-                FFMPEG_PATH,
-                "-y",
-                "-loglevel",
-                "error",
-                "-user_agent",
-                DEFAULT_USER_AGENT,
-                "-i",
-                video_url,
-                "-user_agent",
-                DEFAULT_USER_AGENT,
-                "-i",
-                audio_url,
-                "-map",
-                "0:v:0",
-                "-map",
-                "1:a:0",
-                "-c:v",
-                v_codec_arg,
-                "-c:a",
-                a_codec_arg,
-            ]
-            if a_codec_arg == "aac":
-                cmd.extend(["-b:a", "192k"])
-            if v_codec_arg == "libx264":
-                cmd.extend(["-preset", "veryfast", "-crf", "22"])
-            cmd.extend(["-movflags", "+faststart", "-shortest", "-f", "mp4", part_path])
+                # If file actually has no video stream, force fallback instead of producing audio-only black-screen MP4
+                if FFPROBE_PATH and os.path.exists(FFPROBE_PATH) and not v_probe:
+                    raise RuntimeError("Downloaded video stream contained no video track.")
 
-            res = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
-            if res.returncode == 0 and os.path.exists(part_path) and os.path.getsize(part_path) > 0:
-                merged_ok = True
-            else:
-                print(f"[warn] Direct FFmpeg merge failed for {job_id}: {res.stderr.strip()}")
+                if v_probe:
+                    real_vcodec = (v_probe.get("codec_name") or "").lower()
+                    real_pix_fmt = (v_probe.get("pix_fmt") or "").lower()
+                    can_copy_video = real_vcodec == "h264" and real_pix_fmt in ("", "yuv420p", "yuvj420p", "nv12")
+                else:
+                    # Only stream-copy when confirmed H.264; never copy VP9/AV1/HEVC into MP4
+                    can_copy_video = is_h264_codec(vcodec)
+
+                if a_probe:
+                    real_acodec = (a_probe.get("codec_name") or "").lower()
+                    can_copy_audio = real_acodec in ("aac", "mp3")
+                else:
+                    can_copy_audio = any(c in acodec for c in ("mp4a", "aac", "mp3"))
+
+                v_codec_arg = "copy" if can_copy_video else "libx264"
+                a_codec_arg = "copy" if can_copy_audio else "aac"
+
+                cmd = [
+                    FFMPEG_PATH,
+                    "-y",
+                    "-loglevel",
+                    "error",
+                    "-i",
+                    v_tmp,
+                    "-i",
+                    a_tmp,
+                    "-map",
+                    "0:v:0",
+                    "-map",
+                    "1:a:0",
+                    "-c:v",
+                    v_codec_arg,
+                ]
+                if v_codec_arg == "libx264":
+                    cmd.extend(["-pix_fmt", "yuv420p", "-preset", "ultrafast", "-crf", "22", "-threads", "0"])
+                cmd.extend(["-c:a", a_codec_arg])
+                if a_codec_arg == "aac":
+                    cmd.extend(["-b:a", "192k"])
+                cmd.extend(["-movflags", "+faststart", "-shortest", "-f", "mp4", part_path])
+
+                res = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+                if res.returncode == 0 and os.path.exists(part_path) and os.path.getsize(part_path) > 0:
+                    merged_ok = True
+                else:
+                    print(f"[warn] Local FFmpeg merge failed for {job_id}: {res.stderr.strip()}")
+                    if os.path.exists(part_path):
+                        os.remove(part_path)
+            except Exception as direct_exc:
+                print(f"[warn] Concurrent direct merge failed for {job_id}: {direct_exc}")
                 if os.path.exists(part_path):
                     os.remove(part_path)
 
@@ -1031,7 +1172,7 @@ def merge_media_to_mp4(job_id: str, job: dict[str, Any], output_path: str) -> No
                 "quiet": True,
                 "no_warnings": True,
                 "noplaylist": True,
-                "socket_timeout": 30,
+                "socket_timeout": 20,
                 "format": fmt_spec,
                 "format_sort": ["vcodec:h264", "acodec:aac", "ext:mp4:m4a"],
                 "merge_output_format": "mp4",
@@ -1056,12 +1197,13 @@ def merge_media_to_mp4(job_id: str, job: dict[str, Any], output_path: str) -> No
             candidate_path = part_path if os.path.exists(part_path) else f"{part_path}.mp4"
             if not os.path.exists(candidate_path) or os.path.getsize(candidate_path) == 0:
                 raise RuntimeError("FFmpeg merge completed without producing an output MP4 file.")
-            if candidate_path != part_path:
-                os.replace(candidate_path, part_path)
+
+            ensure_h264_mp4(candidate_path, transcode_tmp)
+            os.replace(transcode_tmp, part_path)
 
         os.replace(part_path, output_path)
     finally:
-        for stray in (part_path, f"{part_path}.mp4"):
+        for stray in (part_path, f"{part_path}.mp4", v_tmp, a_tmp, transcode_tmp):
             if os.path.exists(stray):
                 try:
                     os.remove(stray)
@@ -1077,6 +1219,7 @@ async def health_check():
         "service": "savevibe-ytdlp-backend",
         "yt_dlp_version": yt_dlp.version.__version__,
         "ffmpeg_installed": bool(FFMPEG_PATH),
+        "ffprobe_installed": bool(FFPROBE_PATH),
         "ffmpeg_path": FFMPEG_PATH,
         "cookies_loaded": bool(ACTIVE_COOKIE_FILE and os.path.exists(ACTIVE_COOKIE_FILE)),
     }
@@ -1099,14 +1242,19 @@ async def extract_video(payload: ExtractRequest):
             detail="Unsupported URL. Please enter a valid Facebook, Instagram, or TikTok video link.",
         )
 
-    cache_key = f"{platform}:{url_str}"
+    canon_url = canonicalize_url(url_str)
+    cache_key = f"{platform}:{canon_url}"
     if cache_key in extract_cache:
         return {"success": True, "cached": True, "data": extract_cache[cache_key]}
 
+    lock = extract_locks.setdefault(cache_key, asyncio.Lock())
     try:
-        data = await asyncio.to_thread(extract_with_ytdlp, url_str, platform)
-        extract_cache[cache_key] = data
-        return {"success": True, "cached": False, "data": data}
+        async with lock:
+            if cache_key in extract_cache:
+                return {"success": True, "cached": True, "data": extract_cache[cache_key]}
+            data = await asyncio.to_thread(extract_with_ytdlp, url_str, platform)
+            extract_cache[cache_key] = data
+            return {"success": True, "cached": False, "data": data}
     except yt_dlp.utils.DownloadError as exc:
         msg = str(exc)
         if "Private" in msg or "login" in msg.lower() or "Sign in" in msg:
@@ -1122,13 +1270,12 @@ async def extract_video(payload: ExtractRequest):
         raise HTTPException(status_code=422, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Extraction failed: {str(exc)}")
+    finally:
+        if not lock.locked() and len(extract_locks) > 500:
+            extract_locks.pop(cache_key, None)
 
 
-@app.get("/api/merge")
-async def download_merged_video(
-    token: str = Query(..., min_length=10),
-    dl: int = Query(default=1),
-):
+async def ensure_merge_job_ready(token: str) -> tuple[dict[str, Any], str]:
     if not FFMPEG_PATH:
         raise HTTPException(
             status_code=503,
@@ -1160,6 +1307,28 @@ async def download_merged_video(
                     status_code=502,
                     detail=f"Failed to merge video and audio: {str(exc)}",
                 )
+
+    if len(merge_locks) > 1000:
+        stale = [k for k in list(merge_locks.keys()) if k not in merge_jobs]
+        for k in stale:
+            merge_locks.pop(k, None)
+
+    return job, output_path
+
+
+@app.api_route("/api/merge/prepare", methods=["GET", "POST"])
+async def prepare_merged_video(token: str = Query(..., min_length=10)):
+    _, output_path = await ensure_merge_job_ready(token)
+    size_bytes = os.path.getsize(output_path) if os.path.exists(output_path) else 0
+    return {"success": True, "ready": True, "sizeBytes": size_bytes}
+
+
+@app.get("/api/merge")
+async def download_merged_video(
+    token: str = Query(..., min_length=10),
+    dl: int = Query(default=1),
+):
+    job, output_path = await ensure_merge_job_ready(token)
 
     height = int(job.get("height") or 0)
     suffix = f"{height}p" if height > 0 else "HD"

@@ -64,10 +64,22 @@ async function getFFmpegInstance(
       message: 'Loading browser FFmpeg engine...',
     });
 
-    const [{ FFmpeg }, { toBlobURL }] = await Promise.all([
-      import('@ffmpeg/ffmpeg'),
-      import('@ffmpeg/util'),
-    ]);
+    const [{ FFmpeg }] = await Promise.all([import('@ffmpeg/ffmpeg')]);
+
+    const fetchBlobUrl = async (url: string, mimeType: string, timeoutMs: number = 15000) => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const res = await fetch(url, { signal: controller.signal });
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status} loading ${url}`);
+        }
+        const buf = await res.arrayBuffer();
+        return URL.createObjectURL(new Blob([buf], { type: mimeType }));
+      } finally {
+        clearTimeout(timer);
+      }
+    };
 
     const classWorkerURL =
       typeof window !== 'undefined'
@@ -80,8 +92,8 @@ async function getFFmpegInstance(
       const instance = new FFmpeg();
       try {
         const [coreURL, wasmURL] = await Promise.all([
-          toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-          toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+          fetchBlobUrl(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+          fetchBlobUrl(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
         ]);
 
         await instance.load({
@@ -155,34 +167,61 @@ async function readResponseWithProgress(
   return merged;
 }
 
+function isKnownCorsBlockedHost(urlStr: string): boolean {
+  try {
+    const host = new URL(urlStr).hostname.toLowerCase();
+    return (
+      host.includes('fbcdn.net') ||
+      host.includes('facebook.com') ||
+      host.includes('cdninstagram.com') ||
+      host.includes('instagram.com') ||
+      host.includes('tiktokcdn') ||
+      host.includes('tikwm.com')
+    );
+  } catch {
+    return false;
+  }
+}
+
 async function fetchMediaBytes(
   directUrl: string,
   fallbackFilename: string,
   onBytes: (received: number, total: number | null) => void
 ): Promise<{ data: Uint8Array; usedProxyFallback: boolean }> {
-  // 1. Primary path: Direct browser fetch from CDN (0% server bandwidth)
-  try {
-    const directRes = await fetch(directUrl, {
-      method: 'GET',
-      mode: 'cors',
-      credentials: 'omit',
-      cache: 'no-store',
-    });
+  // 1. Primary path: Direct browser fetch from CDN only when CORS is plausibly allowed
+  if (!isKnownCorsBlockedHost(directUrl)) {
+    const controller = new AbortController();
+    const connectTimer = setTimeout(() => controller.abort(), 5000);
+    try {
+      const directRes = await fetch(directUrl, {
+        method: 'GET',
+        mode: 'cors',
+        credentials: 'omit',
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      clearTimeout(connectTimer);
 
-    if (!directRes.ok) {
-      throw new Error(`CDN returned HTTP ${directRes.status}`);
-    }
+      if (!directRes.ok) {
+        throw new Error(`CDN returned HTTP ${directRes.status}`);
+      }
 
-    const data = await readResponseWithProgress(directRes, onBytes);
-    if (data.byteLength === 0) {
-      throw new Error('CDN returned an empty media stream.');
+      const data = await readResponseWithProgress(directRes, onBytes);
+      if (data.byteLength === 0) {
+        throw new Error('CDN returned an empty media stream.');
+      }
+      return { data, usedProxyFallback: false };
+    } catch {
+      clearTimeout(connectTimer);
+      // Fall through to /api/download proxy below
     }
-    return { data, usedProxyFallback: false };
-  } catch (directErr) {
-    // 2. Resilient CORS fallback: fetch via /api/download if CDN edge blocks CORS
+  }
+
+  {
+    // 2. Resilient proxy path: fetch via /api/download
     const canTryProxy = /^https?:\/\//i.test(directUrl);
     if (!canTryProxy) {
-      throw directErr;
+      throw new Error('Invalid media URL for proxy download.');
     }
 
     const proxyUrl = `/api/download?url=${encodeURIComponent(directUrl)}&filename=${encodeURIComponent(
@@ -354,15 +393,16 @@ export async function mergeVideoAndAudioInBrowser({
     await ffmpeg.writeFile(videoPath, videoResult.data);
     await ffmpeg.writeFile(audioPath, audioResult.data);
 
+    // Only stream-copy H.264/AVC into MP4; never copy VP9/AV1/HEVC into MP4 (causes black screen + audio only)
     const canCopyVideo =
       outputExt === 'webm'
-        ? lowerV === '' || /(vp8|vp9|vp09|av01|av1)/.test(lowerV)
-        : lowerV === '' || /(avc|h264|hevc|h265|hvc1|hev1|mp4v|av01|av1|vp09|vp9)/.test(lowerV);
+        ? /(vp8|vp9|vp09|av01|av1)/.test(lowerV)
+        : /(avc|h264|mp4v)/.test(lowerV);
 
     const canCopyAudio =
       outputExt === 'webm'
-        ? lowerA === '' || /(opus|vorbis)/.test(lowerA)
-        : lowerA === '' || /(mp4a|aac|mp3|opus|ac-3|ec-3)/.test(lowerA);
+        ? /(opus|vorbis)/.test(lowerA)
+        : lowerA === '' || /(mp4a|aac|mp3)/.test(lowerA);
 
     const vArg = canCopyVideo ? 'copy' : 'libx264';
     const aArg = canCopyAudio ? 'copy' : outputExt === 'webm' ? 'libopus' : 'aac';
@@ -390,7 +430,7 @@ export async function mergeVideoAndAudioInBrowser({
         ac,
       ];
       if (vc === 'libx264') {
-        args.push('-preset', 'ultrafast', '-crf', '23');
+        args.push('-pix_fmt', 'yuv420p', '-preset', 'ultrafast', '-crf', '23');
       }
       if (ac === 'aac') {
         args.push('-b:a', '192k');

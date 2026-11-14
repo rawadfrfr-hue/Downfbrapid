@@ -73,11 +73,9 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
         throw new Error(json.error || `Unable to download ${platformConfig.name} video. Please check your link.`);
       }
 
-      setTimeout(() => {
-        setResultData(json.data);
-        setState('success');
-        onAddHistory(json.data);
-      }, 650);
+      setResultData(json.data);
+      setState('success');
+      onAddHistory(json.data);
     } catch (err: unknown) {
       const msg =
         err instanceof Error

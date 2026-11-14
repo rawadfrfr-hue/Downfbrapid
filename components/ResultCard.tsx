@@ -107,6 +107,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
   const [mergedBlobs, setMergedBlobs] = useState<Record<string, { url: string; filename: string }>>({});
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const mergedBlobUrlsRef = useRef<string[]>([]);
+  const preparedMergeUrlsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const urls = mergedBlobUrlsRef.current;
@@ -116,8 +117,6 @@ export const ResultCard: React.FC<ResultCardProps> = ({
   }, []);
 
   const isTikTok = platform === 'tiktok' || data.platform === 'TikTok';
-  const isFacebook =
-    !isTikTok && (data.platform ? data.platform === 'Facebook' : platform === 'facebook');
 
   const triggerFileDownload = (href: string, filename: string, inPlace: boolean) => {
     const a = document.createElement('a');
@@ -206,8 +205,6 @@ export const ResultCard: React.FC<ResultCardProps> = ({
       return;
     }
 
-    onRecordDownload(qualityLabel);
-
     const fallbackDirectUrl =
       type === 'hd'
         ? data.qualities.hd.url
@@ -219,6 +216,45 @@ export const ResultCard: React.FC<ResultCardProps> = ({
 
     const rawTargetUrl = downloadUrl || fallbackDirectUrl;
 
+    const isServerMergeUrl = rawTargetUrl.includes('/api/merge?');
+
+    if (isServerMergeUrl && !preparedMergeUrlsRef.current.has(rawTargetUrl)) {
+      try {
+        setMergeProgress({
+          stage: 'merging',
+          percent: 45,
+          message: 'Preparing video & audio on server...',
+        });
+
+        const prepareUrl = rawTargetUrl.replace('/api/merge?', '/api/merge/prepare?').replace(/&dl=\d+/, '');
+        const prepRes = await fetch(prepareUrl, { method: 'POST', cache: 'no-store' });
+
+        if (prepRes.ok) {
+          preparedMergeUrlsRef.current.add(rawTargetUrl);
+          setMergeProgress({
+            stage: 'saving',
+            percent: 100,
+            message: `Saving ${targetFilename}...`,
+          });
+        } else if (prepRes.status !== 404 && prepRes.status !== 405) {
+          const errPayload = await prepRes.json().catch(() => null);
+          throw new Error(
+            errPayload?.detail || errPayload?.error || 'Failed to prepare video download. Please fetch again.'
+          );
+        }
+      } catch (err: unknown) {
+        if (err instanceof Error && !err.message.includes('Failed to fetch')) {
+          setMergeError(err.message);
+          setMergeProgress(null);
+          setDownloadingType(null);
+          return;
+        }
+        // Network/CORS issue on prepare endpoint: fall back to direct /api/merge download navigation
+      }
+    }
+
+    onRecordDownload(qualityLabel);
+
     const isAlreadyProxiedOrMerged =
       rawTargetUrl.startsWith('/api/') ||
       rawTargetUrl.includes('/api/merge') ||
@@ -226,7 +262,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
       rawTargetUrl.includes('/api/download');
 
     const finalDownloadUrl =
-      isTikTok && !isAlreadyProxiedOrMerged && /^https?:\/\//i.test(rawTargetUrl)
+      !isAlreadyProxiedOrMerged && /^https?:\/\//i.test(rawTargetUrl)
         ? `/api/download?url=${encodeURIComponent(rawTargetUrl)}&filename=${encodeURIComponent(targetFilename)}&dl=1`
         : rawTargetUrl;
 
@@ -239,8 +275,9 @@ export const ResultCard: React.FC<ResultCardProps> = ({
     triggerFileDownload(finalDownloadUrl, targetFilename, useInPlaceDownload);
 
     setTimeout(() => {
+      setMergeProgress(null);
       setDownloadingType(null);
-    }, finalDownloadUrl.includes('/api/merge') ? 2500 : 1000);
+    }, isServerMergeUrl ? 1200 : 800);
   };
 
   const handleCopyLink = () => {
@@ -285,10 +322,10 @@ export const ResultCard: React.FC<ResultCardProps> = ({
     : [
         {
           type: 'hd',
-          mainTitle: isFacebook ? 'HD 1080p' : data.qualities.hd.quality || '1080p (Full HD)',
-          subDetails: `${data.qualities.hd.format || 'MP4'} • High Quality • ${data.qualities.hd.size}`,
+          mainTitle: data.qualities.hd.quality || 'High Quality',
+          subDetails: `${data.qualities.hd.format || 'MP4'} • ${data.qualities.hd.size}`,
           downloadUrl: data.qualities.hd.downloadUrl,
-          qualityLabel: isFacebook ? 'HD 1080p' : data.qualities.hd.quality || 'HD Video',
+          qualityLabel: data.qualities.hd.quality || 'High Quality',
           format: data.qualities.hd.format || 'MP4',
           requiresClientMerge: data.qualities.hd.requiresClientMerge,
           videoUrl: data.qualities.hd.videoUrl,
@@ -302,10 +339,10 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           ? [
               {
                 type: 'sd',
-                mainTitle: isFacebook ? 'SD 720p' : data.qualities.sd.quality || '720p (SD)',
-                subDetails: `${data.qualities.sd.format || 'MP4'} • Standard Quality • ${data.qualities.sd.size}`,
+                mainTitle: data.qualities.sd.quality || 'Standard Quality',
+                subDetails: `${data.qualities.sd.format || 'MP4'} • ${data.qualities.sd.size}`,
                 downloadUrl: data.qualities.sd.downloadUrl,
-                qualityLabel: isFacebook ? 'SD 720p' : data.qualities.sd.quality || 'SD Video',
+                qualityLabel: data.qualities.sd.quality || 'Standard Quality',
                 format: data.qualities.sd.format || 'MP4',
                 requiresClientMerge: data.qualities.sd.requiresClientMerge,
                 videoUrl: data.qualities.sd.videoUrl,
@@ -321,25 +358,17 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           ? [
               {
                 type: 'audio',
-                mainTitle: isFacebook ? 'Audio' : `${data.qualities.audio.format || 'M4A'} (Audio Only)`,
+                mainTitle: `${data.qualities.audio.format || 'M4A'} (Audio Only)`,
                 subDetails: `${data.qualities.audio.format || 'M4A'} • Audio Track • ${data.qualities.audio.size}`,
                 downloadUrl: data.qualities.audio.downloadUrl,
-                qualityLabel: isFacebook ? 'Audio' : 'Audio Only',
+                qualityLabel: 'Audio Only',
                 format: data.qualities.audio.format || 'M4A',
               },
             ]
           : []),
       ];
 
-  const sourceQualityList =
-    isFacebook && data.qualityList && data.qualityList.length > 0
-      ? data.qualityList.filter((item) =>
-          ['2k', '2160p', '1440p', '1080p', '720p', 'audio'].includes(item.id)
-        )
-      : data.qualityList;
-
-  const effectiveQualityList =
-    sourceQualityList && sourceQualityList.length > 0 ? sourceQualityList : data.qualityList;
+  const effectiveQualityList = data.qualityList;
 
   const downloadOptions: DownloadOption[] =
     effectiveQualityList && effectiveQualityList.length > 0
@@ -347,16 +376,11 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           const formatText = item.format || (item.id === 'audio' ? 'M4A' : 'MP4');
           let mainTitle = '';
           if (isTikTok) mainTitle = item.label;
-          else if (isFacebook) {
-            if (item.id === '2k' || item.id === '2160p' || item.id === '1440p') mainTitle = 'Highest 2K';
-            else if (item.id === '1080p') mainTitle = 'HD 1080p';
-            else if (item.id === '720p') mainTitle = 'SD 720p';
-            else if (item.id === 'audio') mainTitle = 'Audio';
-            else mainTitle = item.label;
-          } else if (item.id === '2160p') mainTitle = '2160p (4K Ultra HD)';
+          else if (item.id === '2160p') mainTitle = '2160p (4K Ultra HD)';
           else if (item.id === '1440p') mainTitle = '1440p (2K Quad HD)';
           else if (item.id === '1080p') mainTitle = '1080p (Full HD)';
           else if (item.id === '720p') mainTitle = '720p (HD)';
+          else if (item.id === '540p') mainTitle = '540p (SD)';
           else if (item.id === '480p') mainTitle = '480p (SD)';
           else if (item.id === '360p') mainTitle = '360p (Standard)';
           else if (item.id === '240p') mainTitle = '240p (Low)';
