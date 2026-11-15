@@ -108,18 +108,20 @@ function hasActiveUserGesture(startedAtMs: number): boolean {
 }
 
 function triggerFileDownload(href: string, filename: string): void {
-  const isBlobOrRelative = href.startsWith('blob:') || href.startsWith('/');
-  const isSameOrigin =
-    isBlobOrRelative ||
-    (typeof window !== 'undefined' && href.startsWith(window.location.origin));
+  const isBlobUrl = href.startsWith('blob:');
+  const isBackendAttachment =
+    href.startsWith('/') ||
+    href.includes('/api/merge') ||
+    href.includes('/api/proxy') ||
+    href.includes('/api/download');
 
   const a = document.createElement('a');
   a.href = href;
-  if (!isSameOrigin) {
+  if (!isBlobUrl && !isBackendAttachment) {
     a.target = '_blank';
   }
   a.rel = 'noopener noreferrer';
-  if (isSameOrigin) {
+  if (isBlobUrl) {
     a.setAttribute('download', filename);
   }
   a.style.display = 'none';
@@ -514,8 +516,12 @@ export const ResultCard: React.FC<ResultCardProps> = ({
 
           const anchorHref = readyBlob?.url || finalDownloadUrl;
           const anchorFilename = readyBlob?.filename || targetFilename;
-          const isSameOriginOrBlobAnchor =
-            anchorHref.startsWith('/') || anchorHref.startsWith('blob:');
+          const isBlobAnchor = anchorHref.startsWith('blob:');
+          const isBackendAttachmentAnchor =
+            anchorHref.startsWith('/') ||
+            anchorHref.includes('/api/merge') ||
+            anchorHref.includes('/api/proxy') ||
+            anchorHref.includes('/api/download');
 
           const cardInner = (
             <>
@@ -565,12 +571,18 @@ export const ResultCard: React.FC<ResultCardProps> = ({
               <a
                 key={opt.type}
                 href={anchorHref}
-                download={isSameOriginOrBlobAnchor ? anchorFilename : undefined}
-                target={isSameOriginOrBlobAnchor ? undefined : '_blank'}
+                download={isBlobAnchor ? anchorFilename : undefined}
+                target={isBlobAnchor || isBackendAttachmentAnchor ? undefined : '_blank'}
                 rel="noopener noreferrer"
                 onClick={() => {
                   setMergeError(null);
                   onRecordDownload(opt.qualityLabel);
+                  if (isBackendAttachmentAnchor) {
+                    setDownloadingType(opt.type);
+                    setTimeout(() => {
+                      setDownloadingType((prev) => (prev === opt.type ? null : prev));
+                    }, 3000);
+                  }
                 }}
                 className={cardClasses}
               >

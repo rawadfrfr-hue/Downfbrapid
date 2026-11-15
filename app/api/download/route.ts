@@ -1,6 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
+
+function makeDownloadErrorResponse(req: NextRequest, status: number, message: string, dl: string) {
+  const accept = (req.headers.get('accept') || '').toLowerCase();
+  if (dl !== '0' && accept.includes('text/html')) {
+    const safeMsg = message
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Download Error</title><style>body{font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;color:#0f172a;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:16px}.card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:24px;max-width:420px;text-align:center;box-shadow:0 8px 24px rgba(15,23,42,.06)}h1{font-size:18px;margin:0 0 8px}p{font-size:14px;color:#475569;margin:0 0 18px;line-height:1.5}button{background:#0f172a;color:#fff;border:0;border-radius:10px;padding:10px 18px;font-size:14px;font-weight:600;cursor:pointer}</style></head><body><div class="card"><h1>Download Failed</h1><p>${safeMsg}</p><button onclick="history.back()">Go Back</button></div></body></html>`;
+    return new NextResponse(html, {
+      status,
+      headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
+    });
+  }
+  return NextResponse.json({ success: false, error: message }, { status });
+}
 
 const DEFAULT_USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
@@ -235,23 +252,21 @@ export async function GET(req: NextRequest) {
     clearTimeout(connectTimeout);
 
     if (!upstreamRes.ok && upstreamRes.status !== 206) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Media source returned HTTP ${upstreamRes.status}. Please fetch the link again.`,
-        },
-        { status: upstreamRes.status === 403 || upstreamRes.status === 404 ? 410 : 502 }
+      return makeDownloadErrorResponse(
+        req,
+        upstreamRes.status === 403 || upstreamRes.status === 404 ? 410 : 502,
+        `Media source returned HTTP ${upstreamRes.status}. Please fetch the link again.`,
+        dl
       );
     }
 
     const upstreamType = upstreamRes.headers.get('content-type') || 'video/mp4';
     if (upstreamType.toLowerCase().includes('text/html')) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Upstream media link expired or returned an invalid response. Please fetch again.',
-        },
-        { status: 502 }
+      return makeDownloadErrorResponse(
+        req,
+        502,
+        'Upstream media link expired or returned an invalid response. Please fetch again.',
+        dl
       );
     }
 
@@ -264,12 +279,14 @@ export async function GET(req: NextRequest) {
   } catch (err: unknown) {
     clearTimeout(connectTimeout);
     if (err instanceof Error && err.name === 'AbortError') {
-      return NextResponse.json(
-        { success: false, error: 'Timed out while connecting to media server.' },
-        { status: 504 }
+      return makeDownloadErrorResponse(
+        req,
+        504,
+        'Timed out while connecting to media server.',
+        dl
       );
     }
     const msg = err instanceof Error ? err.message : 'Failed to stream video download.';
-    return NextResponse.json({ success: false, error: msg }, { status: 502 });
+    return makeDownloadErrorResponse(req, 502, msg, dl);
   }
 }
