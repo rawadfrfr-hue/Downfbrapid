@@ -394,11 +394,11 @@ export async function mergeVideoAndAudioInBrowser({
     await ffmpeg.writeFile(videoPath, videoResult.data);
     await ffmpeg.writeFile(audioPath, audioResult.data);
 
-    // Stream-copy compatible codecs directly into MP4/WebM; avoid copying VP9/HEVC into MP4 (causes black screen)
+    // Stream-copy compatible codecs directly into MP4/WebM; avoid copying VP9/AV1/HEVC into MP4 (causes black screen)
     const canCopyVideo =
       outputExt === 'webm'
         ? /(vp8|vp9|vp09|av01|av1)/.test(lowerV)
-        : /(avc|h264|mp4v|av01|av1)/.test(lowerV);
+        : /(avc|h264|mp4v)/.test(lowerV);
 
     const canCopyAudio =
       outputExt === 'webm'

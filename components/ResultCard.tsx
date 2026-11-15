@@ -144,6 +144,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
   const [mergeProgress, setMergeProgress] = useState<MergeProgress | null>(null);
   const [mergeError, setMergeError] = useState<string | null>(null);
   const [mergedBlobs, setMergedBlobs] = useState<Record<string, { url: string; filename: string }>>({});
+  const [preparedDownloads, setPreparedDownloads] = useState<Record<string, string>>({});
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const mergedBlobUrlsRef = useRef<string[]>([]);
 
@@ -209,6 +210,73 @@ export const ResultCard: React.FC<ResultCardProps> = ({
     setMergeError(null);
     setDownloadingType(type);
     const startedAt = getNowMs();
+
+    // Server-side FFmpeg merge path: prepare via /api/merge/prepare first so browser never hangs on a spinning redirect
+    if (!requiresClientMerge && finalDownloadUrl.includes('/api/merge?')) {
+      const alreadyPrepared = preparedDownloads[type];
+      if (alreadyPrepared) {
+        onRecordDownload(qualityLabel);
+        triggerFileDownload(alreadyPrepared, targetFilename);
+        setTimeout(() => setDownloadingType(null), 600);
+        return;
+      }
+
+      try {
+        setMergeProgress({
+          stage: 'merging',
+          percent: 35,
+          message: 'Preparing & merging HD video + audio...',
+        });
+
+        const prepareUrl = finalDownloadUrl
+          .replace('/api/merge?', '/api/merge/prepare?')
+          .replace(/&dl=\d+/, '');
+
+        const prepRes = await fetch(prepareUrl, {
+          method: 'POST',
+          cache: 'no-store',
+        });
+
+        const prepJson = await prepRes.json().catch(() => null);
+        if (!prepRes.ok || !prepJson?.success) {
+          throw new Error(
+            prepJson?.detail ||
+              prepJson?.error ||
+              'Failed to prepare video download. Please fetch the video link again.'
+          );
+        }
+
+        setMergeProgress({
+          stage: 'saving',
+          percent: 100,
+          message: 'Ready — starting download...',
+        });
+
+        setPreparedDownloads((prev) => ({
+          ...prev,
+          [type]: finalDownloadUrl,
+        }));
+
+        onRecordDownload(qualityLabel);
+        triggerFileDownload(finalDownloadUrl, targetFilename);
+      } catch (err: unknown) {
+        // Fallback to direct anchor trigger only on pure network/CORS error (not backend 4xx/5xx error)
+        if (err instanceof TypeError) {
+          onRecordDownload(qualityLabel);
+          triggerFileDownload(finalDownloadUrl, targetFilename);
+        } else {
+          const msg =
+            err instanceof Error
+              ? err.message
+              : 'Failed to prepare video download. Please fetch the link again.';
+          setMergeError(msg);
+        }
+      } finally {
+        setMergeProgress(null);
+        setDownloadingType(null);
+      }
+      return;
+    }
 
     // Client-side merging path using ffmpeg.wasm (fallback when server FFmpeg is unavailable)
     if (requiresClientMerge && videoUrl && audioUrl) {
@@ -508,13 +576,17 @@ export const ResultCard: React.FC<ResultCardProps> = ({
 
           const { targetFilename, finalDownloadUrl } = getOptionTarget(opt);
           const readyBlob = mergedBlobs[opt.type];
+          const preparedUrl = preparedDownloads[opt.type];
 
+          const isServerMerge = !opt.requiresClientMerge && finalDownloadUrl.includes('/api/merge?');
           const isReadyClientMerge = Boolean(opt.requiresClientMerge && readyBlob);
-          const isDirectOrServerMerge = !opt.requiresClientMerge;
+          const isReadyServerMerge = Boolean(isServerMerge && preparedUrl);
+          const isDirectStream = !opt.requiresClientMerge && !isServerMerge;
+          const isReadyToSave = isReadyClientMerge || isReadyServerMerge;
           const shouldRenderNativeAnchor =
-            (isReadyClientMerge || isDirectOrServerMerge) && !isAnyClientMerging;
+            (isReadyToSave || isDirectStream) && !isAnyClientMerging;
 
-          const anchorHref = readyBlob?.url || finalDownloadUrl;
+          const anchorHref = readyBlob?.url || preparedUrl || finalDownloadUrl;
           const anchorFilename = readyBlob?.filename || targetFilename;
           const isBlobAnchor = anchorHref.startsWith('blob:');
           const isBackendAttachmentAnchor =
@@ -534,7 +606,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                   <span className="text-[11px] text-slate-500 font-normal font-sans mt-0.5 truncate">
                     {showInlineProgress
                       ? mergeProgress.message
-                      : readyBlob
+                      : isReadyToSave
                       ? `${opt.format} • Ready — Click to Save`
                       : opt.subDetails}
                   </span>
@@ -544,7 +616,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                 <div className="w-8 h-8 rounded-full bg-slate-900 text-white group-hover:bg-slate-800 flex items-center justify-center shrink-0 transition-colors shadow-2xs">
                   {isThisDownloading ? (
                     <RefreshCw className="w-3.5 h-3.5 text-white animate-spin" />
-                  ) : readyBlob ? (
+                  ) : isReadyToSave ? (
                     <Check className="w-3.5 h-3.5 text-emerald-400" />
                   ) : (
                     <ArrowDown className="w-3.5 h-3.5 text-white group-hover:translate-y-0.5 transition-transform" />

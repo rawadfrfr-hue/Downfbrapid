@@ -413,7 +413,7 @@ export async function POST(req: NextRequest) {
 
     const apiSecret = process.env.YTDLP_API_SECRET?.trim() || '';
     const controller = new AbortController();
-    const timeoutMs = detectedPlatform === 'youtube' ? 35000 : 25000;
+    const timeoutMs = detectedPlatform === 'youtube' ? 45000 : 25000;
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
