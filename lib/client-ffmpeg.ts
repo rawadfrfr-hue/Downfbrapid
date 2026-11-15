@@ -188,10 +188,11 @@ async function fetchMediaBytes(
   fallbackFilename: string,
   onBytes: (received: number, total: number | null) => void
 ): Promise<{ data: Uint8Array; usedProxyFallback: boolean }> {
-  // 1. Primary path: Direct browser fetch from CDN only when CORS is plausibly allowed
+  // 1. Primary path: Direct browser fetch from CDN (or Railway /api/proxy) only when CORS is plausibly allowed
   if (!isKnownCorsBlockedHost(directUrl)) {
     const controller = new AbortController();
-    const connectTimer = setTimeout(() => controller.abort(), 5000);
+    const isBackendProxy = directUrl.includes('/api/proxy?');
+    const connectTimer = setTimeout(() => controller.abort(), isBackendProxy ? 15000 : 5000);
     try {
       const directRes = await fetch(directUrl, {
         method: 'GET',
@@ -393,11 +394,11 @@ export async function mergeVideoAndAudioInBrowser({
     await ffmpeg.writeFile(videoPath, videoResult.data);
     await ffmpeg.writeFile(audioPath, audioResult.data);
 
-    // Only stream-copy H.264/AVC into MP4; never copy VP9/AV1/HEVC into MP4 (causes black screen + audio only)
+    // Stream-copy compatible codecs directly into MP4/WebM; avoid copying VP9/HEVC into MP4 (causes black screen)
     const canCopyVideo =
       outputExt === 'webm'
         ? /(vp8|vp9|vp09|av01|av1)/.test(lowerV)
-        : /(avc|h264|mp4v)/.test(lowerV);
+        : /(avc|h264|mp4v|av01|av1)/.test(lowerV);
 
     const canCopyAudio =
       outputExt === 'webm'

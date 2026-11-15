@@ -463,6 +463,8 @@ export async function POST(req: NextRequest) {
             ...item,
             url: resolveBackendUrl(item.url),
             downloadUrl: resolveBackendUrl(item.downloadUrl),
+            ...(item.videoUrl ? { videoUrl: resolveBackendUrl(item.videoUrl) } : {}),
+            ...(item.audioUrl ? { audioUrl: resolveBackendUrl(item.audioUrl) } : {}),
           }))
         : data.qualityList;
 
@@ -476,6 +478,8 @@ export async function POST(req: NextRequest) {
                       ...val,
                       url: resolveBackendUrl(val.url),
                       downloadUrl: resolveBackendUrl(val.downloadUrl),
+                      ...(val.videoUrl ? { videoUrl: resolveBackendUrl(val.videoUrl) } : {}),
+                      ...(val.audioUrl ? { audioUrl: resolveBackendUrl(val.audioUrl) } : {}),
                     }
                   : val,
               ]
@@ -489,6 +493,8 @@ export async function POST(req: NextRequest) {
       const preparedData = {
         ...data,
         previewUrl: data.previewUrl ? resolveBackendUrl(data.previewUrl) : undefined,
+        bestVideoUrl: data.bestVideoUrl ? resolveBackendUrl(data.bestVideoUrl) : data.bestVideoUrl,
+        bestAudioUrl: data.bestAudioUrl ? resolveBackendUrl(data.bestAudioUrl) : data.bestAudioUrl,
         qualityList: normalizedQualityList,
         qualities: normalizedQualities,
         thumbnail: data.thumbnail || fallbackThumb,

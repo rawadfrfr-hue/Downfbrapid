@@ -38,9 +38,11 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["Content-Length", "Content-Range", "Accept-Ranges"],
 )
 
 API_SECRET = os.getenv("YTDLP_API_SECRET", "").strip()
+PREFER_CLIENT_MERGE = os.getenv("PREFER_CLIENT_MERGE", "true").strip().lower() not in ("0", "false", "no")
 SIGNING_SECRET = (API_SECRET or secrets.token_hex(32)).encode("utf-8")
 COOKIE_FILE_PATH = "/tmp/ytdlp_cookies.txt"
 MERGED_DIR = "/tmp/savevibe_merged"
@@ -333,7 +335,7 @@ def register_proxy_job(
     return sign_job_id(job_id)
 
 
-def cleanup_old_merged_files(max_age_seconds: int = 900, max_files: int = 25) -> None:
+def cleanup_old_merged_files(max_age_seconds: int = 180, max_files: int = 3) -> None:
     if not os.path.isdir(MERGED_DIR):
         return
     now = time.time()
@@ -656,9 +658,10 @@ def extract_with_ytdlp(url_str: str, platform: str, proxy_url: Optional[str] = N
     # Build deduplicated video candidates by actual video resolution:
     # 1. Prefer confirmed progressive H.264/MP4 format at a given height (instant direct download, already has audio)
     # 2. For resolutions that only exist as video-only + separate audio:
-    #    - Prefer fast native server FFmpeg (/api/merge) whenever FFMPEG_PATH is available (handles H.264 copy in <1s
-    #      AND safely transcodes VP9/AV1 to H.264 so mobile/desktop players never get a black screen)
-    #    - Fall back to client-side ffmpeg.wasm only when server FFmpeg is unavailable
+    #    - When PREFER_CLIENT_MERGE is enabled (default), prefer client-side browser merging (ffmpeg.wasm)
+    #      for all direct HTTP streams (Facebook, Instagram, TikTok, and proxied YouTube) so Railway does not
+    #      download/store/transcode video files in RAM.
+    #    - Fall back to server FFmpeg (/api/merge) only for non-direct HLS/DASH streams (or when PREFER_CLIENT_MERGE=false).
     candidates: list[dict[str, Any]] = []
     seen_heights: set[int] = set()
 
@@ -670,25 +673,9 @@ def extract_with_ytdlp(url_str: str, platform: str, proxy_url: Optional[str] = N
             seen_heights.add(h)
         candidates.append({"fmt": f, "eff_height": h, "requires_merge": False, "client_merge": False})
 
-    if FFMPEG_PATH and best_merge_audio:
-        for f in video_only_formats:
-            h = effective_height(f)
-            if h > 0 and h in seen_heights:
-                continue
-            if h > 0:
-                seen_heights.add(h)
-            elif len(candidates) > 0:
-                continue
-            candidates.append(
-                {
-                    "fmt": f,
-                    "eff_height": h,
-                    "audio_fmt": best_merge_audio,
-                    "requires_merge": True,
-                    "client_merge": False,
-                }
-            )
-    elif best_direct_audio and platform != "youtube":
+    def append_client_merge_candidates() -> None:
+        if not best_direct_audio:
+            return
         for f in direct_video_only_formats:
             h = effective_height(f)
             if h > 0 and h in seen_heights:
@@ -711,6 +698,35 @@ def extract_with_ytdlp(url_str: str, platform: str, proxy_url: Optional[str] = N
                     "client_merge": True,
                 }
             )
+
+    def append_server_merge_candidates() -> None:
+        if not (FFMPEG_PATH and best_merge_audio):
+            return
+        for f in video_only_formats:
+            h = effective_height(f)
+            if h > 0 and h in seen_heights:
+                continue
+            if h > 0:
+                seen_heights.add(h)
+            elif len(candidates) > 0:
+                continue
+            candidates.append(
+                {
+                    "fmt": f,
+                    "eff_height": h,
+                    "audio_fmt": best_merge_audio,
+                    "requires_merge": True,
+                    "client_merge": False,
+                }
+            )
+
+    if PREFER_CLIENT_MERGE:
+        append_client_merge_candidates()
+        append_server_merge_candidates()
+    else:
+        append_server_merge_candidates()
+        if not FFMPEG_PATH:
+            append_client_merge_candidates()
 
     # Fallback: if no progressive and no paired video+audio candidates, try generic yt-dlp+ffmpeg HLS/DASH merge
     if not candidates and FFMPEG_PATH and formats:
@@ -761,7 +777,20 @@ def extract_with_ytdlp(url_str: str, platform: str, proxy_url: Optional[str] = N
         reverse=True,
     )
 
-    best_progressive_preview = progressive_formats[0]["url"] if progressive_formats else None
+    yt_prog_preview_url: Optional[str] = None
+    if platform == "youtube" and progressive_formats:
+        yt_prog = progressive_formats[0]
+        yt_prog_token = register_proxy_job(
+            media_url=yt_prog["url"],
+            title=title,
+            ext=(yt_prog.get("ext") or "mp4").lower(),
+            suffix="preview",
+            proxy_url=proxy_url,
+            referer="https://www.youtube.com/",
+        )
+        yt_prog_preview_url = f"/api/proxy?token={yt_prog_token}&dl=0"
+
+    best_progressive_preview = yt_prog_preview_url or (progressive_formats[0]["url"] if progressive_formats else None)
 
     # Materialize final URLs (direct CDN / client-side merge pair / fallback server /api/merge)
     resolved_videos: list[dict[str, Any]] = []
@@ -783,14 +812,36 @@ def extract_with_ytdlp(url_str: str, platform: str, proxy_url: Optional[str] = N
             est_size = None
             ext = "MP4"
         elif is_client_merge and afmt:
-            video_url = vfmt["url"]
-            audio_url = afmt["url"]
+            raw_v_ext = (vfmt.get("ext") or "mp4").lower()
+            raw_a_ext = (afmt.get("ext") or "m4a").lower()
+            if platform == "youtube":
+                v_token = register_proxy_job(
+                    media_url=vfmt["url"],
+                    title=title,
+                    ext=raw_v_ext,
+                    suffix=f"{h}p_video" if h > 0 else "video",
+                    proxy_url=proxy_url,
+                    referer="https://www.youtube.com/",
+                )
+                a_token = register_proxy_job(
+                    media_url=afmt["url"],
+                    title=title,
+                    ext=raw_a_ext,
+                    suffix="audio",
+                    proxy_url=proxy_url,
+                    referer="https://www.youtube.com/",
+                )
+                video_url = f"/api/proxy?token={v_token}&dl=0"
+                audio_url = f"/api/proxy?token={a_token}&dl=0"
+            else:
+                video_url = vfmt["url"]
+                audio_url = afmt["url"]
             preview_url = best_progressive_preview or video_url
             download_url = video_url
             vcodec = (vfmt.get("vcodec") or "").lower()
             acodec = (afmt.get("acodec") or "").lower()
-            video_ext = (vfmt.get("ext") or "mp4").lower()
-            audio_ext = (afmt.get("ext") or "m4a").lower()
+            video_ext = raw_v_ext
+            audio_ext = raw_a_ext
             v_bytes = vfmt.get("filesize") or vfmt.get("filesize_approx") or 0
             a_bytes = afmt.get("filesize") or afmt.get("filesize_approx") or 0
             est_size = format_filesize(v_bytes + a_bytes) if (v_bytes and a_bytes) else format_filesize(v_bytes)
@@ -1055,17 +1106,8 @@ def extract_with_ytdlp(url_str: str, platform: str, proxy_url: Optional[str] = N
             "requiresClientMerge": False,
         }
 
-    if platform == "youtube" and progressive_formats:
-        yt_prog = progressive_formats[0]
-        yt_prog_token = register_proxy_job(
-            media_url=yt_prog["url"],
-            title=title,
-            ext=(yt_prog.get("ext") or "mp4").lower(),
-            suffix="preview",
-            proxy_url=proxy_url,
-            referer="https://www.youtube.com/",
-        )
-        resolved_preview_url = f"/api/proxy?token={yt_prog_token}&dl=0"
+    if yt_prog_preview_url:
+        resolved_preview_url = yt_prog_preview_url
     else:
         resolved_preview_url = best_progressive_preview or hd_entry["preview_url"]
 
@@ -1402,6 +1444,7 @@ async def health_check():
         "cookies_loaded": bool(ACTIVE_COOKIE_FILE and os.path.exists(ACTIVE_COOKIE_FILE)),
         "youtube_enabled": True,
         "youtube_proxies_loaded": len(YOUTUBE_PROXIES),
+        "prefer_client_merge": PREFER_CLIENT_MERGE,
     }
 
 
