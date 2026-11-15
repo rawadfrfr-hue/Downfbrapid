@@ -142,10 +142,8 @@ export const ResultCard: React.FC<ResultCardProps> = ({
   const [mergeProgress, setMergeProgress] = useState<MergeProgress | null>(null);
   const [mergeError, setMergeError] = useState<string | null>(null);
   const [mergedBlobs, setMergedBlobs] = useState<Record<string, { url: string; filename: string }>>({});
-  const [readyMergeUrls, setReadyMergeUrls] = useState<Record<string, string>>({});
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const mergedBlobUrlsRef = useRef<string[]>([]);
-  const preparedMergeUrlsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const urls = mergedBlobUrlsRef.current;
@@ -184,14 +182,10 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         ? `/api/download?url=${encodeURIComponent(rawTargetUrl)}&filename=${encodeURIComponent(targetFilename)}&dl=1`
         : rawTargetUrl;
 
-    const isServerMergeUrl = finalDownloadUrl.includes('/api/merge?');
-
     return {
       cleanTitle,
       targetFilename,
-      rawTargetUrl,
       finalDownloadUrl,
-      isServerMergeUrl,
     };
   };
 
@@ -208,8 +202,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
       audioExt,
     } = opt;
 
-    const { cleanTitle, targetFilename, rawTargetUrl, finalDownloadUrl, isServerMergeUrl } =
-      getOptionTarget(opt);
+    const { cleanTitle, targetFilename, finalDownloadUrl } = getOptionTarget(opt);
 
     setMergeError(null);
     setDownloadingType(type);
@@ -268,58 +261,13 @@ export const ResultCard: React.FC<ResultCardProps> = ({
       return;
     }
 
-    if (isServerMergeUrl && !preparedMergeUrlsRef.current.has(rawTargetUrl)) {
-      try {
-        setMergeProgress({
-          stage: 'merging',
-          percent: 45,
-          message: 'Preparing video & audio on server...',
-        });
-
-        const prepareUrl = rawTargetUrl
-          .replace('/api/merge?', '/api/merge/prepare?')
-          .replace(/&dl=\d+/, '');
-        const prepRes = await fetch(prepareUrl, { method: 'POST', cache: 'no-store' });
-
-        if (prepRes.ok) {
-          preparedMergeUrlsRef.current.add(rawTargetUrl);
-          setReadyMergeUrls((prev) => ({ ...prev, [type]: finalDownloadUrl }));
-          setMergeProgress({
-            stage: 'saving',
-            percent: 100,
-            message: `Ready: ${targetFilename}`,
-          });
-        } else if (prepRes.status === 404 || prepRes.status === 405) {
-          preparedMergeUrlsRef.current.add(rawTargetUrl);
-          setReadyMergeUrls((prev) => ({ ...prev, [type]: finalDownloadUrl }));
-        } else {
-          const errPayload = await prepRes.json().catch(() => null);
-          throw new Error(
-            errPayload?.detail || errPayload?.error || 'Failed to prepare video download. Please fetch again.'
-          );
-        }
-      } catch (err: unknown) {
-        if (err instanceof Error && !err.message.includes('Failed to fetch')) {
-          setMergeError(err.message);
-          setMergeProgress(null);
-          setDownloadingType(null);
-          return;
-        }
-        // Network/CORS issue on prepare endpoint: expose direct /api/merge link
-        preparedMergeUrlsRef.current.add(rawTargetUrl);
-        setReadyMergeUrls((prev) => ({ ...prev, [type]: finalDownloadUrl }));
-      }
-    }
-
     onRecordDownload(qualityLabel);
-    if (!isServerMergeUrl || hasActiveUserGesture(startedAt)) {
-      triggerFileDownload(finalDownloadUrl, targetFilename);
-    }
+    triggerFileDownload(finalDownloadUrl, targetFilename);
 
     setTimeout(() => {
       setMergeProgress(null);
       setDownloadingType(null);
-    }, isServerMergeUrl ? 700 : 500);
+    }, 500);
   };
 
   const handleCopyLink = () => {
@@ -453,12 +401,18 @@ export const ResultCard: React.FC<ResultCardProps> = ({
       : fallbackOptions;
 
   const firstMergedBlob = Object.values(mergedBlobs)[0]?.url;
+  const isNonMergeUrl = (url?: string) => Boolean(url && !url.includes('/api/merge'));
   const previewVideoSrc =
-    firstMergedBlob || data.previewUrl || data.qualities.sd?.url || data.qualities.hd.url;
-  const isPreviewVideoOnly =
-    !firstMergedBlob &&
-    !data.previewUrl &&
-    Boolean(data.qualities.hd.requiresClientMerge);
+    firstMergedBlob ||
+    (isNonMergeUrl(data.previewUrl) ? data.previewUrl : undefined) ||
+    (isNonMergeUrl(data.qualities.sd?.url) && !data.qualities.sd?.requiresClientMerge
+      ? data.qualities.sd?.url
+      : undefined) ||
+    (isNonMergeUrl(data.qualities.hd.url) && !data.qualities.hd.requiresClientMerge
+      ? data.qualities.hd.url
+      : undefined);
+  const canPreviewVideo = Boolean(previewVideoSrc);
+  const isPreviewVideoOnly = false;
 
   return (
     <motion.div
@@ -494,16 +448,18 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         {/* Soft overlay */}
         <div className="absolute inset-0 bg-black/20 group-hover:bg-black/35 transition-colors" />
 
-        {/* Minimalist Centered Semi-Transparent Play Button */}
-        <button
-          onClick={() => setIsPreviewOpen(true)}
-          className="absolute inset-0 flex items-center justify-center focus:outline-none"
-          aria-label="Preview video"
-        >
-          <div className="w-12 h-12 sm:w-13 sm:h-13 rounded-full bg-black/40 backdrop-blur-md border border-white/25 text-white flex items-center justify-center shadow-md group-hover:scale-110 group-hover:bg-black/60 transition-all duration-300">
-            <Play className="w-5 h-5 fill-white ml-0.5 text-white" />
-          </div>
-        </button>
+        {/* Minimalist Centered Semi-Transparent Play Button (only when a lightweight non-merge preview exists) */}
+        {canPreviewVideo && (
+          <button
+            onClick={() => setIsPreviewOpen(true)}
+            className="absolute inset-0 flex items-center justify-center focus:outline-none"
+            aria-label="Preview video"
+          >
+            <div className="w-12 h-12 sm:w-13 sm:h-13 rounded-full bg-black/40 backdrop-blur-md border border-white/25 text-white flex items-center justify-center shadow-md group-hover:scale-110 group-hover:bg-black/60 transition-all duration-300">
+              <Play className="w-5 h-5 fill-white ml-0.5 text-white" />
+            </div>
+          </button>
+        )}
 
         {/* Duration badge at bottom right */}
         {data.duration && (
@@ -548,17 +504,15 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           const isAnyClientMerging = downloadingType !== null && mergeProgress !== null;
           const showInlineProgress = isThisDownloading && mergeProgress !== null;
 
-          const { targetFilename, finalDownloadUrl, isServerMergeUrl } = getOptionTarget(opt);
+          const { targetFilename, finalDownloadUrl } = getOptionTarget(opt);
           const readyBlob = mergedBlobs[opt.type];
-          const readyServerUrl = readyMergeUrls[opt.type];
 
           const isReadyClientMerge = Boolean(opt.requiresClientMerge && readyBlob);
-          const isDirectNonMerge = !opt.requiresClientMerge && !isServerMergeUrl;
-          const isReadyServerMerge = Boolean(isServerMergeUrl && readyServerUrl);
+          const isDirectOrServerMerge = !opt.requiresClientMerge;
           const shouldRenderNativeAnchor =
-            (isReadyClientMerge || isDirectNonMerge || isReadyServerMerge) && !isAnyClientMerging;
+            (isReadyClientMerge || isDirectOrServerMerge) && !isAnyClientMerging;
 
-          const anchorHref = readyBlob?.url || readyServerUrl || finalDownloadUrl;
+          const anchorHref = readyBlob?.url || finalDownloadUrl;
           const anchorFilename = readyBlob?.filename || targetFilename;
           const isSameOriginOrBlobAnchor =
             anchorHref.startsWith('/') || anchorHref.startsWith('blob:');
@@ -576,8 +530,6 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                       ? mergeProgress.message
                       : readyBlob
                       ? `${opt.format} • Ready — Click to Save`
-                      : readyServerUrl
-                      ? `${opt.format} • Ready — Click to Save`
                       : opt.subDetails}
                   </span>
                 </div>
@@ -586,7 +538,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                 <div className="w-8 h-8 rounded-full bg-slate-900 text-white group-hover:bg-slate-800 flex items-center justify-center shrink-0 transition-colors shadow-2xs">
                   {isThisDownloading ? (
                     <RefreshCw className="w-3.5 h-3.5 text-white animate-spin" />
-                  ) : readyBlob || readyServerUrl ? (
+                  ) : readyBlob ? (
                     <Check className="w-3.5 h-3.5 text-emerald-400" />
                   ) : (
                     <ArrowDown className="w-3.5 h-3.5 text-white group-hover:translate-y-0.5 transition-transform" />
@@ -661,7 +613,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         </button>
 
         <a
-          href={data.qualities.hd.url || data.originalUrl}
+          href={previewVideoSrc || data.originalUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1 hover:text-slate-900 transition-colors font-medium text-slate-400 text-[11px]"
@@ -673,7 +625,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
 
       {/* Video Preview Modal */}
       <AnimatePresence>
-        {isPreviewOpen && (
+        {isPreviewOpen && previewVideoSrc && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

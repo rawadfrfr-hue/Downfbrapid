@@ -42,7 +42,11 @@ app.add_middleware(
 )
 
 API_SECRET = os.getenv("YTDLP_API_SECRET", "").strip()
-PREFER_CLIENT_MERGE = os.getenv("PREFER_CLIENT_MERGE", "true").strip().lower() not in ("0", "false", "no")
+PREFER_CLIENT_MERGE = os.getenv("PREFER_CLIENT_MERGE", "false").strip().lower() in ("1", "true", "yes")
+YOUTUBE_DIRECT_MEDIA_FIRST = os.getenv("YOUTUBE_DIRECT_MEDIA_FIRST", "true").strip().lower() in ("1", "true", "yes")
+MAX_CONCURRENT_MERGES = max(1, int(os.getenv("MAX_CONCURRENT_MERGES", "2")))
+MAX_MERGE_SIZE_MB = max(50, int(os.getenv("MAX_MERGE_SIZE_MB", "1024")))
+MAX_MERGE_SIZE_BYTES = MAX_MERGE_SIZE_MB * 1024 * 1024
 SIGNING_SECRET = (API_SECRET or secrets.token_hex(32)).encode("utf-8")
 COOKIE_FILE_PATH = "/tmp/ytdlp_cookies.txt"
 MERGED_DIR = "/tmp/savevibe_merged"
@@ -59,14 +63,14 @@ DEFAULT_USER_AGENT = (
     "Chrome/126.0.0.0 Safari/537.36"
 )
 
-# In-memory cache (up to 500 extracted URLs cached for 15 minutes)
-extract_cache: TTLCache[str, dict[str, Any]] = TTLCache(maxsize=500, ttl=900)
+# In-memory cache (bounded to protect container RAM)
+extract_cache: TTLCache[str, dict[str, Any]] = TTLCache(maxsize=300, ttl=900)
 extract_locks: dict[str, asyncio.Lock] = {}
-# Pending FFmpeg merge jobs cached for 30 minutes
-merge_jobs: TTLCache[str, dict[str, Any]] = TTLCache(maxsize=1000, ttl=1800)
-merge_locks: dict[str, asyncio.Lock] = {}
-# Pending YouTube proxy streaming jobs cached for 30 minutes
-proxy_jobs: TTLCache[str, dict[str, Any]] = TTLCache(maxsize=2000, ttl=1800)
+# Pending FFmpeg merge jobs cached for 15 minutes
+merge_jobs: TTLCache[str, dict[str, Any]] = TTLCache(maxsize=500, ttl=900)
+merge_semaphore = asyncio.Semaphore(MAX_CONCURRENT_MERGES)
+# Pending YouTube proxy streaming jobs cached for 15 minutes
+proxy_jobs: TTLCache[str, dict[str, Any]] = TTLCache(maxsize=1000, ttl=900)
 
 STRIP_QUERY_PARAMS = {
     "fbclid",
@@ -286,11 +290,15 @@ def register_merge_job(
     audio_fmt: Optional[dict[str, Any]],
     proxy_url: Optional[str] = None,
     ytdlp_format_spec: Optional[str] = None,
+    out_ext: str = "mp4",
 ) -> str:
     v_id = str(video_fmt.get("format_id") or "") if video_fmt else ""
     a_id = str(audio_fmt.get("format_id") or "") if audio_fmt else ""
-    seed = f"{original_url}|{height}|{v_id}|{a_id}|{proxy_url or ''}|{ytdlp_format_spec or ''}"
+    seed = f"{original_url}|{height}|{v_id}|{a_id}|{out_ext}|{proxy_url or ''}|{ytdlp_format_spec or ''}"
     job_id = hashlib.sha256(seed.encode("utf-8")).hexdigest()[:20]
+
+    v_bytes = int((video_fmt.get("filesize") or video_fmt.get("filesize_approx") or 0) if video_fmt else 0)
+    a_bytes = int((audio_fmt.get("filesize") or audio_fmt.get("filesize_approx") or 0) if audio_fmt else 0)
 
     merge_jobs[job_id] = {
         "original_url": original_url,
@@ -306,6 +314,8 @@ def register_merge_job(
         "audio_fmt_id": a_id,
         "vcodec": (video_fmt.get("vcodec") or "").lower() if video_fmt else "",
         "acodec": (audio_fmt.get("acodec") or "").lower() if audio_fmt else "",
+        "out_ext": out_ext.lower(),
+        "est_bytes": v_bytes + a_bytes,
         "ytdlp_format_spec": ytdlp_format_spec,
         "created_at": time.time(),
     }
@@ -542,14 +552,17 @@ def extract_with_ytdlp(url_str: str, platform: str, proxy_url: Optional[str] = N
             and (f.get("acodec") or "").lower() != "none"
         ]
 
-    def audio_sort_key(f: dict[str, Any]) -> tuple[int, int, float]:
+    def audio_sort_key(f: dict[str, Any]) -> tuple[int, int, int, float]:
         a_score = audio_codec_score(f.get("acodec") or "")
         ext = (f.get("ext") or "").lower()
         is_m4a_mp4 = 1 if ext in ("m4a", "mp4", "aac") else 0
         abr = float(f.get("abr") or f.get("tbr") or 0.0)
-        return (a_score, is_m4a_mp4, abr)
+        # Prefer 96-165 kbps AAC/M4A (saves 30-50% audio bandwidth vs bloated 256k streams)
+        in_sweet_spot = 1 if 80.0 <= abr <= 165.0 else 0
+        dist_score = -abs(abr - 128.0) if abr > 0 else -999.0
+        return (a_score, is_m4a_mp4, in_sweet_spot, dist_score)
 
-    # Best audio formats (prefer AAC/MP4A in m4a/mp4 for MP4 container, and keep WebM/Opus pair if video is WebM)
+    # Best audio formats (prefer ~128k AAC/MP4A in m4a/mp4 for MP4 container, and keep WebM/Opus pair if video is WebM)
     best_direct_audio = None
     best_direct_mp4_audio = None
     best_direct_webm_audio = None
@@ -565,13 +578,23 @@ def extract_with_ytdlp(url_str: str, platform: str, proxy_url: Optional[str] = N
             None,
         )
 
+    best_merge_mp4_audio = best_direct_mp4_audio
+    best_merge_webm_audio = best_direct_webm_audio
     best_merge_audio = best_direct_mp4_audio or best_direct_audio
-    if not best_merge_audio and any_audio_formats:
-        any_audio_formats.sort(key=audio_sort_key, reverse=True)
-        best_merge_audio = next(
-            (f for f in any_audio_formats if is_mp4_compatible_audio(f)),
-            any_audio_formats[0],
-        )
+    if any_audio_formats:
+        sorted_any_audio = sorted(any_audio_formats, key=audio_sort_key, reverse=True)
+        if not best_merge_mp4_audio:
+            best_merge_mp4_audio = next(
+                (f for f in sorted_any_audio if is_mp4_compatible_audio(f)),
+                None,
+            )
+        if not best_merge_webm_audio:
+            best_merge_webm_audio = next(
+                (f for f in sorted_any_audio if is_webm_audio(f)),
+                None,
+            )
+        if not best_merge_audio:
+            best_merge_audio = best_merge_mp4_audio or sorted_any_audio[0]
 
     def snap_standard_height(val: int) -> int:
         for std in (2160, 1440, 1080, 720, 540, 480, 360, 240, 144):
@@ -658,10 +681,8 @@ def extract_with_ytdlp(url_str: str, platform: str, proxy_url: Optional[str] = N
     # Build deduplicated video candidates by actual video resolution:
     # 1. Prefer confirmed progressive H.264/MP4 format at a given height (instant direct download, already has audio)
     # 2. For resolutions that only exist as video-only + separate audio:
-    #    - When PREFER_CLIENT_MERGE is enabled (default), prefer client-side browser merging (ffmpeg.wasm)
-    #      for all direct HTTP streams (Facebook, Instagram, TikTok, and proxied YouTube) so Railway does not
-    #      download/store/transcode video files in RAM.
-    #    - Fall back to server FFmpeg (/api/merge) only for non-direct HLS/DASH streams (or when PREFER_CLIENT_MERGE=false).
+    #    - Prefer fast native server FFmpeg (/api/merge) whenever FFMPEG_PATH is available (default)
+    #    - Fall back to client-side ffmpeg.wasm only when server FFmpeg is unavailable (or PREFER_CLIENT_MERGE=true)
     candidates: list[dict[str, Any]] = []
     seen_heights: set[int] = set()
 
@@ -710,11 +731,18 @@ def extract_with_ytdlp(url_str: str, platform: str, proxy_url: Optional[str] = N
                 seen_heights.add(h)
             elif len(candidates) > 0:
                 continue
+            if is_webm_video(f):
+                paired_audio = best_merge_webm_audio or best_merge_audio
+                out_ext = "webm"
+            else:
+                paired_audio = best_merge_mp4_audio or best_merge_audio
+                out_ext = "mp4"
             candidates.append(
                 {
                     "fmt": f,
                     "eff_height": h,
-                    "audio_fmt": best_merge_audio,
+                    "audio_fmt": paired_audio,
+                    "out_ext": out_ext,
                     "requires_merge": True,
                     "client_merge": False,
                 }
@@ -778,19 +806,24 @@ def extract_with_ytdlp(url_str: str, platform: str, proxy_url: Optional[str] = N
     )
 
     yt_prog_preview_url: Optional[str] = None
-    if platform == "youtube" and progressive_formats:
-        yt_prog = progressive_formats[0]
-        yt_prog_token = register_proxy_job(
-            media_url=yt_prog["url"],
-            title=title,
-            ext=(yt_prog.get("ext") or "mp4").lower(),
-            suffix="preview",
-            proxy_url=proxy_url,
-            referer="https://www.youtube.com/",
+    best_progressive_preview: Optional[str] = None
+    if progressive_formats:
+        # Pick lightweight ~360p-480p progressive stream for preview to avoid wasting HD bandwidth
+        preview_prog = next(
+            (f for f in reversed(progressive_formats) if effective_height(f) >= 360),
+            progressive_formats[-1],
         )
-        yt_prog_preview_url = f"/api/proxy?token={yt_prog_token}&dl=0"
-
-    best_progressive_preview = yt_prog_preview_url or (progressive_formats[0]["url"] if progressive_formats else None)
+        if platform == "youtube":
+            yt_prog_token = register_proxy_job(
+                media_url=preview_prog["url"],
+                title=title,
+                ext=(preview_prog.get("ext") or "mp4").lower(),
+                suffix="preview",
+                proxy_url=proxy_url,
+                referer="https://www.youtube.com/",
+            )
+            yt_prog_preview_url = f"/api/proxy?token={yt_prog_token}&dl=0"
+        best_progressive_preview = yt_prog_preview_url or preview_prog["url"]
 
     # Materialize final URLs (direct CDN / client-side merge pair / fallback server /api/merge)
     resolved_videos: list[dict[str, Any]] = []
@@ -847,6 +880,7 @@ def extract_with_ytdlp(url_str: str, platform: str, proxy_url: Optional[str] = N
             est_size = format_filesize(v_bytes + a_bytes) if (v_bytes and a_bytes) else format_filesize(v_bytes)
             ext = "WEBM" if (is_webm_video(vfmt) and is_webm_audio(afmt)) else "MP4"
         elif item["requires_merge"]:
+            out_ext = (item.get("out_ext") or "mp4").lower()
             token = register_merge_job(
                 original_url=url_str,
                 title=title,
@@ -855,8 +889,9 @@ def extract_with_ytdlp(url_str: str, platform: str, proxy_url: Optional[str] = N
                 video_fmt=vfmt,
                 audio_fmt=afmt,
                 proxy_url=proxy_url if platform == "youtube" else None,
+                out_ext=out_ext,
             )
-            preview_url = f"/api/merge?token={token}&dl=0"
+            preview_url = best_progressive_preview or f"/api/merge?token={token}&dl=1"
             download_url = f"/api/merge?token={token}&dl=1"
             video_url = None
             audio_url = None
@@ -867,7 +902,7 @@ def extract_with_ytdlp(url_str: str, platform: str, proxy_url: Optional[str] = N
             v_bytes = vfmt.get("filesize") or vfmt.get("filesize_approx") or 0
             a_bytes = (afmt.get("filesize") or afmt.get("filesize_approx") or 0) if afmt else 0
             est_size = format_filesize(v_bytes + a_bytes) if (v_bytes and a_bytes) else format_filesize(v_bytes)
-            ext = "MP4"
+            ext = out_ext.upper()
         else:
             raw_ext = (vfmt.get("ext") or "mp4").lower()
             if platform == "youtube":
@@ -1106,10 +1141,8 @@ def extract_with_ytdlp(url_str: str, platform: str, proxy_url: Optional[str] = N
             "requiresClientMerge": False,
         }
 
-    if yt_prog_preview_url:
-        resolved_preview_url = yt_prog_preview_url
-    else:
-        resolved_preview_url = best_progressive_preview or hd_entry["preview_url"]
+    # Never fall back previewUrl to /api/merge (prevents full server merge just for thumbnail preview)
+    resolved_preview_url = yt_prog_preview_url or best_progressive_preview
 
     return {
         "id": f"{platform}_{info.get('id') or abs(hash(url_str))}",
@@ -1201,80 +1234,62 @@ def probe_media_streams(file_path: str) -> dict[str, Any]:
         return {}
 
 
-def ensure_h264_mp4(input_path: str, output_path: str) -> None:
-    """Verify final MP4 uses universally playable H.264 yuv420p video (fixes black-screen VP9/AV1 MP4s)."""
-    probe = probe_media_streams(input_path)
-    v_stream = probe.get("video")
-    if not v_stream:
-        if input_path != output_path:
-            os.replace(input_path, output_path)
-        return
+def remove_file_quietly(path: str) -> None:
+    if path and os.path.exists(path):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
 
-    codec_name = (v_stream.get("codec_name") or "").lower()
-    pix_fmt = (v_stream.get("pix_fmt") or "").lower()
-    is_universal_h264 = codec_name == "h264" and pix_fmt in ("", "yuv420p", "yuvj420p", "nv12")
 
-    if is_universal_h264:
-        if input_path != output_path:
-            os.replace(input_path, output_path)
-        return
-
-    a_stream = probe.get("audio")
-    a_codec = (a_stream.get("codec_name") or "").lower() if a_stream else ""
-    a_arg = "copy" if a_codec in ("aac", "mp3") else "aac"
-
-    fix_cmd = [
-        FFMPEG_PATH,
-        "-y",
-        "-loglevel",
-        "error",
-        "-i",
-        input_path,
-        "-c:v",
-        "libx264",
-        "-pix_fmt",
-        "yuv420p",
-        "-preset",
-        "ultrafast",
-        "-crf",
-        "22",
-        "-threads",
-        "0",
-        "-c:a",
-        a_arg,
+def build_ffmpeg_input_args(
+    url: str,
+    referer: Optional[str],
+    http_proxy: Optional[str],
+) -> list[str]:
+    args = [
+        "-user_agent",
+        DEFAULT_USER_AGENT,
     ]
-    if a_arg == "aac":
-        fix_cmd.extend(["-b:a", "192k"])
-    fix_cmd.extend(["-movflags", "+faststart", "-f", "mp4", output_path])
+    header_lines = ["Accept-Language: en-US,en;q=0.9"]
+    if referer:
+        header_lines.append(f"Referer: {referer}")
+    args.extend(["-headers", "\r\n".join(header_lines) + "\r\n"])
+    if http_proxy and http_proxy.startswith(("http://", "https://")):
+        args.extend(["-http_proxy", http_proxy])
+    args.extend(
+        [
+            "-reconnect",
+            "1",
+            "-reconnect_streamed",
+            "1",
+            "-reconnect_delay_max",
+            "2",
+            "-i",
+            url,
+        ]
+    )
+    return args
 
-    res = subprocess.run(fix_cmd, capture_output=True, text=True, timeout=180)
-    if res.returncode != 0 or not os.path.exists(output_path) or os.path.getsize(output_path) == 0:
-        raise RuntimeError(f"H.264 compatibility transcode failed: {res.stderr.strip()}")
 
-
-def merge_media_to_mp4(job_id: str, job: dict[str, Any], output_path: str) -> None:
+def merge_fallback_to_temp_file(job_id: str, job: dict[str, Any], output_path: str) -> None:
+    """Fallback stream-copy merge to temp file (only for HLS/DASH/socks5 or when HTTP pipe fails). Never runs libx264."""
     if not FFMPEG_PATH:
         raise RuntimeError("FFmpeg binary is not installed on the server.")
 
     os.makedirs(MERGED_DIR, exist_ok=True)
-    cleanup_old_merged_files()
-
-    if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
-        return
+    cleanup_old_merged_files(max_age_seconds=90, max_files=2)
 
     nonce = secrets.token_hex(4)
-    part_path = f"{output_path}.{nonce}.part.mp4"
+    out_ext = (job.get("out_ext") or "mp4").lower()
+    part_path = f"{output_path}.{nonce}.part.{out_ext}"
     v_tmp = f"{output_path}.{nonce}.v.tmp"
     a_tmp = f"{output_path}.{nonce}.a.tmp"
-    transcode_tmp = f"{output_path}.{nonce}.h264.mp4"
 
     video_url = job.get("video_url")
     audio_url = job.get("audio_url")
     proxy_url = job.get("proxy_url") if job.get("platform") == "youtube" else None
-    job_height = int(job.get("height") or 0)
-    is_youtube_uhd = job.get("platform") == "youtube" and job_height >= 1440
-    vcodec = job.get("vcodec") or ""
-    acodec = job.get("acodec") or ""
+    acodec = (job.get("acodec") or "").lower()
     video_protocol = job.get("video_protocol") or ""
     audio_protocol = job.get("audio_protocol") or ""
 
@@ -1290,40 +1305,38 @@ def merge_media_to_mp4(job_id: str, job: dict[str, Any], output_path: str) -> No
 
         if can_direct_download:
             try:
-                # Download video and audio concurrently from CDN to local temp files, then mux locally (much faster than ffmpeg HTTP seeking)
+                def download_with_direct_fallback(url: str, dest: str) -> None:
+                    if proxy_url and YOUTUBE_DIRECT_MEDIA_FIRST:
+                        try:
+                            download_stream_to_file(url, dest, 25, None)
+                            return
+                        except Exception:
+                            remove_file_quietly(dest)
+                    download_stream_to_file(url, dest, 60, proxy_url)
+
                 with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
-                    fut_v = pool.submit(download_stream_to_file, video_url, v_tmp, 60, proxy_url)
-                    fut_a = pool.submit(download_stream_to_file, audio_url, a_tmp, 60, proxy_url)
+                    fut_v = pool.submit(download_with_direct_fallback, video_url, v_tmp)
+                    fut_a = pool.submit(download_with_direct_fallback, audio_url, a_tmp)
                     fut_v.result()
                     fut_a.result()
 
                 v_probe = probe_media_streams(v_tmp).get("video")
                 a_probe = probe_media_streams(a_tmp).get("audio")
 
-                # If file actually has no video stream, force fallback instead of producing audio-only black-screen MP4
                 if FFPROBE_PATH and os.path.exists(FFPROBE_PATH) and not v_probe:
                     raise RuntimeError("Downloaded video stream contained no video track.")
 
-                if v_probe:
-                    real_vcodec = (v_probe.get("codec_name") or "").lower()
-                    real_pix_fmt = (v_probe.get("pix_fmt") or "").lower()
-                    if is_youtube_uhd and real_vcodec in ("h264", "vp9", "av1"):
-                        # Avoid multi-minute CPU transcodes for YouTube 2K/4K VP9/AV1
-                        can_copy_video = True
-                    else:
-                        can_copy_video = real_vcodec == "h264" and real_pix_fmt in ("", "yuv420p", "yuvj420p", "nv12")
-                else:
-                    # Only stream-copy when confirmed H.264; never copy VP9/AV1/HEVC into MP4 unless 2K/4K YT
-                    can_copy_video = is_h264_codec(vcodec) or is_youtube_uhd
+                real_vcodec = (v_probe.get("codec_name") or "").lower() if v_probe else ""
+                real_acodec = (a_probe.get("codec_name") or "").lower() if a_probe else acodec
 
-                if a_probe:
-                    real_acodec = (a_probe.get("codec_name") or "").lower()
-                    can_copy_audio = real_acodec in ("aac", "mp3")
+                if real_vcodec in ("vp8", "vp9") or out_ext == "webm":
+                    target_fmt = "webm"
+                    can_copy_audio = real_acodec in ("opus", "vorbis", "")
+                    a_codec_arg = "copy" if can_copy_audio else "libopus"
                 else:
-                    can_copy_audio = any(c in acodec for c in ("mp4a", "aac", "mp3"))
-
-                v_codec_arg = "copy" if can_copy_video else "libx264"
-                a_codec_arg = "copy" if can_copy_audio else "aac"
+                    target_fmt = "mp4"
+                    can_copy_audio = real_acodec in ("aac", "mp3", "mp4a", "")
+                    a_codec_arg = "copy" if can_copy_audio else "aac"
 
                 cmd = [
                     FFMPEG_PATH,
@@ -1339,28 +1352,29 @@ def merge_media_to_mp4(job_id: str, job: dict[str, Any], output_path: str) -> No
                     "-map",
                     "1:a:0",
                     "-c:v",
-                    v_codec_arg,
+                    "copy",
+                    "-c:a",
+                    a_codec_arg,
                 ]
-                if v_codec_arg == "libx264":
-                    cmd.extend(["-pix_fmt", "yuv420p", "-preset", "ultrafast", "-crf", "22", "-threads", "0"])
-                cmd.extend(["-c:a", a_codec_arg])
-                if a_codec_arg == "aac":
-                    cmd.extend(["-b:a", "192k"])
-                cmd.extend(["-movflags", "+faststart", "-shortest", "-f", "mp4", part_path])
+                if a_codec_arg in ("aac", "libopus"):
+                    cmd.extend(["-b:a", "128k"])
+                if target_fmt == "mp4":
+                    cmd.extend(["-movflags", "+faststart"])
+                cmd.extend(["-avoid_negative_ts", "make_zero", "-shortest", "-f", target_fmt, part_path])
 
                 res = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
                 if res.returncode == 0 and os.path.exists(part_path) and os.path.getsize(part_path) > 0:
                     merged_ok = True
                 else:
-                    print(f"[warn] Local FFmpeg merge failed for {job_id}: {res.stderr.strip()}")
-                    if os.path.exists(part_path):
-                        os.remove(part_path)
+                    print(f"[warn] Fallback local FFmpeg merge failed for {job_id}: {res.stderr.strip()}")
+                    remove_file_quietly(part_path)
             except Exception as direct_exc:
-                print(f"[warn] Concurrent direct merge failed for {job_id}: {direct_exc}")
-                if os.path.exists(part_path):
-                    os.remove(part_path)
+                print(f"[warn] Fallback direct download failed for {job_id}: {direct_exc}")
+                remove_file_quietly(part_path)
+            finally:
+                remove_file_quietly(v_tmp)
+                remove_file_quietly(a_tmp)
 
-        # Reliable fallback: let yt-dlp download & mux with FFmpeg (handles cookies, headers, HLS/DASH)
         if not merged_ok:
             fmt_spec = job.get("ytdlp_format_spec")
             if not fmt_spec:
@@ -1387,7 +1401,7 @@ def merge_media_to_mp4(job_id: str, job: dict[str, Any], output_path: str) -> No
                 "socket_timeout": 20,
                 "format": fmt_spec,
                 "format_sort": ["vcodec:h264", "acodec:aac", "ext:mp4:m4a"],
-                "merge_output_format": "mp4",
+                "merge_output_format": "webm" if out_ext == "webm" else "mp4",
                 "ffmpeg_location": os.path.dirname(FFMPEG_PATH),
                 "outtmpl": part_path,
                 "overwrites": True,
@@ -1396,7 +1410,7 @@ def merge_media_to_mp4(job_id: str, job: dict[str, Any], output_path: str) -> No
                     "Accept-Language": "en-US,en;q=0.9",
                 },
                 "postprocessor_args": {
-                    "merger": ["-c", "copy", "-movflags", "+faststart"],
+                    "merger": ["-c", "copy", "-avoid_negative_ts", "make_zero"],
                 },
             }
             if proxy_url:
@@ -1409,25 +1423,20 @@ def merge_media_to_mp4(job_id: str, job: dict[str, Any], output_path: str) -> No
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([job["original_url"]])
 
-            # yt-dlp might write part_path or part_path + '.mp4'
-            candidate_path = part_path if os.path.exists(part_path) else f"{part_path}.mp4"
+            candidate_path = part_path if os.path.exists(part_path) else f"{part_path}.{out_ext}"
             if not os.path.exists(candidate_path) or os.path.getsize(candidate_path) == 0:
-                raise RuntimeError("FFmpeg merge completed without producing an output MP4 file.")
+                candidate_mp4 = f"{part_path}.mp4"
+                if os.path.exists(candidate_mp4) and os.path.getsize(candidate_mp4) > 0:
+                    candidate_path = candidate_mp4
+                else:
+                    raise RuntimeError("FFmpeg merge completed without producing an output file.")
 
-            if is_youtube_uhd:
-                os.replace(candidate_path, part_path)
-            else:
-                ensure_h264_mp4(candidate_path, transcode_tmp)
-                os.replace(transcode_tmp, part_path)
+            os.replace(candidate_path, part_path)
 
         os.replace(part_path, output_path)
     finally:
-        for stray in (part_path, f"{part_path}.mp4", v_tmp, a_tmp, transcode_tmp):
-            if os.path.exists(stray):
-                try:
-                    os.remove(stray)
-                except OSError:
-                    pass
+        for stray in (part_path, f"{part_path}.mp4", f"{part_path}.webm", v_tmp, a_tmp):
+            remove_file_quietly(stray)
 
 
 @app.get("/")
@@ -1534,7 +1543,43 @@ async def extract_video(payload: ExtractRequest):
             extract_locks.pop(cache_key, None)
 
 
-async def ensure_merge_job_ready(token: str) -> tuple[dict[str, Any], str]:
+async def probe_direct_media_ok(url: str, referer: Optional[str]) -> bool:
+    headers: dict[str, str] = {
+        "User-Agent": DEFAULT_USER_AGENT,
+        "Accept": "*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Range": "bytes=0-0",
+    }
+    if referer:
+        headers["Referer"] = referer
+    try:
+        client = await get_shared_proxy_client(None)
+        res = await client.get(url, headers=headers, timeout=8.0)
+        ok = res.status_code < 400 or res.status_code == 206
+        await res.aclose()
+        return ok
+    except Exception:
+        return False
+
+
+@app.api_route("/api/merge/prepare", methods=["GET", "POST"])
+async def prepare_merged_video(token: str = Query(..., min_length=10)):
+    if not FFMPEG_PATH:
+        raise HTTPException(
+            status_code=503,
+            detail="FFmpeg is not installed on the server. Ensure nixpacks.toml and builder=NIXPACKS are configured.",
+        )
+    verify_signed_token(token, merge_jobs)
+    # Streaming pipe mode: no server-side pre-buffering needed
+    return {"success": True, "ready": True, "streaming": True}
+
+
+@app.api_route("/api/merge", methods=["GET", "HEAD"])
+async def download_merged_video(
+    request: Request,
+    token: str = Query(..., min_length=10),
+    dl: int = Query(default=1),
+):
     if not FFMPEG_PATH:
         raise HTTPException(
             status_code=503,
@@ -1549,59 +1594,195 @@ async def ensure_merge_job_ready(token: str) -> tuple[dict[str, Any], str]:
             detail="Download link expired. Please fetch the video link again.",
         )
 
-    lock = merge_locks.setdefault(job_id, asyncio.Lock())
-    output_path = os.path.join(MERGED_DIR, f"{job_id}.mp4")
+    est_bytes = int(job.get("est_bytes") or 0)
+    if est_bytes > MAX_MERGE_SIZE_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"This video exceeds the {MAX_MERGE_SIZE_MB} MB server merge limit.",
+        )
 
-    async with lock:
-        if not os.path.exists(output_path) or os.path.getsize(output_path) == 0:
-            try:
-                await asyncio.to_thread(merge_media_to_mp4, job_id, job, output_path)
-            except subprocess.TimeoutExpired:
-                raise HTTPException(
-                    status_code=504,
-                    detail="FFmpeg merge timed out while processing the video.",
-                )
-            except Exception as exc:
-                raise HTTPException(
-                    status_code=502,
-                    detail=f"Failed to merge video and audio: {str(exc)}",
-                )
-
-    if len(merge_locks) > 1000:
-        stale = [k for k in list(merge_locks.keys()) if k not in merge_jobs]
-        for k in stale:
-            merge_locks.pop(k, None)
-
-    return job, output_path
-
-
-@app.api_route("/api/merge/prepare", methods=["GET", "POST"])
-async def prepare_merged_video(token: str = Query(..., min_length=10)):
-    _, output_path = await ensure_merge_job_ready(token)
-    size_bytes = os.path.getsize(output_path) if os.path.exists(output_path) else 0
-    return {"success": True, "ready": True, "sizeBytes": size_bytes}
-
-
-@app.api_route("/api/merge", methods=["GET", "HEAD"])
-async def download_merged_video(
-    token: str = Query(..., min_length=10),
-    dl: int = Query(default=1),
-):
-    job, output_path = await ensure_merge_job_ready(token)
+    out_ext = (job.get("out_ext") or "mp4").lower()
+    if out_ext not in ("mp4", "webm"):
+        out_ext = "mp4"
+    media_type = "video/webm" if out_ext == "webm" else "video/mp4"
 
     height = int(job.get("height") or 0)
     suffix = f"{height}p" if height > 0 else "HD"
-    filename = sanitize_filename(job.get("title") or "SaveVibe_Video", suffix)
+    filename = sanitize_filename(job.get("title") or "SaveVibe_Video", suffix, out_ext)
     disposition = "attachment" if dl != 0 else "inline"
+
+    base_headers = {
+        "Content-Disposition": f'{disposition}; filename="{filename}"; filename*=UTF-8\'\'{quote(filename)}',
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+    }
+
+    if request.method == "HEAD":
+        return Response(status_code=200, media_type=media_type, headers=base_headers)
+
+    try:
+        await asyncio.wait_for(merge_semaphore.acquire(), timeout=120.0)
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=503,
+            detail="Merge queue is currently busy. Please try again in a moment.",
+        )
+
+    video_url = job.get("video_url")
+    audio_url = job.get("audio_url")
+    proxy_url = job.get("proxy_url") if job.get("platform") == "youtube" else None
+    acodec = (job.get("acodec") or "").lower()
+    video_protocol = job.get("video_protocol") or ""
+    audio_protocol = job.get("audio_protocol") or ""
+
+    can_direct_http = (
+        bool(video_url)
+        and bool(audio_url)
+        and not any(p in video_protocol for p in ("m3u8", "dash", "rtmp", "rtsp"))
+        and not any(p in audio_protocol for p in ("m3u8", "dash", "rtmp", "rtsp"))
+    )
+
+    effective_proxy = proxy_url
+    if can_direct_http and proxy_url and YOUTUBE_DIRECT_MEDIA_FIRST and video_url:
+        if await probe_direct_media_ok(video_url, get_referer_for_url(video_url)):
+            effective_proxy = None
+
+    if effective_proxy and not effective_proxy.startswith(("http://", "https://")):
+        # FFmpeg -http_proxy does not support socks5:// directly; use fallback path
+        can_direct_http = False
+
+    if can_direct_http and video_url and audio_url:
+        if out_ext == "webm":
+            a_codec_arg = "copy" if (acodec == "" or any(k in acodec for k in ("opus", "vorbis"))) else "libopus"
+        else:
+            a_codec_arg = "copy" if (acodec == "" or any(k in acodec for k in ("mp4a", "aac", "mp3"))) else "aac"
+
+        cmd: list[str] = [FFMPEG_PATH, "-y", "-loglevel", "error"]
+        cmd.extend(build_ffmpeg_input_args(video_url, get_referer_for_url(video_url), effective_proxy))
+        cmd.extend(build_ffmpeg_input_args(audio_url, get_referer_for_url(audio_url), effective_proxy))
+        cmd.extend(["-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", a_codec_arg])
+        if a_codec_arg in ("aac", "libopus"):
+            cmd.extend(["-b:a", "128k"])
+        cmd.extend(["-avoid_negative_ts", "make_zero", "-shortest"])
+        if out_ext == "mp4":
+            cmd.extend(["-movflags", "frag_keyframe+empty_moov+default_base_moof", "-f", "mp4", "pipe:1"])
+        else:
+            cmd.extend(["-f", "webm", "pipe:1"])
+
+        proc: Optional[asyncio.subprocess.Process] = None
+        stderr_task: Optional[asyncio.Task[bytes]] = None
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            assert proc.stdout is not None
+            assert proc.stderr is not None
+
+            async def drain_stderr(stream: asyncio.StreamReader) -> bytes:
+                buf = bytearray()
+                while True:
+                    chunk = await stream.read(4096)
+                    if not chunk:
+                        break
+                    buf.extend(chunk)
+                    if len(buf) > 4096:
+                        del buf[: len(buf) - 4096]
+                return bytes(buf)
+
+            stderr_task = asyncio.create_task(drain_stderr(proc.stderr))
+            first_chunk = await asyncio.wait_for(proc.stdout.read(65536), timeout=25.0)
+
+            if first_chunk:
+                async def stream_ffmpeg_pipe():
+                    try:
+                        yield first_chunk
+                        while True:
+                            chunk = await proc.stdout.read(65536)
+                            if not chunk:
+                                break
+                            yield chunk
+                    finally:
+                        if proc.returncode is None:
+                            try:
+                                proc.kill()
+                            except ProcessLookupError:
+                                pass
+                        try:
+                            await proc.wait()
+                        except Exception:
+                            pass
+                        if stderr_task and not stderr_task.done():
+                            stderr_task.cancel()
+                            try:
+                                await stderr_task
+                            except BaseException:
+                                pass
+                        merge_semaphore.release()
+
+                return StreamingResponse(
+                    stream_ffmpeg_pipe(),
+                    status_code=200,
+                    media_type=media_type,
+                    headers=base_headers,
+                )
+
+            # Empty first chunk: clean up pipe attempt and fall through to fallback
+            err_bytes = b""
+            if stderr_task:
+                try:
+                    err_bytes = await asyncio.wait_for(stderr_task, timeout=2.0)
+                except Exception:
+                    stderr_task.cancel()
+            if proc.returncode is None:
+                proc.kill()
+            await proc.wait()
+            print(f"[warn] Streaming FFmpeg pipe exited early for {job_id}: {err_bytes.decode('utf-8', errors='ignore').strip()}")
+        except Exception as pipe_exc:
+            if stderr_task and not stderr_task.done():
+                stderr_task.cancel()
+            if proc and proc.returncode is None:
+                try:
+                    proc.kill()
+                except ProcessLookupError:
+                    pass
+                try:
+                    await proc.wait()
+                except Exception:
+                    pass
+            print(f"[warn] Streaming FFmpeg pipe failed for {job_id}, falling back: {pipe_exc}")
+
+    # Fallback path (HLS/DASH manifests, socks5:// proxy, or pipe startup error):
+    # mux with -c:v copy to temp file and delete immediately after download finishes
+    output_path = os.path.join(MERGED_DIR, f"{job_id}.{secrets.token_hex(4)}.{out_ext}")
+    try:
+        await asyncio.to_thread(merge_fallback_to_temp_file, job_id, job, output_path)
+    except subprocess.TimeoutExpired:
+        remove_file_quietly(output_path)
+        merge_semaphore.release()
+        raise HTTPException(
+            status_code=504,
+            detail="FFmpeg merge timed out while processing the video.",
+        )
+    except Exception as exc:
+        remove_file_quietly(output_path)
+        merge_semaphore.release()
+        raise HTTPException(
+            status_code=502,
+            detail=f"Failed to merge video and audio: {str(exc)}",
+        )
+    else:
+        merge_semaphore.release()
 
     return FileResponse(
         path=output_path,
-        media_type="video/mp4",
+        media_type=media_type,
         headers={
-            "Content-Disposition": f'{disposition}; filename="{filename}"; filename*=UTF-8\'\'{quote(filename)}',
-            "Cache-Control": "private, max-age=600",
+            **base_headers,
             "Accept-Ranges": "bytes",
         },
+        background=BackgroundTask(remove_file_quietly, output_path),
     )
 
 
@@ -1646,7 +1827,7 @@ async def close_proxy_stream(upstream: httpx.Response) -> None:
 
 async def iter_proxy_bytes(upstream: httpx.Response):
     try:
-        async for chunk in upstream.aiter_bytes(chunk_size=524288):
+        async for chunk in upstream.aiter_bytes(chunk_size=65536):
             if chunk:
                 yield chunk
     finally:
@@ -1682,19 +1863,38 @@ async def proxy_media_stream(
     if range_header:
         headers["Range"] = range_header
 
-    client = await get_shared_proxy_client(proxy_url)
+    upstream: Optional[httpx.Response] = None
+    upstream_method = "HEAD" if request.method == "HEAD" else "GET"
 
-    try:
-        upstream_method = "HEAD" if request.method == "HEAD" else "GET"
-        req = client.build_request(upstream_method, media_url, headers=headers)
-        upstream = await client.send(req, stream=True)
-        if request.method == "HEAD" and upstream.status_code in (403, 405, 501):
-            await close_proxy_stream(upstream)
-            probe_headers = {**headers, "Range": "bytes=0-0"}
-            req = client.build_request("GET", media_url, headers=probe_headers)
+    if proxy_url and YOUTUBE_DIRECT_MEDIA_FIRST and referer == "https://www.youtube.com/":
+        try:
+            direct_client = await get_shared_proxy_client(None)
+            req = direct_client.build_request(upstream_method, media_url, headers=headers)
+            candidate = await direct_client.send(req, stream=True)
+            if request.method == "HEAD" and candidate.status_code in (403, 405, 501):
+                await close_proxy_stream(candidate)
+                probe_headers = {**headers, "Range": "bytes=0-0"}
+                req = direct_client.build_request("GET", media_url, headers=probe_headers)
+                candidate = await direct_client.send(req, stream=True)
+            if candidate.status_code < 400 or candidate.status_code == 206:
+                upstream = candidate
+            else:
+                await close_proxy_stream(candidate)
+        except Exception:
+            upstream = None
+
+    if upstream is None:
+        client = await get_shared_proxy_client(proxy_url)
+        try:
+            req = client.build_request(upstream_method, media_url, headers=headers)
             upstream = await client.send(req, stream=True)
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Failed to stream media via proxy: {str(exc)}")
+            if request.method == "HEAD" and upstream.status_code in (403, 405, 501):
+                await close_proxy_stream(upstream)
+                probe_headers = {**headers, "Range": "bytes=0-0"}
+                req = client.build_request("GET", media_url, headers=probe_headers)
+                upstream = await client.send(req, stream=True)
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Failed to stream media via proxy: {str(exc)}")
 
     if upstream.status_code >= 400 and upstream.status_code != 206:
         status_code = 410 if upstream.status_code in (403, 404) else 502
