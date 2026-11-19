@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 import { Clipboard, X, Download, AlertCircle } from 'lucide-react';
 import { SkeletonLoader } from './SkeletonLoader';
@@ -197,6 +198,18 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{errorMessage}</span>
           </motion.div>
+        )}
+
+        {platformConfig.id === 'youtube' && (
+          <p className="text-xs text-slate-500 pt-1">
+            Need subtitles or searchable text?{' '}
+            <Link
+              href="/youtube-transcript"
+              className="font-semibold text-red-600 hover:text-red-700 underline underline-offset-4"
+            >
+              Open YouTube Transcript Downloader
+            </Link>
+          </p>
         )}
       </div>
 

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { SITE_URL } from '@/lib/seo-data';
 import NetlifyBadgeRemover from '@/components/NetlifyBadgeRemover';
@@ -7,6 +7,12 @@ import NetlifyBadgeRemover from '@/components/NetlifyBadgeRemover';
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-sans',
+  display: 'swap',
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-mono',
   display: 'swap',
 });
 
@@ -64,7 +70,7 @@ const EARLY_ANTI_NETLIFY_SCRIPT = `
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <head>
         <link rel="icon" href={LOGO_FAVICON_URL} type="image/svg+xml" />
         <script dangerouslySetInnerHTML={{ __html: EARLY_ANTI_NETLIFY_SCRIPT }} />

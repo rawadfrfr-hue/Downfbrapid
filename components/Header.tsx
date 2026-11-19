@@ -14,6 +14,7 @@ import {
   Play,
   Camera,
   Music,
+  FileText,
 } from 'lucide-react';
 import { PLATFORMS, PlatformType } from '@/lib/platforms';
 
@@ -95,6 +96,15 @@ export const Header: React.FC = () => {
       activeBorder: 'border-slate-900',
       activeBg: 'bg-slate-100/90 text-slate-900',
     },
+    {
+      id: 'youtube-transcript',
+      label: 'YT Transcript',
+      path: '/youtube-transcript',
+      icon: FileText,
+      colorClass: 'text-red-600',
+      activeBorder: 'border-red-600',
+      activeBg: 'bg-red-50/80 text-red-600',
+    },
   ];
 
   // Slide-out Sidebar Items (Minimalist, Generic Monochrome Glyph Icons, No Subtext, No Arrows, Flat Borderless Style)
@@ -122,6 +132,12 @@ export const Header: React.FC = () => {
       label: 'TikTok',
       path: PLATFORMS.tiktok.path,
       icon: Music,
+    },
+    {
+      id: 'youtube-transcript',
+      label: 'YT Transcript',
+      path: '/youtube-transcript',
+      icon: FileText,
     },
   ];
 
@@ -158,7 +174,7 @@ export const Header: React.FC = () => {
                 <Link
                   key={item.id}
                   href={item.path}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 flex items-center gap-2 ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 flex items-center gap-2 whitespace-nowrap shrink-0 ${
                     isActive
                       ? `${item.activeBg} border ${item.activeBorder} shadow-2xs`
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
