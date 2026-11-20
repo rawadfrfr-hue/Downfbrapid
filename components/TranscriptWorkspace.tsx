@@ -583,10 +583,10 @@ export const TranscriptWorkspace: React.FC = () => {
         </p>
       </div>
 
-      {/* Section 1: Single Horizontal Flex Row URL Input & Extract Button (Height: 48px, Radius: 8px) */}
+      {/* Section 1: Stacked URL Input & Extract Button (Height: 48px, Radius: 8px) */}
       <div className="w-full mb-4 space-y-3">
-        <div className="flex flex-row items-center gap-2 sm:gap-2.5">
-          <div className="relative flex-1 min-w-0 h-[48px] flex items-center bg-white border border-[#E5E5E5] rounded-[8px] focus-within:border-[#0F0F0F] transition-colors">
+        <div className="flex flex-col gap-3">
+          <div className="relative w-full h-[48px] flex items-center bg-white border border-[#E5E5E5] rounded-[8px] focus-within:border-[#0F0F0F] transition-colors">
             <input
               ref={inputRef}
               type="url"
@@ -603,7 +603,7 @@ export const TranscriptWorkspace: React.FC = () => {
               }}
               placeholder="Paste YouTube video or Shorts URL..."
               aria-label="YouTube Video URL"
-              className="w-full h-full pl-3.5 pr-16 sm:pr-24 bg-transparent text-[#0F0F0F] placeholder:text-[#606060]/70 text-sm rounded-[8px] focus:outline-none"
+              className="w-full h-full pl-3.5 pr-24 bg-transparent text-[#0F0F0F] placeholder:text-[#606060]/70 text-sm rounded-[8px] focus:outline-none"
             />
 
             <div className="absolute right-2 flex items-center gap-1">
@@ -625,7 +625,7 @@ export const TranscriptWorkspace: React.FC = () => {
                 className="h-[32px] px-2.5 rounded-[6px] bg-[#F2F2F2] hover:bg-[#E5E5E5] text-[#0F0F0F] font-medium text-xs transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0"
               >
                 <Clipboard className="w-3.5 h-3.5 text-[#606060]" />
-                <span className="hidden sm:inline">Paste</span>
+                <span>Paste</span>
               </button>
             </div>
           </div>
@@ -634,7 +634,7 @@ export const TranscriptWorkspace: React.FC = () => {
             type="button"
             onClick={() => handleExtract()}
             disabled={status === 'loading'}
-            className="h-[48px] px-4 sm:px-6 rounded-[8px] bg-[#FF0000] hover:bg-[#E00000] active:bg-[#CC0000] disabled:opacity-75 disabled:cursor-not-allowed text-white font-semibold text-[13px] sm:text-sm transition-colors duration-150 flex items-center justify-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF0000] focus-visible:ring-offset-2 whitespace-nowrap shrink-0"
+            className="w-full h-[48px] px-6 rounded-[8px] bg-[#FF0000] hover:bg-[#E00000] active:bg-[#CC0000] disabled:opacity-75 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors duration-150 flex items-center justify-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF0000] focus-visible:ring-offset-2 whitespace-nowrap"
           >
             {status === 'loading' ? (
               <>
@@ -919,37 +919,37 @@ export const TranscriptWorkspace: React.FC = () => {
               )}
             </div>
 
-            {/* Section 4: Balanced Flex Row — Copy (Secondary #F2F2F2) & Download Split-Down Button (Primary #0F0F0F) */}
-            <div className="flex flex-row items-center gap-3 mb-4 pb-4 border-b border-[#F2F2F2]">
+            {/* Section 4: Stacked Action Buttons — Copy (Secondary #F2F2F2) & Download Split-Down Button (Primary #0F0F0F) */}
+            <div className="flex flex-col gap-3 mb-4 pb-4 border-b border-[#F2F2F2]">
               {/* Copy Transcript (Clean Secondary Button) */}
               <button
                 type="button"
                 onClick={handleCopyAll}
-                className="flex-1 h-[42px] px-4 rounded-[8px] bg-[#F2F2F2] hover:bg-[#E5E5E5] active:bg-[#DCDCDC] text-[#0F0F0F] text-sm font-semibold transition-colors flex items-center justify-center gap-2 whitespace-nowrap min-w-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0F0F0F] focus-visible:ring-offset-2"
+                className="w-full h-[44px] px-4 rounded-[8px] bg-[#F2F2F2] hover:bg-[#E5E5E5] active:bg-[#DCDCDC] text-[#0F0F0F] text-sm font-semibold transition-colors flex items-center justify-center gap-2 whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0F0F0F] focus-visible:ring-offset-2"
               >
                 {copiedAll ? (
                   <>
                     <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span className="truncate">Copied</span>
+                    <span>Copied Transcript!</span>
                   </>
                 ) : (
                   <>
                     <Copy className="w-4 h-4 shrink-0" />
-                    <span className="truncate">Copy Transcript</span>
+                    <span>Copy Transcript</span>
                   </>
                 )}
               </button>
 
               {/* Download Transcript (Solid Primary Button with Split-Down Menu) */}
-              <div className="relative flex-1 min-w-0" ref={downloadMenuRef}>
-                <div className="flex items-center h-[42px] rounded-[8px] bg-[#0F0F0F] text-white overflow-hidden">
+              <div className="relative w-full" ref={downloadMenuRef}>
+                <div className="flex items-center w-full h-[44px] rounded-[8px] bg-[#0F0F0F] text-white overflow-hidden">
                   <button
                     type="button"
                     onClick={() => handleDownloadFormat('txt')}
-                    className="flex-1 h-full px-3 sm:px-4 flex items-center justify-center gap-2 hover:bg-[#262626] active:bg-black text-sm font-semibold transition-colors whitespace-nowrap min-w-0 focus:outline-none"
+                    className="flex-1 h-full px-4 flex items-center justify-center gap-2 hover:bg-[#262626] active:bg-black text-sm font-semibold transition-colors whitespace-nowrap focus:outline-none"
                   >
                     <Download className="w-4 h-4 shrink-0" />
-                    <span className="truncate">
+                    <span>
                       {lastDownloadedFormat
                         ? `Downloaded .${lastDownloadedFormat.toLowerCase()}`
                         : 'Download Transcript'}
@@ -964,7 +964,7 @@ export const TranscriptWorkspace: React.FC = () => {
                     aria-expanded={isDownloadMenuOpen}
                     aria-haspopup="menu"
                     aria-label="Open export format and timestamp options"
-                    className="h-full px-3 flex items-center justify-center hover:bg-[#262626] active:bg-black transition-colors shrink-0 focus:outline-none"
+                    className="h-full px-4 flex items-center justify-center hover:bg-[#262626] active:bg-black transition-colors shrink-0 focus:outline-none"
                   >
                     <ChevronDown
                       className={`w-4 h-4 transition-transform duration-150 ${
@@ -983,7 +983,7 @@ export const TranscriptWorkspace: React.FC = () => {
                       exit={{ opacity: 0, y: 4, scale: 0.98 }}
                       transition={{ duration: 0.14 }}
                       role="menu"
-                      className="absolute right-0 mt-2 w-72 rounded-[10px] bg-white border border-[#E5E5E5] shadow-lg z-30 py-2 overflow-hidden"
+                      className="absolute right-0 mt-2 w-full sm:w-80 rounded-[10px] bg-white border border-[#E5E5E5] shadow-lg z-30 py-2 overflow-hidden"
                     >
                       {/* Timestamp vs Plain Text Toggle Inside Menu */}
                       <div className="px-3 pb-2.5 mb-1.5 border-b border-[#F2F2F2]">
