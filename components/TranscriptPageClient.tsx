@@ -9,24 +9,24 @@ import { PrivacyTermsModal, ModalType } from '@/components/PrivacyTermsModal';
 
 const TRANSCRIPT_FAQS = [
   {
-    question: 'How does multi-language transcript translation work without a VPS?',
+    question: 'How does transcript translation work?',
     answer:
-      'SaveVibe translates extracted YouTube captions into 40+ languages directly through Next.js API routes using the Unofficial Google Translate Web Scraper API, keeping every segment aligned with its original timestamps.',
+      'You can translate extracted YouTube captions into 40+ languages directly in the workspace while keeping every line synced to its original timestamp.',
   },
   {
-    question: 'What is Client-Side Transliteration (English Letters)?',
+    question: 'What does Transliterate (A–Z) do?',
     answer:
-      'Transliteration keeps the transcript in the exact same spoken language (such as Bengali, Hindi, Arabic, Urdu, Japanese, or Korean) while converting the script into readable English letters (for example, "আমি ভালো আছি" becomes "ami bhalo achi") directly inside your browser.',
+      'Transliteration keeps the transcript in the same spoken language (such as Bengali, Hindi, Arabic, Urdu, Japanese, or Korean) while converting the script into readable English letters right in your browser.',
   },
   {
-    question: 'Which file formats can I download for translated or transliterated transcripts?',
+    question: 'Which export formats are supported?',
     answer:
-      'Every view—Original, Translated, or Transliterated—can be exported in 5 formats: Plain Text (.txt), SubRip Subtitles (.srt), WebVTT (.vtt), formatted PDF Document (.pdf), and UTF-8 Spreadsheet CSV (.csv).',
+      'Original, translated, and transliterated transcripts can be copied to your clipboard or downloaded as Plain Text (.txt), SubRip (.srt), WebVTT (.vtt), PDF (.pdf), or CSV (.csv) with or without timestamps.',
   },
   {
-    question: 'Does the PDF and CSV export work with Bengali, Hindi, Arabic, or Japanese captions?',
+    question: 'Do PDF and CSV exports support non-Latin scripts?',
     answer:
-      'Yes. CSV files include a UTF-8 BOM for clean spreadsheet compatibility, and PDF exports automatically switch to high-DPI Unicode rendering whenever non-Latin scripts are present.',
+      'Yes. Both CSV and PDF exports support Unicode scripts including Bengali, Hindi, Arabic, Japanese, Korean, and European languages.',
   },
 ];
 
@@ -39,70 +39,70 @@ export function TranscriptPageClient() {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-slate-900">
+    <div className="min-h-screen flex flex-col bg-[#FAFAFA] text-[#0F0F0F]">
       <Header />
 
       <main className="flex-1 flex flex-col items-center">
         <TranscriptWorkspace />
 
         {/* Capabilities & Format Overview */}
-        <section className="w-full max-w-4xl mx-auto px-4 py-12 border-t border-slate-200/80">
+        <section className="w-full max-w-3xl mx-auto px-4 py-12 border-t border-[#E5E5E5]">
           <div className="text-center mb-8 space-y-1.5">
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-              Translate, Transliterate, and Export in Any Format
+            <h2 className="text-xl sm:text-2xl font-bold text-[#0F0F0F] tracking-tight">
+              Translate, Transliterate, and Export
             </h2>
-            <p className="text-xs sm:text-sm text-slate-600 max-w-xl mx-auto">
-              Extract time-synced captions, translate into 40+ languages, or read non-Latin transcripts in English letters right inside your browser.
+            <p className="text-xs sm:text-sm text-[#606060] max-w-lg mx-auto">
+              Extract time-synced captions, translate into 40+ languages, or read non-Latin scripts in English letters.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <div className="p-5 rounded-2xl bg-white border border-slate-200/80 space-y-2.5">
-              <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center">
-                <Languages className="w-5 h-5" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-5 rounded-[12px] bg-white border border-[#E5E5E5] space-y-2.5">
+              <div className="w-9 h-9 rounded-[8px] bg-[#F2F2F2] text-[#FF0000] flex items-center justify-center">
+                <Languages className="w-4 h-4" />
               </div>
-              <h3 className="text-sm font-bold text-slate-900">
+              <h3 className="text-sm font-semibold text-[#0F0F0F]">
                 40+ Language Translation
               </h3>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Translate any extracted transcript into Bengali, Hindi, Arabic, Spanish, Japanese, and 35+ more languages while preserving every timestamp.
+              <p className="text-xs text-[#606060] leading-relaxed">
+                Translate any extracted transcript into Bengali, Hindi, Arabic, Spanish, Japanese, and more while keeping timestamps aligned.
               </p>
             </div>
 
-            <div className="p-5 rounded-2xl bg-white border border-slate-200/80 space-y-2.5">
-              <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center">
-                <CaseSensitive className="w-5 h-5" />
+            <div className="p-5 rounded-[12px] bg-white border border-[#E5E5E5] space-y-2.5">
+              <div className="w-9 h-9 rounded-[8px] bg-[#F2F2F2] text-[#0F0F0F] flex items-center justify-center">
+                <CaseSensitive className="w-4 h-4" />
               </div>
-              <h3 className="text-sm font-bold text-slate-900">
-                Client-Side Transliteration
+              <h3 className="text-sm font-semibold text-[#0F0F0F]">
+                In-Browser Transliteration
               </h3>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Convert Bengali, Hindi, Arabic, Japanese, Korean, or Russian transcripts into English letters right in your browser while keeping the original language.
+              <p className="text-xs text-[#606060] leading-relaxed">
+                Read Bengali, Hindi, Arabic, Japanese, Korean, or Russian captions in English letters without changing the spoken language.
               </p>
             </div>
 
-            <div className="p-5 rounded-2xl bg-white border border-slate-200/80 space-y-2.5">
-              <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center">
-                <FileText className="w-5 h-5" />
+            <div className="p-5 rounded-[12px] bg-white border border-[#E5E5E5] space-y-2.5">
+              <div className="w-9 h-9 rounded-[8px] bg-[#F2F2F2] text-[#0F0F0F] flex items-center justify-center">
+                <FileText className="w-4 h-4" />
               </div>
-              <h3 className="text-sm font-bold text-slate-900">
-                5 Ready-to-Use Export Formats
+              <h3 className="text-sm font-semibold text-[#0F0F0F]">
+                5 Export Formats
               </h3>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Download your original, translated, or transliterated transcript as .txt, .srt, .vtt, .pdf, or .csv with live keyword search.
+              <p className="text-xs text-[#606060] leading-relaxed">
+                Download your transcript as .txt, .srt, .vtt, .pdf, or .csv with optional timestamps and live keyword search.
               </p>
             </div>
           </div>
         </section>
 
         {/* Frequently Asked Questions */}
-        <section className="w-full max-w-3xl mx-auto px-4 py-10 mb-6 border-t border-slate-200/80">
+        <section className="w-full max-w-3xl mx-auto px-4 py-10 mb-6 border-t border-[#E5E5E5]">
           <div className="text-center mb-7 space-y-1.5">
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-              YouTube Transcript Downloader FAQs
+            <h2 className="text-xl sm:text-2xl font-bold text-[#0F0F0F] tracking-tight">
+              Frequently Asked Questions
             </h2>
-            <p className="text-xs sm:text-sm text-slate-600">
-              Common questions about extracting, searching, and exporting YouTube transcripts.
+            <p className="text-xs sm:text-sm text-[#606060]">
+              Common questions about extracting, translating, and exporting YouTube transcripts.
             </p>
           </div>
 
@@ -112,22 +112,22 @@ export function TranscriptPageClient() {
               return (
                 <div
                   key={idx}
-                  className="bg-white rounded-xl border border-slate-200/80 overflow-hidden"
+                  className="bg-white rounded-[10px] border border-[#E5E5E5] overflow-hidden"
                 >
                   <button
                     type="button"
                     onClick={() => setOpenFaqIdx(isOpen ? null : idx)}
-                    className="w-full flex items-center justify-between p-4 text-left font-semibold text-slate-900 text-xs sm:text-sm hover:bg-slate-50/80 transition-colors"
+                    className="w-full flex items-center justify-between p-4 text-left font-semibold text-[#0F0F0F] text-xs sm:text-sm hover:bg-[#FAFAFA] transition-colors"
                   >
                     <span className="pr-4">{faq.question}</span>
                     <ChevronDown
-                      className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${
-                        isOpen ? 'rotate-180 text-red-600' : ''
+                      className={`w-4 h-4 text-[#606060] shrink-0 transition-transform duration-200 ${
+                        isOpen ? 'rotate-180 text-[#0F0F0F]' : ''
                       }`}
                     />
                   </button>
                   {isOpen && (
-                    <div className="px-4 pb-4 pt-2 text-xs sm:text-[13px] text-slate-600 leading-relaxed border-t border-slate-100 bg-slate-50/40">
+                    <div className="px-4 pb-4 pt-2.5 text-xs sm:text-[13px] text-[#606060] leading-relaxed border-t border-[#F2F2F2]">
                       {faq.answer}
                     </div>
                   )}
