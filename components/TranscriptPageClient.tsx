@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, Zap, FileText, Search } from 'lucide-react';
+import { ChevronDown, Languages, FileText, CaseSensitive } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { TranscriptWorkspace } from '@/components/TranscriptWorkspace';
 import { Footer } from '@/components/Footer';
@@ -9,24 +9,24 @@ import { PrivacyTermsModal, ModalType } from '@/components/PrivacyTermsModal';
 
 const TRANSCRIPT_FAQS = [
   {
-    question: 'How does SaveVibe extract YouTube transcripts so quickly?',
+    question: 'How does multi-language transcript translation work without a VPS?',
     answer:
-      'SaveVibe uses open-source InnerTube and TimedText parsers on the server to read YouTube caption tracks directly from YouTube internal endpoints in milliseconds, without downloading heavy video streams.',
+      'SaveVibe translates extracted YouTube captions into 40+ languages directly through Next.js API routes using the Unofficial Google Translate Web Scraper API, keeping every segment aligned with its original timestamps.',
   },
   {
-    question: 'Which file formats are included in Download Transcript?',
+    question: 'What is Client-Side Transliteration (English Letters)?',
     answer:
-      'You can export any extracted transcript in 5 formats: Plain Text (.txt), SubRip Subtitles (.srt), WebVTT (.vtt), formatted PDF Document (.pdf), and UTF-8 Spreadsheet CSV (.csv).',
+      'Transliteration keeps the transcript in the exact same spoken language (such as Bengali, Hindi, Arabic, Urdu, Japanese, or Korean) while converting the script into readable English letters (for example, "আমি ভালো আছি" becomes "ami bhalo achi") directly inside your browser.',
+  },
+  {
+    question: 'Which file formats can I download for translated or transliterated transcripts?',
+    answer:
+      'Every view—Original, Translated, or Transliterated—can be exported in 5 formats: Plain Text (.txt), SubRip Subtitles (.srt), WebVTT (.vtt), formatted PDF Document (.pdf), and UTF-8 Spreadsheet CSV (.csv).',
   },
   {
     question: 'Does the PDF and CSV export work with Bengali, Hindi, Arabic, or Japanese captions?',
     answer:
-      'Yes. CSV files are exported with a UTF-8 BOM for clean spreadsheet compatibility, and PDF exports automatically switch to high-DPI Unicode rendering when non-Latin scripts are detected.',
-  },
-  {
-    question: 'How do I search for a specific keyword inside a long video transcript?',
-    answer:
-      'Once the transcript loads in the timeline card, type any word or phrase in the top search bar. Matching segments highlight instantly, and you can jump between matches or filter down to matching lines only.',
+      'Yes. CSV files include a UTF-8 BOM for clean spreadsheet compatibility, and PDF exports automatically switch to high-DPI Unicode rendering whenever non-Latin scripts are present.',
   },
 ];
 
@@ -49,23 +49,35 @@ export function TranscriptPageClient() {
         <section className="w-full max-w-4xl mx-auto px-4 py-12 border-t border-slate-200/80">
           <div className="text-center mb-8 space-y-1.5">
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-              Built for Fast Research, Subtitles, and Note-Taking
+              Translate, Transliterate, and Export in Any Format
             </h2>
             <p className="text-xs sm:text-sm text-slate-600 max-w-xl mx-auto">
-              Extract manual or auto-generated YouTube captions in any available language and export cleanly for editing or study.
+              Extract time-synced captions, translate into 40+ languages, or read non-Latin transcripts in English letters right inside your browser.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             <div className="p-5 rounded-2xl bg-white border border-slate-200/80 space-y-2.5">
               <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center">
-                <Zap className="w-5 h-5" />
+                <Languages className="w-5 h-5" />
               </div>
               <h3 className="text-sm font-bold text-slate-900">
-                Direct Internal API Extraction
+                40+ Language Translation
               </h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Scrapes structured JSON3 caption tracks directly via open-source InnerTube libraries in milliseconds with multi-language selection.
+                Translate any extracted transcript into Bengali, Hindi, Arabic, Spanish, Japanese, and 35+ more languages while preserving every timestamp.
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-white border border-slate-200/80 space-y-2.5">
+              <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center">
+                <CaseSensitive className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-bold text-slate-900">
+                Client-Side Transliteration
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Convert Bengali, Hindi, Arabic, Japanese, Korean, or Russian transcripts into English letters right in your browser while keeping the original language.
               </p>
             </div>
 
@@ -77,19 +89,7 @@ export function TranscriptPageClient() {
                 5 Ready-to-Use Export Formats
               </h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Download as .txt for reading, .srt and .vtt for video editors, .pdf for clean archiving, or .csv for spreadsheets.
-              </p>
-            </div>
-
-            <div className="p-5 rounded-2xl bg-white border border-slate-200/80 space-y-2.5">
-              <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center">
-                <Search className="w-5 h-5" />
-              </div>
-              <h3 className="text-sm font-bold text-slate-900">
-                Live Timeline & Keyword Search
-              </h3>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Browse the complete time-stamped timeline, jump between keyword matches instantly, and copy individual lines or the full transcript.
+                Download your original, translated, or transliterated transcript as .txt, .srt, .vtt, .pdf, or .csv with live keyword search.
               </p>
             </div>
           </div>

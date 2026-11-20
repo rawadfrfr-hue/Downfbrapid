@@ -201,13 +201,20 @@ function containsNonLatin1(text: string): boolean {
   return /[^\u0000-\u00FF]/.test(text);
 }
 
-function sanitizeFilenameBase(title: string, videoId: string): string {
+function sanitizeFilenameBase(
+  title: string,
+  videoId: string,
+  filenameSuffix?: string
+): string {
   const cleaned = title
     .replace(/[^\w\u0980-\u09FF.\-\s]+/g, '')
     .trim()
     .replace(/\s+/g, '_')
     .slice(0, 50);
-  return cleaned || `youtube_transcript_${videoId}`;
+  const base = cleaned || `youtube_transcript_${videoId}`;
+  if (!filenameSuffix) return base;
+  const safeSuffix = filenameSuffix.replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/^_+|_+$/g, '');
+  return safeSuffix ? `${base}_${safeSuffix}` : base;
 }
 
 function triggerBlobDownload(blob: Blob, filename: string): void {
@@ -415,9 +422,10 @@ function buildVectorPdf(
 export function downloadTranscriptFile(
   data: TranscriptResultData,
   format: TranscriptExportFormat,
-  includeTimestamps: boolean = true
+  includeTimestamps: boolean = true,
+  filenameSuffix?: string
 ): void {
-  const baseName = sanitizeFilenameBase(data.title, data.videoId);
+  const baseName = sanitizeFilenameBase(data.title, data.videoId, filenameSuffix);
 
   if (format === 'txt') {
     const content = buildTxtContent(data, includeTimestamps);
@@ -447,16 +455,12 @@ export function downloadTranscriptFile(
   }
 
   if (format === 'pdf') {
-    const sampleText =
-      data.title +
-      ' ' +
-      data.author +
-      ' ' +
-      data.segments
-        .slice(0, 15)
-        .map((s) => s.text)
-        .join(' ');
-    const doc = containsNonLatin1(sampleText)
+    const needsUnicodePdf =
+      containsNonLatin1(data.title) ||
+      containsNonLatin1(data.author) ||
+      containsNonLatin1(data.languageName) ||
+      data.segments.some((s) => containsNonLatin1(s.text));
+    const doc = needsUnicodePdf
       ? buildUnicodePdf(data, includeTimestamps)
       : buildVectorPdf(data, includeTimestamps);
     doc.save(`${baseName}.pdf`);
