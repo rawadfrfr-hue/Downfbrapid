@@ -24,9 +24,39 @@ const TikTokIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' })
   </svg>
 );
 
-export const Header: React.FC = () => {
+const BrandLogoSvg: React.FC<{ className?: string }> = ({ className = 'w-9 h-9' }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 72 72"
+    aria-hidden="true"
+    className={`savevibe-logo shrink-0 ${className}`}
+  >
+    <path
+      fill="currentColor"
+      d="M53,17c4.41,0,8,3.59,8,8v22c0,4.41-3.59,8-8,8H19c-4.41,0-8-3.59-8-8V25c0-4.41,3.59-8,8-8h14v14.95l-2.23-2.24c-0.97-0.98-2.55-0.98-3.53-0.01c-0.98,0.97-0.99,2.56-0.01,3.54l7,7.05c0.47,0.47,1.1,0.74,1.77,0.74s1.3-0.27,1.77-0.74l7-7.05c0.98-0.98,0.97-2.57-0.01-3.54c-0.98-0.97-2.56-0.97-3.53,0.01L39,31.95V10c0-1.657,1.343-3,3-3s3,1.343,3,3v7H53z"
+    />
+  </svg>
+);
+
+interface HeaderProps {
+  platform?: PlatformType;
+}
+
+export const Header: React.FC<HeaderProps> = ({ platform }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
+
+  const activePlatform: PlatformType | 'default' = (() => {
+    if (platform) return platform;
+    if (pathname?.startsWith('/youtube')) return 'youtube';
+    if (pathname?.startsWith('/instagram')) return 'instagram';
+    if (pathname?.startsWith('/tiktok')) return 'tiktok';
+    if (pathname === '/' || pathname?.startsWith('/facebook')) return 'facebook';
+    return 'default';
+  })();
+
+  const activeThemeClass =
+    activePlatform === 'default' ? 'theme-default' : PLATFORMS[activePlatform].themeClass;
 
   // Reset menu on route change
   const [prevPathname, setPrevPathname] = useState(pathname);
@@ -143,15 +173,14 @@ export const Header: React.FC = () => {
 
   return (
     <>
-      <header className="w-full border-b border-slate-200/80 backdrop-blur-md bg-white/90 sticky top-0 z-40 transition-colors duration-250">
+      <header
+        data-platform={activePlatform}
+        className={`w-full border-b border-slate-200/80 backdrop-blur-md bg-white/90 sticky top-0 z-40 transition-colors duration-250 ${activeThemeClass}`}
+      >
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           {/* Brand Logo & Name */}
           <Link href="/" className="flex items-center gap-3 group focus:outline-none">
-            <img
-              src="/assets/aistudio/logoosavevibe_afe0d13c.svg"
-              alt="SaveVibe Logo"
-              className="w-9 h-9 object-contain shrink-0 transition-transform duration-200 group-hover:scale-105"
-            />
+            <BrandLogoSvg className="w-9 h-9 group-hover:scale-105" />
             <div className="flex flex-col">
               <span className="font-bold text-xl tracking-tight text-slate-900 leading-none group-hover:text-slate-800">
                 SaveVibe
@@ -221,7 +250,8 @@ export const Header: React.FC = () => {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="relative w-[75vw] h-full bg-[#F9FAFB] text-slate-900 shadow-2xl flex flex-col z-50 border-r border-slate-200/60 overflow-y-auto"
+              data-platform={activePlatform}
+              className={`relative w-[75vw] h-full bg-[#F9FAFB] text-slate-900 shadow-2xl flex flex-col z-50 border-r border-slate-200/60 overflow-y-auto ${activeThemeClass}`}
             >
               {/* Minimalist Brand Header & Close Button */}
               <div className="p-4 border-b border-slate-200/50 flex items-center justify-between bg-[#F9FAFB]">
@@ -230,11 +260,7 @@ export const Header: React.FC = () => {
                   onClick={() => setIsMenuOpen(false)}
                   className="flex items-center gap-2.5 group"
                 >
-                  <img
-                    src="/assets/aistudio/logoosavevibe_afe0d13c.svg"
-                    alt="SaveVibe Logo"
-                    className="w-7 h-7 object-contain shrink-0"
-                  />
+                  <BrandLogoSvg className="w-7 h-7" />
                   <div className="flex flex-col">
                     <span className="font-extrabold text-base text-slate-900 leading-none font-sans tracking-tight">
                       SaveVibe

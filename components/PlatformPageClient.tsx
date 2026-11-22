@@ -8,7 +8,7 @@ import { FaqSection } from '@/components/FaqSection';
 import { Footer } from '@/components/Footer';
 import { PrivacyTermsModal, ModalType } from '@/components/PrivacyTermsModal';
 import { VideoData } from '@/components/ResultCard';
-import { PlatformType } from '@/lib/platforms';
+import { PLATFORMS, PlatformType } from '@/lib/platforms';
 
 interface PlatformPageClientProps {
   platform: PlatformType;
@@ -47,10 +47,12 @@ export function PlatformPageClient({ platform }: PlatformPageClientProps) {
     setDownloadsCount((prev) => prev + 1);
   };
 
+  const platformConfig = PLATFORMS[platform] || PLATFORMS.facebook;
+
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-slate-900 transition-colors duration-200">
+    <div className={`min-h-screen flex flex-col bg-[#F8FAFC] text-slate-900 transition-colors duration-200 ${platformConfig.themeClass}`}>
       {/* Top Header */}
-      <Header />
+      <Header platform={platform} />
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col justify-start items-center">

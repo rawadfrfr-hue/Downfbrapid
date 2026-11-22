@@ -30,6 +30,33 @@ body {
   transition: background-color 0.25s ease, color 0.25s ease;
 }
 
+/* Platform-Specific Inline SVG Logo Themes */
+.savevibe-logo {
+  color: #1877F2;
+  transition: color 0.2s ease, transform 0.2s ease, filter 0.2s ease;
+}
+
+.theme-facebook .savevibe-logo {
+  color: #1877F2;
+}
+
+.theme-youtube .savevibe-logo {
+  color: #E60023;
+}
+
+.theme-instagram .savevibe-logo {
+  color: #E1306C;
+}
+
+.theme-tiktok .savevibe-logo {
+  color: #0F172A;
+  filter: drop-shadow(1.5px 1px 0 #00F2EA);
+}
+
+.theme-default .savevibe-logo {
+  color: #1877F2;
+}
+
 /* Aggressive Anti-Netlify Badge & Watermark Hiding Rules */
 netlify-drawer,
 netlify-badge,

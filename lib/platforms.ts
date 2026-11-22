@@ -16,6 +16,7 @@ export interface PlatformConfig {
   featureIconBg: string;
   selectionClass: string;
   accentGlow: string;
+  themeClass: string;
 }
 
 export const PLATFORMS: Record<PlatformType, PlatformConfig> = {
@@ -37,6 +38,7 @@ export const PLATFORMS: Record<PlatformType, PlatformConfig> = {
     featureIconBg: 'bg-[#1877F2]/10 text-[#1877F2]',
     selectionClass: 'selection:bg-[#1877F2]/20 selection:text-[#1877F2]',
     accentGlow: 'rgba(24, 119, 242, 0.15)',
+    themeClass: 'theme-facebook',
   },
   youtube: {
     id: 'youtube',
@@ -56,6 +58,7 @@ export const PLATFORMS: Record<PlatformType, PlatformConfig> = {
     featureIconBg: 'bg-red-100 text-red-600',
     selectionClass: 'selection:bg-red-500/20 selection:text-red-600',
     accentGlow: 'rgba(255, 0, 0, 0.15)',
+    themeClass: 'theme-youtube',
   },
   instagram: {
     id: 'instagram',
@@ -75,6 +78,7 @@ export const PLATFORMS: Record<PlatformType, PlatformConfig> = {
     featureIconBg: 'bg-pink-100 text-[#E1306C]',
     selectionClass: 'selection:bg-pink-500/20 selection:text-[#E1306C]',
     accentGlow: 'rgba(225, 48, 108, 0.15)',
+    themeClass: 'theme-instagram',
   },
   tiktok: {
     id: 'tiktok',
@@ -94,5 +98,6 @@ export const PLATFORMS: Record<PlatformType, PlatformConfig> = {
     featureIconBg: 'bg-slate-100 text-slate-900',
     selectionClass: 'selection:bg-slate-900/20 selection:text-slate-900',
     accentGlow: 'rgba(0, 0, 0, 0.15)',
+    themeClass: 'theme-tiktok',
   },
 };

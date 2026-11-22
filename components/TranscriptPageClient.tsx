@@ -39,8 +39,8 @@ export function TranscriptPageClient() {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FAFAFA] text-[#0F0F0F]">
-      <Header />
+    <div className="min-h-screen flex flex-col bg-[#FAFAFA] text-[#0F0F0F] theme-youtube">
+      <Header platform="youtube" />
 
       <main className="flex-1 flex flex-col items-center">
         <TranscriptWorkspace />
