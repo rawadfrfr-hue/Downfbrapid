@@ -1,0 +1,229 @@
+================================================================================
+SAVEVIBE — প্রি-লঞ্চ SEO ও টেকনিক্যাল অডিট রিপোর্ট (Google Search Console)
+তারিখ: ২৩ নভেম্বর ২০২৬
+================================================================================
+
+সারসংক্ষেপ:
+পুরো কোডবেস এবং সবগুলো রাউট যাচাই করে দেখা গেছে যে Google Search Console-এ
+সাবমিট করার আগে সাইটটিতে বেশ কয়েকটি ক্রিটিক্যাল সমস্যা সমাধান করা জরুরি।
+বিশেষ করে Sitemap-এ ৪0৪ (404) লিংক, Home (/) ও /facebook পেজের ডুপ্লিকেসি,
+Title টেমপ্লেট ওভারফ্লো, Thin Content, কলাপ্সড FAQ DOM, ফুটারের লিংকিং
+সমস্যা এবং গ্লোবাল পারফরম্যান্স ব্লকার দ্রুত ঠিক করা প্রয়োজন।
+
+--------------------------------------------------------------------------------
+১. Meta Tags এবং On-Page SEO অডিট (প্রতিটি পেজের জন্য আলাদাভাবে)
+--------------------------------------------------------------------------------
+
+গুরুতর সমস্যা — Title Template ওভারফ্লো:
+app/layout.tsx ফাইলে `title: { template: '%s | SaveVibe' }` সেট করা আছে,
+কিন্তু কোনো পেজই `{ absolute: '...' }` ব্যবহার করেনি। ফলে প্রতিটি পেজের
+টাইটেলের শেষে স্বয়ংক্রিয়ভাবে " | SaveVibe" (১১ অক্ষর) যুক্ত হয়ে যাচ্ছে। এতে
+সব প্ল্যাটফর্ম পেজের টাইটেল ৫০–৫৫ অক্ষরের সীমা অতিক্রম করছে এবং `/` ও
+`/terms-of-service` পেজে ব্র্যান্ডের নাম দুইবার আসছে।
+
+পেজ অনুযায়ী বিশ্লেষণ:
+
+[১] Home (/) — app/page.tsx
+  - <title> কোড স্ট্রিং: 54 অক্ষর ("SaveVibe - Fast & Secure Social Media Video Downloader")
+  - চূড়ান্ত রেন্ডার্ড <title>: 65 অক্ষর ("... | SaveVibe" সহ — সীমার বাইরে ও SaveVibe ডুপ্লিকেট)
+  - <meta name="description">: 140 অক্ষর (তবে এটি /facebook-এর সাথে হুবহু ডুপ্লিকেট)
+  - <h1> ট্যাগ: ১টি — "Download Facebook Videos & Reels" (Home পেজ হিসেবে অসামঞ্জস্যপূর্ণ)
+  - Canonical: ${SITE_URL}/
+  - Open Graph: og:title, og:description, og:image আছে, তবে শুধু Facebook-কেন্দ্রিক।
+
+[২] Facebook (/facebook) — app/facebook/page.tsx
+  - <title> কোড স্ট্রিং: 53 অক্ষর ("Facebook Video Downloader - Save FB Reels & Videos HD")
+  - চূড়ান্ত রেন্ডার্ড <title>: 64 অক্ষর (৫০–৫৫ অক্ষরের বেশি)
+  - <meta name="description">: 140 অক্ষর (সঠিক দৈর্ঘ্য, তবে `/` এর সাথে ডুপ্লিকেট)
+  - <h1> ট্যাগ: ১টি — "Download Facebook Videos & Reels" (`/` এর সাথে ডুপ্লিকেট)
+  - Canonical: ${SITE_URL}/facebook
+  - Open Graph: og:title, og:description, og:image আছে।
+
+[৩] YouTube (/youtube) — app/youtube/page.tsx
+  - <title> কোড স্ট্রিং: 50 অক্ষর ("YouTube Video Downloader - Save YT Shorts & MP4 HD")
+  - চূড়ান্ত রেন্ডার্ড <title>: 61 অক্ষর (৫০–৫৫ অক্ষরের বেশি)
+  - <meta name="description">: 143 অক্ষর (সঠিক: ১৪০–১৫০ এর মধ্যে)
+  - <h1> ট্যাগ: ১টি — "Download YouTube Videos & Shorts"
+  - Canonical: ${SITE_URL}/youtube
+  - Open Graph: og:title, og:description, og:image আছে।
+
+[৪] Instagram (/instagram) — app/instagram/page.tsx
+  - <title> কোড স্ট্রিং: 55 অক্ষর ("Instagram Video Downloader - Save IG Reels & Stories HD")
+  - চূড়ান্ত রেন্ডার্ড <title>: 66 অক্ষর (৫০–৫৫ অক্ষরের বেশি)
+  - <meta name="description">: 149 অক্ষর (সঠিক: ১৪০–১৫০ এর মধ্যে)
+  - <h1> ট্যাগ: ১টি — "Download Instagram Videos & Reels"
+  - Canonical: ${SITE_URL}/instagram
+  - Open Graph: og:title, og:description, og:image আছে।
+
+[৫] TikTok (/tiktok) — app/tiktok/page.tsx
+  - <title> কোড স্ট্রিং: 52 অক্ষর ("TikTok Downloader Without Watermark - Save TikTok HD")
+  - চূড়ান্ত রেন্ডার্ড <title>: 63 অক্ষর (৫০–৫৫ অক্ষরের বেশি)
+  - <meta name="description">: 137 অক্ষর (১৪০ অক্ষরের চেয়ে ৩ অক্ষর কম)
+  - <h1> ট্যাগ: ১টি — "Download TikTok Videos Without Watermark"
+  - Canonical: ${SITE_URL}/tiktok
+  - Open Graph: og:title, og:description, og:image আছে।
+
+[৬] YouTube Transcript (/youtube-transcript) — app/youtube-transcript/page.tsx
+  - <title> কোড স্ট্রিং: 72 অক্ষর ("YouTube Transcript Downloader - Extract & Export TXT, SRT, VTT, PDF, CSV")
+  - চূড়ান্ত রেন্ডার্ড <title>: 83 অক্ষর (অনেক বেশি)
+  - <meta name="description">: 196 অক্ষর (১৪০–১৫০ এর অনেক বেশি; SERP-এ কেটে যাবে)
+  - <h1> ট্যাগ: ১টি — "YouTube Transcript Downloader"
+  - Canonical: ${SITE_URL}/youtube-transcript
+  - Open Graph: og:title ও og:description আছে, কিন্তু og:image ও twitter কার্ড বাদ পড়েছে।
+
+[৭] Terms of Service (/terms-of-service) — app/terms-of-service/page.tsx
+  - <title> কোড স্ট্রিং: 38 অক্ষর ("Terms of Service - SaveVibe Downloader")
+  - চূড়ান্ত রেন্ডার্ড <title>: 49 অক্ষর ("... | SaveVibe" সহ — SaveVibe দুইবার আছে)
+  - <meta name="description">: 149 অক্ষর (সঠিক)
+  - <h1> ট্যাগ: ১টি — "Terms of Service"
+  - Canonical: ${SITE_URL}/terms-of-service
+  - Open Graph: সম্পূর্ণ অনুপস্থিত (og:title, og:description, og:image ও twitter সবই বাদ পড়েছে)।
+
+অতিরিক্ত অন-পেজ ফ্ল্যাগ:
+* Home (/) এবং /facebook পেজের সম্পূর্ণ কন্টেন্ট হুবহু এক, কিন্তু Canonical আলাদা।
+  এতে Duplicate Content / Keyword Cannibalization সমস্যা হবে।
+* NEXT_PUBLIC_SITE_URL সেট না থাকলে SITE_URL-এর ডিফল্ট ভ্যালু হিসেবে
+  "https://downfbrapid.vercel.app" ব্যবহার করা হয়েছে (SaveVibe ডোমেইনের বদলে)।
+* og:image হিসেবে 512x512 লোগো (/favicons/search-logo-512.png) দেওয়া আছে, অথচ
+  twitter:card সেট করা হয়েছে "summary_large_image" (যার জন্য 1200x630 ছবি আদর্শ)।
+
+--------------------------------------------------------------------------------
+২. Thin Content এবং কন্টেন্ট স্ট্রাকচার চেক
+--------------------------------------------------------------------------------
+
+শব্দ সংখ্যা (Thin Content ঝুঁকি):
+সব ডাউনলোডার পেজের মূল কন্টেন্ট (<main>) ৩০০–৫০০ শব্দের নিচে রয়েছে:
+  - `/` ও `/facebook`: ~২৯৬ শব্দ (প্রাথমিক SSR HTML-এ ~২৪০ শব্দ)
+  - `/youtube`: ~২৮০ শব্দ (প্রাথমিক SSR HTML-এ ~২২৫ শব্দ)
+  - `/instagram`: ~২৭৮ শব্দ (প্রাথমিক SSR HTML-এ ~২১৮ শব্দ)
+  - `/tiktok`: ~২৬৬ শব্দ (প্রাথমিক SSR HTML-এ ~২০৫ শব্দ)
+  - `/youtube-transcript`: ~২৪২ শব্দ (প্রাথমিক SSR HTML-এ ~১৫৫ শব্দ)
+
+কন্টেন্ট ও DOM ত্রুটি:
+* কলাপ্সড FAQ DOM-এ নেই: FaqSection এবং TranscriptPageClient-এ `{isOpen && (...)}`
+  ব্যবহার করায় প্রথম লোডে শুধু ১ম FAQ-এর উত্তর HTML-এ রেন্ডার হয়। বাকি FAQ-এর
+  উত্তরগুলো প্রাথমিক SSR HTML-এ থাকেই না।
+* কপি-পেস্ট ও অপ্রাসঙ্গিক টেক্সট: YouTube এবং TikTok পেজের ফিচার ও গাইড অংশে
+  ভুলবশত "reels" শব্দটি রয়ে গেছে (যেমন: "YouTube videos, reels", "TikTok videos, reels")।
+* ডেভেলপার-স্টাইল টেক্সট: FeaturesGrid কম্পোনেন্টে দৃশ্যমান UI-তে
+  "Dynamic Related Suggestions" লেখা দেখা যাচ্ছে।
+* Boilerplate কন্টেন্ট: সব প্ল্যাটফর্ম পেজের ফিচার কার্ডগুলোর লেখা হুবহু এক।
+
+JSON-LD Schema Markup:
+* /, /facebook, /youtube, /instagram, /tiktok পেজে WebSite, WebPage,
+  BreadcrumbList, SoftwareApplication, FAQPage এবং HowTo—এই ৬টি Schema আছে।
+* সমস্যা ১: /youtube-transcript পেজে কোনো JSON-LD Schema নেই (যদিও ৪টি FAQ আছে)।
+* সমস্যা ২: Home (/) পেজের SoftwareApplication নাম "SaveVibe Facebook Downloader" হয়ে আছে।
+
+--------------------------------------------------------------------------------
+৩. টেকনিক্যাল ফাইলসমূহ (robots.txt এবং sitemap.xml)
+--------------------------------------------------------------------------------
+
+ফাইল উপস্থিতি:
+* public ফোল্ডারে স্ট্যাটিক ফাইল না থাকলেও Next.js App Router-এর ডায়নামিক
+  হ্যান্ডলার `app/robots.ts` এবং `app/sitemap.ts` তৈরি আছে, যা /robots.txt এবং
+  /sitemap.xml URL-এ সার্ভ হয়।
+
+robots.txt (/robots.txt):
+* User-Agent: *, Allow: /, Disallow: ['/api/'] সেট করা আছে (প্রজেক্টে /admin/ নেই)।
+* Sitemap: ${SITE_URL}/sitemap.xml দেওয়া আছে। প্রোডাকশনে আসল ডোমেইন অনুযায়ী
+  NEXT_PUBLIC_SITE_URL কনফিগার করা নিশ্চিত করতে হবে।
+
+sitemap.xml (/sitemap.xml) — ক্রিটিক্যাল ৪0৪ ত্রুটি:
+* সাইটম্যাপে মোট ৯টি URL আছে, যার মধ্যে ২টি URL ভাঙা / 404 Not Found:
+    1) ${SITE_URL}/privacy-policy — প্রজেক্টে এই রাউট/পেজটি নেই!
+    2) ${SITE_URL}/dmca — প্রজেক্টে এই রাউট/পেজটি নেই!
+* Google Search Console-এ সাবমিট করলে এই ২টি URL-এ 404 Crawl Error দেখাবে।
+* `/` এবং `/facebook` দুটি অভিন্ন পেজ হয়েও সাইটম্যাপে আলাদাভাবে দেওয়া হয়েছে।
+
+--------------------------------------------------------------------------------
+৪. ইন্টারনাল লিংকিং এবং নেভিগেশন
+--------------------------------------------------------------------------------
+
+* হেডার মেনু (Header.tsx): ডেস্কটপ নেভবার এবং মোবাইল স্লাইড-আউট সাইডবারে
+  Facebook (/), YouTube (/youtube), Instagram (/instagram), TikTok (/tiktok), এবং
+  YT Transcript (/youtube-transcript) <Link> ট্যাগে সুন্দরভাবে লিংক করা আছে।
+* কোনো `href="#"` পাওয়া যায়নি।
+
+গুরুতর লিংকিং ও অর্ফান পেজ (Orphan Page) সমস্যা:
+1. /facebook অর্ফান পেজ: হেডার ও FeaturesGrid-এ Facebook লিংক `/` এ পয়েন্ট করে।
+   ফলে /facebook রাউটে সাইটের ভেতর থেকে কোনো ইন্টারনাল লিংক নেই।
+2. ফুটারে কোনো ইনডেক্সযোগ্য <Link> নেই (Footer.tsx): Privacy Policy, Terms of
+   Service এবং Contact সবই `<button onClick>` দিয়ে জাভাস্ক্রিপ্ট মোডাল খোলে।
+   গুগলবট <button> ক্লিক করে মোডাল ক্রল করে না। এমনকি `/terms-of-service` পেজ
+   থাকা সত্ত্বেও ফুটার থেকে সেটিতে কোনো `<Link>` দেওয়া হয়নি।
+3. /terms-of-service পেজে ভাঙা ফুটার: এই পেজে `<Footer />`-এ `onOpenModal` প্রপ
+   পাস না করায় ফুটারের ডান পাশের আইনি বাটন/লিংকগুলো পুরোপুরি অদৃশ্য থাকে।
+4. FeaturesGrid-এ সব ভিডিও ডাউনলোডার লিংক থাকলেও /youtube-transcript লিংক নেই।
+
+--------------------------------------------------------------------------------
+৫. বিশ্বাসযোগ্যতা, আইনি পেজ এবং ব্র্যান্ডিং
+--------------------------------------------------------------------------------
+
+৩টি জরুরি আইনি পেজের অবস্থা:
+1. Privacy Policy (/privacy-policy): আলাদা পেজ তৈরি নেই (404)। এটি কেবল
+   PrivacyTermsModal কম্পোনেন্টের ভেতরে পপ-আপ মোডাল হিসেবে আছে।
+2. Terms of Service (/terms-of-service): আলাদা পেজ তৈরি আছে, তবে ফুটার থেকে
+   লিংক করা নেই (অর্ফান পেজ)।
+3. DMCA / Copyright Disclaimer (/dmca): সম্পূর্ণ অনুপস্থিত। আলাদা পেজও নেই,
+   ফুটারে বা মোডালেও কোনো DMCA নীতিমালা/লিংক নেই।
+
+Favicon এবং Mobile Viewport:
+* Favicon: public/favicon.ico, search-logo-96.png, 192.png, 512.png,
+  apple-touch-icon.png এবং প্ল্যাটফর্ম SVG ফাইলগুলো (facebook.svg, youtube.svg,
+  instagram.svg, tiktok.svg) সঠিকভাবে যুক্ত আছে।
+* Mobile Viewport: app/layout.tsx-এ আলাদাভাবে `export const viewport` না থাকলেও
+  Next.js 15 স্বয়ংক্রিয়ভাবে `<meta name="viewport" content="width=device-width, initial-scale=1">`
+  ইনজেক্ট করে। স্পষ্ট কন্ট্রোলের জন্য `export const viewport` যোগ করা ভালো অভ্যাস।
+
+--------------------------------------------------------------------------------
+৬. রেন্ডারিং এবং পারফরম্যান্স চেক
+--------------------------------------------------------------------------------
+
+SSR vs CSR (Googlebot Crawlability):
+* সবগুলো পেজ Server Component হিসেবে রেন্ডার হয় এবং মেটাডাটা ও JSON-LD সার্ভার
+  থেকেই আসে। UI কম্পোনেন্টগুলো (`PlatformPageClient`, `TranscriptPageClient`)
+  `'use client'` হলেও Next.js App Router সেগুলোকে প্রথম লোডে Server-Side
+  Pre-render (SSR HTML) করে পাঠায়। তাই Googlebot জাভাস্ক্রিপ্ট ছাড়াই H1, প্যারাগ্রাফ
+  ও স্কিমা পড়তে পারবে।
+* ব্যতিক্রম: কলাপ্সড FAQ উত্তরগুলো কন্ডিশনাল রেন্ডারিংয়ের (`{isOpen && ...}`)
+  কারণে প্রাথমিক SSR HTML-এ থাকে না।
+
+পারফরম্যান্স ও Core Web Vitals ঝুঁকি (ক্রিটিক্যাল):
+1. NetlifyBadgeRemover.tsx: app/layout.tsx-এ গ্লোবালভাবে যুক্ত এই কম্পোনেন্টটি
+   পেজ লোডের প্রথম ১০ সেকেন্ড প্রতি ৫০ মিলিসেকেন্ডে (সেকেন্ডে ২০ বার) এবং
+   এরপর প্রতি ৫০০ মিলিসেকেন্ডে অসীম সময় ধরে `document.querySelectorAll('*')`
+   চালায়, পুরো DOM-এ `MutationObserver` চালু রাখে এবং `attachShadow` প্যাচ করে।
+   এটি ব্রাউজারের মেইন থ্রেড ব্লক করে INP এবং TBT পারফরম্যান্স স্কোর মারাত্মকভাবে
+   কমিয়ে দেবে।
+2. Hero ইমেজ CLS ঝুঁকি: VideoFetcher.tsx-এ হিরো ব্যানার ইমেজটি (`bnrsavevibe_b7be51c6.svg`)
+   `<img>` ট্যাগে explicit `width` ও `height` অ্যাট্রিবিউট ছাড়া দেওয়া আছে।
+
+--------------------------------------------------------------------------------
+Google Search Console সাবমিশনের আগে করণীয় (অগ্রাধিকার তালিকা)
+--------------------------------------------------------------------------------
+
+[১] জরুরি — 404 রাউট ও ফুটার ফিক্স:
+    `/privacy-policy` ও `/dmca` পেজ তৈরি করা এবং ফুটারের মোডাল বাটন বদলে
+    সরাসরি `<Link href="/privacy-policy">`, `<Link href="/terms-of-service">` ও
+    `<Link href="/dmca">` যুক্ত করা।
+
+[২] জরুরি — Title, Description, OG এবং Schema ফিক্স:
+    সব পেজে `{ absolute: '...' }` ব্যবহার করে ৫০–৫৫ অক্ষরের Title এবং ১৪০–১৫০
+    অক্ষরের Description ঠিক করা; `/youtube-transcript` পেজে `og:image` ও
+    `SoftwareApplication`/`FAQPage` Schema যোগ করা; `/terms-of-service`-এ OG ট্যাগ দেওয়া।
+
+[৩] জরুরি — Home (/) এবং /facebook ডুপ্লিকেসি সমাধান:
+    Home (`/`) পেজটিকে মাল্টি-প্ল্যাটফর্ম ল্যান্ডিং পেজ করা অথবা `/facebook`-কে
+    `/`-এ ৩০১ (301) রিডাইরেক্ট করে সাইটম্যাপ থেকে `/facebook` বাদ দেওয়া।
+
+[৪] উচ্চ — Thin Content ও কপি সংশোধন:
+    প্রতিটি পেজে ইউনিক ৪০০+ শব্দের গাইড/ফিচার/FAQ যোগ করা, সব FAQ উত্তর CSS-এর
+    মাধ্যমে লুকিয়ে প্রাথমিক SSR HTML DOM-এ রেন্ডার রাখা, "Dynamic Related Suggestions"
+    লেখাটি পরিবর্তন করা এবং YouTube/TikTok পেজ থেকে "reels" শব্দটি সরানো।
+
+[৫] উচ্চ — পারফরম্যান্স ও প্রোডাকশন URL:
+    `NetlifyBadgeRemover`-এর ৫০ms/৫০০ms `querySelectorAll('*')` লুপ অপসারণ বা
+    অপ্টিমাইজ করা, হিরো ইমেজে `width`/`height` দেওয়া এবং প্রোডাকশনে সঠিক
+    `NEXT_PUBLIC_SITE_URL` সেট করা।
+================================================================================
