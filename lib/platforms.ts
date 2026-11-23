@@ -1,7 +1,8 @@
 export type PlatformType = 'facebook' | 'youtube' | 'instagram' | 'tiktok';
+export type PagePlatform = 'home' | PlatformType;
 
 export interface PlatformConfig {
-  id: PlatformType;
+  id: PagePlatform;
   name: string;
   path: string;
   heroTitle: string;
@@ -24,11 +25,11 @@ export const PLATFORMS: Record<PlatformType, PlatformConfig> = {
   facebook: {
     id: 'facebook',
     name: 'Facebook',
-    path: '/',
+    path: '/facebook',
     heroTitle: 'Download Facebook Videos & Reels',
     heroSubtitle:
-      'Effortlessly download public Facebook videos, reels, and watch clips in high definition with SaveVibe. Paste your link below to save in MP4 or MP3 format.',
-    placeholder: 'Paste Facebook video or reel URL here...',
+      'Effortlessly download public Facebook videos, Reels, and Watch clips in Full HD 1080p or 720p with Save Vibe. Paste your link below to save in MP4 or MP3 format.',
+    placeholder: 'Paste Facebook video, Reel, or Watch URL here...',
     primaryColor: '#1877F2',
     gradientBg: 'from-[#1877F2]/10 via-[#1877F2]/5 to-transparent',
     buttonBg:
@@ -48,8 +49,8 @@ export const PLATFORMS: Record<PlatformType, PlatformConfig> = {
     path: '/youtube',
     heroTitle: 'Download YouTube Videos & Shorts',
     heroSubtitle:
-      'Effortlessly download public YouTube videos, shorts, and audio tracks in high definition with SaveVibe. Paste your link below to save in MP4 or MP3 format.',
-    placeholder: 'Paste YouTube video or shorts URL here...',
+      'Download public YouTube videos, Shorts, and audio tracks in 4K, 1080p Full HD MP4, or MP3 with Save Vibe. Paste any YouTube link below to get started.',
+    placeholder: 'Paste YouTube video or Shorts URL here...',
     primaryColor: '#FF0000',
     gradientBg: 'from-red-500/10 via-rose-500/5 to-transparent',
     buttonBg:
@@ -69,8 +70,8 @@ export const PLATFORMS: Record<PlatformType, PlatformConfig> = {
     path: '/instagram',
     heroTitle: 'Download Instagram Videos & Reels',
     heroSubtitle:
-      'Effortlessly download public Instagram reels, IGTV, and video posts in high definition with SaveVibe. Paste your link below to save in MP4 or MP3 format.',
-    placeholder: 'Paste Instagram video, reel, or post URL here...',
+      'Save public Instagram Reels, IGTV clips, and video posts in original HD MP4 quality with Save Vibe. Paste your Instagram link below for an instant browser download.',
+    placeholder: 'Paste Instagram Reel, IGTV, or post URL here...',
     primaryColor: '#E1306C',
     gradientBg: 'from-[#833AB4]/10 via-[#FD1D1D]/5 to-[#F77737]/10',
     buttonBg:
@@ -90,7 +91,7 @@ export const PLATFORMS: Record<PlatformType, PlatformConfig> = {
     path: '/tiktok',
     heroTitle: 'Download TikTok Videos Without Watermark',
     heroSubtitle:
-      'Effortlessly download TikTok videos in standard or high quality without watermark using SaveVibe. Paste your link below to save instantly.',
+      'Download public TikTok videos without watermark in crisp HD MP4 or extract clean MP3 audio using Save Vibe. Paste your TikTok link below to save directly to your device.',
     placeholder: 'Paste TikTok video URL here (e.g., https://vm.tiktok.com/...)...',
     primaryColor: '#000000',
     gradientBg: 'from-cyan-500/10 via-slate-900/10 to-rose-500/10',
@@ -106,3 +107,30 @@ export const PLATFORMS: Record<PlatformType, PlatformConfig> = {
     faviconPath: '/favicons/tiktok.svg',
   },
 };
+
+export const HOME_PLATFORM_CONFIG: PlatformConfig = {
+  id: 'home',
+  name: 'Social Media',
+  path: '/',
+  heroTitle: 'Download Social Media Videos Free in HD',
+  heroSubtitle:
+    'Save Vibe is an all-in-one online video downloader for Facebook, YouTube, Instagram, and TikTok. Paste any public video link below to save watermark-free HD MP4 or MP3 in seconds.',
+  placeholder: 'Paste Facebook, YouTube, Instagram, or TikTok URL here...',
+  primaryColor: '#1877F2',
+  gradientBg: 'from-[#1877F2]/10 via-indigo-500/5 to-transparent',
+  buttonBg:
+    'bg-[#1877F2] hover:bg-[#166fe5] active:bg-[#1565d8] focus-visible:ring-[#1877F2] shadow-blue-500/20',
+  focusBorder: 'focus-within:border-[#1877F2] focus-within:ring-[#1877F2]',
+  iconColor: 'text-[#1877F2]',
+  badgeBg: 'bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20',
+  featureIconBg: 'bg-[#1877F2]/10 text-[#1877F2]',
+  selectionClass: 'selection:bg-[#1877F2]/20 selection:text-[#1877F2]',
+  accentGlow: 'rgba(24, 119, 242, 0.15)',
+  themeClass: 'theme-default',
+  faviconPath: '/favicons/search-logo-96.png',
+};
+
+export function getPlatformConfig(platform: PagePlatform): PlatformConfig {
+  if (platform === 'home') return HOME_PLATFORM_CONFIG;
+  return PLATFORMS[platform] || HOME_PLATFORM_CONFIG;
+}

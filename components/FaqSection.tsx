@@ -2,16 +2,17 @@
 
 import React, { useState } from 'react';
 import { HelpCircle, ChevronDown, CheckCircle2, DownloadCloud } from 'lucide-react';
-import { PlatformType } from '@/lib/platforms';
+import { PagePlatform, getPlatformConfig } from '@/lib/platforms';
 import { SEO_DATA } from '@/lib/seo-data';
 
 interface FaqSectionProps {
-  platform: PlatformType;
+  platform: PagePlatform;
 }
 
 export const FaqSection: React.FC<FaqSectionProps> = ({ platform }) => {
-  const seoInfo = SEO_DATA[platform] || SEO_DATA.facebook;
-  const platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
+  const seoInfo = SEO_DATA[platform] || SEO_DATA.home;
+  const platformConfig = getPlatformConfig(platform);
+  const isHome = platform === 'home';
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   const toggleFaq = (index: number) => {
@@ -27,14 +28,18 @@ export const FaqSection: React.FC<FaqSectionProps> = ({ platform }) => {
           Easy Step-by-Step Guide
         </div>
         <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight mb-2">
-          How to Download {platformName} Videos Online
+          {isHome
+            ? 'How to Download Social Media Videos Online'
+            : `How to Download ${platformConfig.name} Videos Online`}
         </h2>
         <p className="text-xs sm:text-sm text-slate-600 max-w-xl mx-auto mb-8">
-          Follow these 3 simple steps to save public {platformName} videos, reels, and audio clips in HD quality.
+          {isHome
+            ? 'Follow these 3 simple steps to save public Facebook, YouTube, Instagram, and TikTok videos in HD quality.'
+            : `Follow these 3 simple steps to save public ${platformConfig.name} videos and audio clips in HD quality.`}
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 text-left">
-          {seoInfo.howToSteps.map((stepText, idx) => (
+          {seoInfo.howToSteps.map((stepItem, idx) => (
             <div
               key={idx}
               className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs hover:shadow-md transition-all duration-200 relative flex flex-col justify-between"
@@ -46,19 +51,15 @@ export const FaqSection: React.FC<FaqSectionProps> = ({ platform }) => {
                   </span>
                   <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                 </div>
-                <h3 className="text-sm font-bold text-slate-900 mb-1">
-                  {idx === 0 && 'Copy Link'}
-                  {idx === 1 && 'Paste URL'}
-                  {idx === 2 && 'Download File'}
-                </h3>
-                <p className="text-xs text-slate-600 leading-relaxed">{stepText}</p>
+                <h3 className="text-sm font-bold text-slate-900 mb-1">{stepItem.title}</h3>
+                <p className="text-xs text-slate-600 leading-relaxed">{stepItem.description}</p>
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Frequently Asked Questions */}
+      {/* Frequently Asked Questions (All answers remain in DOM for SSR & Googlebot indexing) */}
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold mb-3">
@@ -66,10 +67,14 @@ export const FaqSection: React.FC<FaqSectionProps> = ({ platform }) => {
             Frequently Asked Questions
           </div>
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight mb-2">
-            SaveVibe {platformName} Downloader FAQs
+            {isHome
+              ? 'Save Vibe Video Downloader FAQs'
+              : `Save Vibe ${platformConfig.name} Downloader FAQs`}
           </h2>
           <p className="text-xs sm:text-sm text-slate-600">
-            Got questions about downloading {platformName} videos? Find all the quick answers below.
+            {isHome
+              ? 'Got questions about downloading social media videos with Save Vibe? Find quick answers below.'
+              : `Got questions about downloading ${platformConfig.name} videos? Find all the quick answers below.`}
           </p>
         </div>
 
@@ -84,6 +89,7 @@ export const FaqSection: React.FC<FaqSectionProps> = ({ platform }) => {
                 <button
                   type="button"
                   onClick={() => toggleFaq(idx)}
+                  aria-expanded={isOpen}
                   className="w-full flex items-center justify-between p-4 text-left font-semibold text-slate-900 text-xs sm:text-sm focus:outline-none focus:bg-slate-50/80"
                 >
                   <span className="pr-4">{faq.question}</span>
@@ -93,11 +99,15 @@ export const FaqSection: React.FC<FaqSectionProps> = ({ platform }) => {
                     }`}
                   />
                 </button>
-                {isOpen && (
-                  <div className="px-4 pb-4 pt-1 text-xs text-slate-600 leading-relaxed border-t border-slate-100 bg-slate-50/30">
-                    {faq.answer}
-                  </div>
-                )}
+                <div
+                  className={
+                    isOpen
+                      ? 'px-4 pb-4 pt-2 text-xs text-slate-600 leading-relaxed border-t border-slate-100 bg-slate-50/30 block'
+                      : 'hidden'
+                  }
+                >
+                  {faq.answer}
+                </div>
               </div>
             );
           })}

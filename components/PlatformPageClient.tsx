@@ -8,10 +8,10 @@ import { FaqSection } from '@/components/FaqSection';
 import { Footer } from '@/components/Footer';
 import { PrivacyTermsModal, ModalType } from '@/components/PrivacyTermsModal';
 import { VideoData } from '@/components/ResultCard';
-import { PLATFORMS, PlatformType } from '@/lib/platforms';
+import { PagePlatform, getPlatformConfig } from '@/lib/platforms';
 
 interface PlatformPageClientProps {
-  platform: PlatformType;
+  platform: PagePlatform;
 }
 
 export function PlatformPageClient({ platform }: PlatformPageClientProps) {
@@ -47,10 +47,12 @@ export function PlatformPageClient({ platform }: PlatformPageClientProps) {
     setDownloadsCount((prev) => prev + 1);
   };
 
-  const platformConfig = PLATFORMS[platform] || PLATFORMS.facebook;
+  const platformConfig = getPlatformConfig(platform);
 
   return (
-    <div className={`min-h-screen flex flex-col bg-[#F8FAFC] text-slate-900 transition-colors duration-200 ${platformConfig.themeClass}`}>
+    <div
+      className={`min-h-screen flex flex-col bg-[#F8FAFC] text-slate-900 transition-colors duration-200 ${platformConfig.themeClass}`}
+    >
       {/* Top Header */}
       <Header platform={platform} />
 
@@ -62,7 +64,7 @@ export function PlatformPageClient({ platform }: PlatformPageClientProps) {
           onAddHistory={handleAddHistory}
         />
 
-        {/* Features & Trust Grid */}
+        {/* Features, Cross-Links & Detailed Guide */}
         <FeaturesGrid platform={platform} />
 
         {/* SEO FAQ & Step-by-Step Section */}
@@ -75,7 +77,7 @@ export function PlatformPageClient({ platform }: PlatformPageClientProps) {
         totalDownloadsCount={downloadsCount}
       />
 
-      {/* Interactive Legal & Contact Modal */}
+      {/* Interactive Contact Modal */}
       <PrivacyTermsModal
         activeModal={activeLegalModal}
         onClose={() => setActiveLegalModal(null)}

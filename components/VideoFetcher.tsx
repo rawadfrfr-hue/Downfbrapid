@@ -1,25 +1,26 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 import { Clipboard, X, Download, AlertCircle } from 'lucide-react';
 import { SkeletonLoader } from './SkeletonLoader';
 import { ResultCard, VideoData } from './ResultCard';
-import { PLATFORMS, PlatformType } from '@/lib/platforms';
+import { PagePlatform, getPlatformConfig } from '@/lib/platforms';
 
 interface VideoFetcherProps {
-  platform?: PlatformType;
+  platform?: PagePlatform;
   onRecordDownload: (quality: string) => void;
   onAddHistory: (item: VideoData) => void;
 }
 
 export const VideoFetcher: React.FC<VideoFetcherProps> = ({
-  platform = 'facebook',
+  platform = 'home',
   onRecordDownload,
   onAddHistory,
 }) => {
-  const platformConfig = PLATFORMS[platform] || PLATFORMS.facebook;
+  const platformConfig = getPlatformConfig(platform);
   const [url, setUrl] = useState('');
   const [state, setState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -48,7 +49,11 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
     const linkToFetch = (targetUrl || url).trim();
 
     if (!linkToFetch) {
-      setErrorMessage(`Please paste or enter a valid ${platformConfig.name} video link.`);
+      setErrorMessage(
+        platform === 'home'
+          ? 'Please paste a valid Facebook, YouTube, Instagram, or TikTok video link.'
+          : `Please paste or enter a valid ${platformConfig.name} video link.`
+      );
       inputRef.current?.focus();
       return;
     }
@@ -71,7 +76,9 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
       const json = await res.json();
 
       if (!res.ok || !json.success) {
-        throw new Error(json.error || `Unable to download ${platformConfig.name} video. Please check your link.`);
+        throw new Error(
+          json.error || `Unable to download ${platformConfig.name} video. Please check your link.`
+        );
       }
 
       setResultData(json.data);
@@ -97,12 +104,16 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
     <section className="w-full max-w-3xl mx-auto text-center pt-6 sm:pt-10 pb-8 px-4">
       {/* Hero Header Section */}
       <div className="space-y-4 mb-8 sm:mb-9">
-        {/* Top Feature Image Banner (Same SVG file across all platform pages) */}
+        {/* Top Feature Image Banner with explicit width/height to prevent CLS */}
         <div className="flex justify-center mb-1">
-          <img
+          <Image
             src="/assets/aistudio/bnrsavevibe_b7be51c6.svg"
-            alt="SaveVibe Feature Banner"
-            className="max-w-[280px] sm:max-w-[360px] md:max-w-[420px] h-auto object-contain mx-auto transition-transform duration-300 hover:scale-102"
+            alt="Save Vibe Social Media Video Downloader Banner"
+            width={1017}
+            height={245}
+            priority
+            referrerPolicy="no-referrer"
+            className="w-[280px] sm:w-[360px] md:w-[420px] h-auto object-contain mx-auto transition-transform duration-300 hover:scale-102"
           />
         </div>
 
@@ -138,6 +149,7 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
                 }
               }}
               placeholder={platformConfig.placeholder}
+              aria-label={platformConfig.placeholder}
               className="w-full py-4 pl-4 pr-24 bg-transparent text-slate-900 placeholder:text-slate-400 text-sm sm:text-base font-normal rounded-xl focus:outline-none"
             />
 
@@ -200,7 +212,7 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
           </motion.div>
         )}
 
-        {platformConfig.id === 'youtube' && (
+        {(platformConfig.id === 'youtube' || platformConfig.id === 'home') && (
           <p className="text-xs text-slate-500 pt-1">
             Need subtitles or searchable text?{' '}
             <Link

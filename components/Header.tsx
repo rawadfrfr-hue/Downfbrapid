@@ -15,8 +15,9 @@ import {
   Camera,
   Music,
   FileText,
+  Home,
 } from 'lucide-react';
-import { PLATFORMS, PlatformType } from '@/lib/platforms';
+import { PLATFORMS, PagePlatform, PlatformType, getPlatformConfig } from '@/lib/platforms';
 
 const TikTokIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -39,33 +40,36 @@ const BrandLogoSvg: React.FC<{ className?: string }> = ({ className = 'w-9 h-9' 
 );
 
 interface HeaderProps {
-  platform?: PlatformType;
+  platform?: PagePlatform;
 }
 
 export const Header: React.FC<HeaderProps> = ({ platform }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
 
-  const activePlatform: PlatformType | 'default' = (() => {
+  const activePlatform: PagePlatform = (() => {
     if (platform) return platform;
     if (pathname?.startsWith('/youtube')) return 'youtube';
     if (pathname?.startsWith('/instagram')) return 'instagram';
     if (pathname?.startsWith('/tiktok')) return 'tiktok';
-    if (pathname === '/' || pathname?.startsWith('/facebook')) return 'facebook';
-    return 'default';
+    if (pathname?.startsWith('/facebook')) return 'facebook';
+    return 'home';
   })();
 
-  const activeThemeClass =
-    activePlatform === 'default' ? 'theme-default' : PLATFORMS[activePlatform].themeClass;
+  const activeThemeClass = getPlatformConfig(activePlatform).themeClass;
 
-  // Sync browser tab SVG favicon cleanly on client-side navigation
+  // Sync browser tab SVG favicon cleanly on client-side navigation for platform pages
   useEffect(() => {
-    const faviconUrl =
-      activePlatform === 'default'
-        ? '/favicons/youtube.svg'
-        : PLATFORMS[activePlatform].faviconPath;
-
     let svgIconLink = document.getElementById('savevibe-tab-favicon') as HTMLLinkElement | null;
+
+    if (activePlatform === 'home') {
+      if (svgIconLink) {
+        svgIconLink.remove();
+      }
+      return;
+    }
+
+    const faviconUrl = PLATFORMS[activePlatform].faviconPath;
 
     if (!svgIconLink) {
       svgIconLink = document.createElement('link');
@@ -160,35 +164,41 @@ export const Header: React.FC<HeaderProps> = ({ platform }) => {
     },
   ];
 
-  // Slide-out Sidebar Items (Minimalist, Generic Monochrome Glyph Icons, No Subtext, No Arrows, Flat Borderless Style)
+  // Slide-out Sidebar Items
   const sidebarMenuItems = [
     {
+      id: 'home',
+      label: 'Home (All-in-One)',
+      path: '/',
+      icon: Home,
+    },
+    {
       id: 'facebook' as PlatformType,
-      label: 'Facebook',
+      label: 'Facebook Downloader',
       path: PLATFORMS.facebook.path,
       icon: Film,
     },
     {
       id: 'youtube' as PlatformType,
-      label: 'YouTube',
+      label: 'YouTube Downloader',
       path: PLATFORMS.youtube.path,
       icon: Play,
     },
     {
       id: 'instagram' as PlatformType,
-      label: 'Instagram',
+      label: 'Instagram Downloader',
       path: PLATFORMS.instagram.path,
       icon: Camera,
     },
     {
       id: 'tiktok' as PlatformType,
-      label: 'TikTok',
+      label: 'TikTok Downloader',
       path: PLATFORMS.tiktok.path,
       icon: Music,
     },
     {
       id: 'youtube-transcript',
-      label: 'YT Transcript',
+      label: 'YouTube Transcript',
       path: '/youtube-transcript',
       icon: FileText,
     },
@@ -206,7 +216,7 @@ export const Header: React.FC<HeaderProps> = ({ platform }) => {
             <BrandLogoSvg className="w-9 h-9 group-hover:scale-105" />
             <div className="flex flex-col">
               <span className="font-bold text-xl tracking-tight text-slate-900 leading-none group-hover:text-slate-800">
-                SaveVibe
+                Save Vibe
               </span>
               <span className="text-[10px] font-medium text-slate-500 leading-none mt-1">
                 Social Video Downloader
@@ -215,12 +225,9 @@ export const Header: React.FC<HeaderProps> = ({ platform }) => {
           </Link>
 
           {/* Desktop Quick Nav Links */}
-          <nav className="hidden md:flex items-center gap-1.5">
+          <nav aria-label="Primary Navigation" className="hidden md:flex items-center gap-1.5">
             {desktopMenuItems.map((item) => {
-              const isActive =
-                item.path === '/'
-                  ? pathname === '/' || pathname === ''
-                  : pathname === item.path;
+              const isActive = pathname === item.path;
               const Icon = item.icon;
               return (
                 <Link
@@ -267,16 +274,15 @@ export const Header: React.FC<HeaderProps> = ({ platform }) => {
               aria-hidden="true"
             />
 
-            {/* Left Side Slide-in Sidebar Panel (75% Width, Pristine #F9FAFB Off-White) */}
+            {/* Left Side Slide-in Sidebar Panel */}
             <motion.aside
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
               data-platform={activePlatform}
-              className={`relative w-[75vw] h-full bg-[#F9FAFB] text-slate-900 shadow-2xl flex flex-col z-50 border-r border-slate-200/60 overflow-y-auto ${activeThemeClass}`}
+              className={`relative w-[75vw] max-w-xs h-full bg-[#F9FAFB] text-slate-900 shadow-2xl flex flex-col z-50 border-r border-slate-200/60 overflow-y-auto ${activeThemeClass}`}
             >
-              {/* Minimalist Brand Header & Close Button */}
               <div className="p-4 border-b border-slate-200/50 flex items-center justify-between bg-[#F9FAFB]">
                 <Link
                   href="/"
@@ -286,7 +292,7 @@ export const Header: React.FC<HeaderProps> = ({ platform }) => {
                   <BrandLogoSvg className="w-7 h-7" />
                   <div className="flex flex-col">
                     <span className="font-extrabold text-base text-slate-900 leading-none font-sans tracking-tight">
-                      SaveVibe
+                      Save Vibe
                     </span>
                     <span className="text-[10px] font-medium text-slate-400 leading-none mt-1">
                       Social Video Downloader
@@ -304,7 +310,6 @@ export const Header: React.FC<HeaderProps> = ({ platform }) => {
                 </button>
               </div>
 
-              {/* Directly starts list right below logo header (No "SELECT DOWNLOADER" title, compact rows, no subtext, no arrows, flat style) */}
               <div className="flex-1 px-3 py-3 space-y-1">
                 {sidebarMenuItems.map((item) => {
                   const isActive =
@@ -318,7 +323,7 @@ export const Header: React.FC<HeaderProps> = ({ platform }) => {
                       key={item.id}
                       href={item.path}
                       onClick={() => setIsMenuOpen(false)}
-                      className={`w-full py-1.5 px-3 rounded-lg transition-colors duration-150 flex items-center gap-2.5 border-none shadow-none text-left ${
+                      className={`w-full py-2 px-3 rounded-lg transition-colors duration-150 flex items-center gap-2.5 border-none shadow-none text-left ${
                         isActive
                           ? 'bg-slate-200/60 font-bold text-slate-900'
                           : 'text-slate-800 hover:bg-slate-200/40'
@@ -333,9 +338,8 @@ export const Header: React.FC<HeaderProps> = ({ platform }) => {
                 })}
               </div>
 
-              {/* Sidebar Footer with Copyright Notice */}
               <div className="p-3 text-[10px] text-slate-400 text-center font-normal border-t border-slate-200/40">
-                © 2026 SaveVibe Downloader
+                © 2026 Save Vibe Downloader
               </div>
             </motion.aside>
           </div>
@@ -344,4 +348,3 @@ export const Header: React.FC<HeaderProps> = ({ platform }) => {
     </>
   );
 };
-

@@ -1,61 +1,61 @@
 import { MetadataRoute } from 'next';
 import { SITE_URL } from '@/lib/seo-data';
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  const lastModified = new Date();
+const LAST_MODIFIED = new Date('2026-11-23T00:00:00.000Z');
 
+export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
       url: `${SITE_URL}/`,
-      lastModified,
+      lastModified: LAST_MODIFIED,
       changeFrequency: 'daily',
       priority: 1.0,
     },
     {
       url: `${SITE_URL}/facebook`,
-      lastModified,
+      lastModified: LAST_MODIFIED,
       changeFrequency: 'daily',
       priority: 0.9,
     },
     {
       url: `${SITE_URL}/youtube`,
-      lastModified,
+      lastModified: LAST_MODIFIED,
       changeFrequency: 'daily',
       priority: 0.9,
     },
     {
       url: `${SITE_URL}/youtube-transcript`,
-      lastModified,
+      lastModified: LAST_MODIFIED,
       changeFrequency: 'daily',
       priority: 0.9,
     },
     {
       url: `${SITE_URL}/instagram`,
-      lastModified,
+      lastModified: LAST_MODIFIED,
       changeFrequency: 'daily',
       priority: 0.9,
     },
     {
       url: `${SITE_URL}/tiktok`,
-      lastModified,
+      lastModified: LAST_MODIFIED,
       changeFrequency: 'daily',
       priority: 0.9,
     },
     {
       url: `${SITE_URL}/privacy-policy`,
-      lastModified,
+      lastModified: LAST_MODIFIED,
       changeFrequency: 'monthly',
       priority: 0.5,
     },
     {
       url: `${SITE_URL}/terms-of-service`,
-      lastModified,
+      lastModified: LAST_MODIFIED,
       changeFrequency: 'monthly',
       priority: 0.5,
     },
     {
       url: `${SITE_URL}/dmca`,
-      lastModified,
+      lastModified: LAST_MODIFIED,
       changeFrequency: 'monthly',
       priority: 0.5,
     },

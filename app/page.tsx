@@ -3,10 +3,10 @@ import type { Metadata } from 'next';
 import { generatePageMetadata, generateJsonLdSchema } from '@/lib/seo-data';
 import { PlatformPageClient } from '@/components/PlatformPageClient';
 
-export const metadata: Metadata = generatePageMetadata('facebook', true);
+export const metadata: Metadata = generatePageMetadata('home');
 
 export default function HomePage() {
-  const schemas = generateJsonLdSchema('facebook', true);
+  const schemas = generateJsonLdSchema('home');
 
   return (
     <>
@@ -17,7 +17,7 @@ export default function HomePage() {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
         />
       ))}
-      <PlatformPageClient platform="facebook" />
+      <PlatformPageClient platform="home" />
     </>
   );
 }

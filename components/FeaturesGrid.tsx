@@ -2,8 +2,18 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Video, Zap, ShieldCheck, Facebook, Youtube, Instagram } from 'lucide-react';
-import { PLATFORMS, PlatformType } from '@/lib/platforms';
+import {
+  Video,
+  Zap,
+  ShieldCheck,
+  Facebook,
+  Youtube,
+  Instagram,
+  FileText,
+  CheckCircle2,
+} from 'lucide-react';
+import { PagePlatform, PlatformType, getPlatformConfig } from '@/lib/platforms';
+import { SEO_DATA } from '@/lib/seo-data';
 
 const TikTokIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -12,11 +22,11 @@ const TikTokIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' })
 );
 
 interface FeaturesGridProps {
-  platform?: PlatformType;
+  platform?: PagePlatform;
 }
 
-interface SuggestionOption {
-  id: PlatformType;
+interface ToolSuggestionOption {
+  id: PlatformType | 'youtube-transcript';
   title: string;
   path: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -25,11 +35,11 @@ interface SuggestionOption {
   btnStyle: string;
 }
 
-const ALL_SUGGESTIONS: SuggestionOption[] = [
+const ALL_TOOL_SUGGESTIONS: ToolSuggestionOption[] = [
   {
     id: 'facebook',
     title: 'Facebook Video Downloader',
-    path: '/',
+    path: '/facebook',
     icon: Facebook,
     iconColor: 'text-[#1877F2]',
     badgeBg: 'bg-[#1877F2]/10',
@@ -66,105 +76,140 @@ const ALL_SUGGESTIONS: SuggestionOption[] = [
     btnStyle:
       'bg-white text-slate-800 border-slate-200 hover:bg-slate-900 hover:text-white hover:border-slate-900 shadow-2xs hover:shadow-md',
   },
+  {
+    id: 'youtube-transcript',
+    title: 'YouTube Transcript Tool',
+    path: '/youtube-transcript',
+    icon: FileText,
+    iconColor: 'text-red-600',
+    badgeBg: 'bg-red-500/10',
+    btnStyle:
+      'bg-white text-slate-800 border-slate-200 hover:bg-red-600 hover:text-white hover:border-red-600 shadow-2xs hover:shadow-md',
+  },
 ];
 
-export const FeaturesGrid: React.FC<FeaturesGridProps> = ({ platform = 'facebook' }) => {
-  const platformConfig = PLATFORMS[platform] || PLATFORMS.facebook;
+export const FeaturesGrid: React.FC<FeaturesGridProps> = ({ platform = 'home' }) => {
+  const platformConfig = getPlatformConfig(platform);
+  const seoInfo = SEO_DATA[platform] || SEO_DATA.home;
+  const isHome = platform === 'home';
 
-  // Dynamically filter out current platform to leave the remaining 3 suggestions
-  const relatedSuggestions = ALL_SUGGESTIONS.filter((item) => item.id !== platform);
+  const relatedSuggestions = isHome
+    ? ALL_TOOL_SUGGESTIONS
+    : ALL_TOOL_SUGGESTIONS.filter((item) => item.id !== platform);
 
-  const features = [
-    {
-      icon: Video,
-      title: 'High Quality',
-      description: `Download crisp 1080p, 4K HD ${platformConfig.name} videos, reels, and high-bitrate MP3 audio without compression loss.`,
-      color: platformConfig.iconColor,
-      bgColor: platformConfig.featureIconBg,
-    },
-    {
-      icon: Zap,
-      title: 'Ultra Fast',
-      description: 'Blazing fast processing speed with direct high-speed CDN delivery for instant downloads.',
-      color: 'text-amber-500',
-      bgColor: 'bg-amber-500/10',
-    },
-    {
-      icon: ShieldCheck,
-      title: 'Secure Connection',
-      description: '100% Malware-Free, encrypted connections with total user privacy and zero data tracking.',
-      color: 'text-emerald-500',
-      bgColor: 'bg-emerald-500/10',
-    },
+  const featureIcons = [Video, Zap, ShieldCheck];
+  const featureStyles = [
+    { color: platformConfig.iconColor, bgColor: platformConfig.featureIconBg },
+    { color: 'text-amber-500', bgColor: 'bg-amber-500/10' },
+    { color: 'text-emerald-500', bgColor: 'bg-emerald-500/10' },
   ];
 
   return (
-    <section className="w-full max-w-5xl mx-auto px-4 py-12 border-t border-slate-200/80 my-6">
+    <section className="w-full max-w-5xl mx-auto px-4 py-12 border-t border-slate-200/80 my-6 space-y-12">
       {/* Title & Subtitle */}
-      <div className="text-center mb-6 space-y-1.5">
-        <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
-          Why Choose SaveVibe {platformConfig.name} Downloader
-        </h2>
-        <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
-          Built with high-performance infrastructure for seamless {platformConfig.name} media downloads
-        </p>
-      </div>
-
-      {/* Dynamic Related Suggestions Section (Placed between heading and "High Quality" card section) */}
-      <div className="mb-10 max-w-3xl mx-auto">
-        <div className="flex items-center justify-center gap-2 mb-3.5">
-          <span className="h-px bg-slate-200/80 flex-1 max-w-[50px] sm:max-w-[90px]" />
-          <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider text-center px-1">
-            Dynamic Related Suggestions
-          </span>
-          <span className="h-px bg-slate-200/80 flex-1 max-w-[50px] sm:max-w-[90px]" />
+      <div>
+        <div className="text-center mb-6 space-y-1.5">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+            {isHome
+              ? 'Why Choose Save Vibe Video Downloader'
+              : `Why Choose Save Vibe ${platformConfig.name} Downloader`}
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-500 max-w-lg mx-auto">
+            {seoInfo.featuresSubtitle}
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {relatedSuggestions.map((item) => {
-            const IconComponent = item.icon;
-            return (
-              <Link
-                key={item.id}
-                href={item.path}
-                className={`group relative flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 ${item.btnStyle}`}
-              >
-                <div
-                  className={`p-2 rounded-lg ${item.badgeBg} group-hover:bg-white/20 transition-colors shrink-0 flex items-center justify-center`}
+        {/* Dedicated Tools Internal Cross-Linking */}
+        <div className="mb-10 max-w-4xl mx-auto">
+          <div className="flex items-center justify-center gap-2 mb-3.5">
+            <span className="h-px bg-slate-200/80 flex-1 max-w-[50px] sm:max-w-[90px]" />
+            <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider text-center px-1">
+              {isHome ? 'Supported Platform Downloaders' : 'Explore More Save Vibe Tools'}
+            </span>
+            <span className="h-px bg-slate-200/80 flex-1 max-w-[50px] sm:max-w-[90px]" />
+          </div>
+
+          <div
+            className={`grid grid-cols-1 sm:grid-cols-2 ${
+              relatedSuggestions.length >= 5 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'
+            } gap-3`}
+          >
+            {relatedSuggestions.map((item) => {
+              const IconComponent = item.icon;
+              return (
+                <Link
+                  key={item.id}
+                  href={item.path}
+                  className={`group relative flex items-center gap-2.5 p-3 rounded-xl border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 ${item.btnStyle}`}
                 >
-                  <IconComponent className={`w-4 h-4 ${item.iconColor} group-hover:text-white transition-colors`} />
+                  <div
+                    className={`p-2 rounded-lg ${item.badgeBg} group-hover:bg-white/20 transition-colors shrink-0 flex items-center justify-center`}
+                  >
+                    <IconComponent
+                      className={`w-4 h-4 ${item.iconColor} group-hover:text-white transition-colors`}
+                    />
+                  </div>
+                  <span className="text-xs font-bold leading-tight truncate group-hover:text-white transition-colors">
+                    {item.title}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Platform-Specific 3 Feature Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {seoInfo.features.map((feature, idx) => {
+            const IconComponent = featureIcons[idx] || Video;
+            const style = featureStyles[idx] || featureStyles[0];
+            return (
+              <div
+                key={idx}
+                className="p-6 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col items-center text-center space-y-3"
+              >
+                <div className={`p-3 rounded-xl ${style.bgColor} ${style.color}`}>
+                  <IconComponent className="w-6 h-6" />
                 </div>
-                <span className="text-xs font-bold leading-tight truncate group-hover:text-white transition-colors">
-                  {item.title}
-                </span>
-              </Link>
+                <h3 className="text-base font-bold text-slate-900">{feature.title}</h3>
+                <p className="text-xs text-slate-600 leading-relaxed">{feature.description}</p>
+              </div>
             );
           })}
         </div>
       </div>
 
-      {/* High Quality & Core Features Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {features.map((feature, idx) => {
-          const IconComponent = feature.icon;
-          return (
-            <div
-              key={idx}
-              className="p-6 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col items-center text-center space-y-3"
-            >
-              <div className={`p-3 rounded-xl ${feature.bgColor} ${feature.color}`}>
-                <IconComponent className="w-6 h-6" />
-              </div>
-              <h3 className="text-base font-bold text-slate-900">
-                {feature.title}
-              </h3>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                {feature.description}
-              </p>
-            </div>
-          );
-        })}
-      </div>
+      {/* Rich Platform Guide & Supported Formats Section (Eliminates Thin Content) */}
+      <article className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs p-6 sm:p-8 space-y-5">
+        <div className="space-y-2">
+          <span className="inline-block text-[11px] font-bold uppercase tracking-wider text-[#1877F2] bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-md">
+            {seoInfo.guideBadge}
+          </span>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+            {seoInfo.guideTitle}
+          </h2>
+        </div>
+
+        <div className="space-y-3.5 text-sm text-slate-600 leading-relaxed">
+          {seoInfo.guideParagraphs.map((paragraph, pIdx) => (
+            <p key={pIdx}>{paragraph}</p>
+          ))}
+        </div>
+
+        <div className="pt-2 border-t border-slate-100">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-3">
+            Supported Links, Resolutions &amp; Formats
+          </h3>
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {seoInfo.supportedFormats.map((fmt, fIdx) => (
+              <li key={fIdx} className="flex items-start gap-2 text-xs text-slate-600">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                <span>{fmt}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </article>
     </section>
   );
 };

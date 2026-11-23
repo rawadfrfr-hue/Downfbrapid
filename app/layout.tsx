@@ -1,8 +1,7 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
-import { SITE_URL } from '@/lib/seo-data';
-import NetlifyBadgeRemover from '@/components/NetlifyBadgeRemover';
+import { SITE_URL, OG_IMAGE_URL, getMetadataBase } from '@/lib/seo-data';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -20,14 +19,20 @@ const SEARCH_LOGO_96 = '/favicons/search-logo-96.png';
 const SEARCH_LOGO_192 = '/favicons/search-logo-192.png';
 const SEARCH_LOGO_APPLE = '/favicons/apple-touch-icon.png';
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#1877F2',
+};
+
 export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
+  metadataBase: getMetadataBase(),
   title: {
-    default: 'SaveVibe - Fast & Secure Social Media Video Downloader',
-    template: '%s | SaveVibe',
+    default: 'Save Vibe - Free Social Media Video Downloader Online',
+    template: '%s | Save Vibe',
   },
   description:
-    'Effortlessly download public Facebook, YouTube, Instagram, and TikTok videos without watermark in HD MP4 or MP3 with SaveVibe.',
+    'Download Facebook, YouTube, Instagram, and TikTok videos free in HD MP4 or MP3 with Save Vibe. Fast, secure, ad-free, and no login required.',
   icons: {
     icon: [
       { url: SEARCH_LOGO_96, sizes: '96x96', type: 'image/png' },
@@ -37,56 +42,39 @@ export const metadata: Metadata = {
     apple: SEARCH_LOGO_APPLE,
   },
   openGraph: {
-    title: 'SaveVibe - Fast & Secure Social Media Video Downloader',
+    title: 'Save Vibe - Free Social Media Video Downloader Online',
     description:
-      'Effortlessly download public Facebook, YouTube, Instagram, and TikTok videos without watermark in HD MP4 or MP3 with SaveVibe.',
+      'Download Facebook, YouTube, Instagram, and TikTok videos free in HD MP4 or MP3 with Save Vibe. Fast, secure, ad-free, and no login required.',
     type: 'website',
-    siteName: 'SaveVibe',
+    siteName: 'Save Vibe',
     url: SITE_URL,
+    images: [
+      {
+        url: OG_IMAGE_URL,
+        width: 1200,
+        height: 630,
+        alt: 'Save Vibe - Free Social Media Video Downloader',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'SaveVibe - Fast & Secure Social Media Video Downloader',
+    title: 'Save Vibe - Free Social Media Video Downloader Online',
     description:
-      'Effortlessly download public Facebook, YouTube, Instagram, and TikTok videos without watermark in HD MP4 or MP3 with SaveVibe.',
+      'Download Facebook, YouTube, Instagram, and TikTok videos free in HD MP4 or MP3 with Save Vibe. Fast, secure, ad-free, and no login required.',
+    images: [OG_IMAGE_URL],
   },
 };
-
-const EARLY_ANTI_NETLIFY_SCRIPT = `
-(function() {
-  if (typeof window === 'undefined') return;
-  try {
-    var origAttachShadow = Element.prototype.attachShadow;
-    if (origAttachShadow && !origAttachShadow.__patched) {
-      Element.prototype.attachShadow = function(init) {
-        var res = origAttachShadow.call(this, init);
-        try {
-          var st = document.createElement('style');
-          st.textContent = ':host, :host * { display: none !important; opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; width: 0 !important; height: 0 !important; }';
-          res.appendChild(st);
-        } catch(e){}
-        return res;
-      };
-      Element.prototype.attachShadow.__patched = true;
-    }
-  } catch(e){}
-})();
-`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: EARLY_ANTI_NETLIFY_SCRIPT }} />
-      </head>
       <body
         className="font-sans antialiased bg-[#F8FAFC] text-slate-900 selection:bg-[#1877F2]/20 selection:text-[#1877F2]"
         suppressHydrationWarning
       >
-        <NetlifyBadgeRemover />
         {children}
       </body>
     </html>
   );
 }
-

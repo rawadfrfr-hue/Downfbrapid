@@ -3,17 +3,15 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
-import { SITE_URL } from '@/lib/seo-data';
+import { generateLegalMetadata } from '@/lib/seo-data';
 import { FileText, ArrowLeft } from 'lucide-react';
 
-export const metadata: Metadata = {
-  title: 'Terms of Service - SaveVibe Downloader',
+export const metadata: Metadata = generateLegalMetadata({
+  title: 'Terms of Service - Save Vibe Online Video Downloader',
   description:
-    'Terms of Service and user guidelines for SaveVibe Social Media Downloader. Read about fair use, non-commercial personal archiving, and service rules.',
-  alternates: {
-    canonical: `${SITE_URL}/terms-of-service`,
-  },
-};
+    'Read Save Vibe Terms of Service for authorized personal archiving, copyright compliance, fair use rules, and online video downloader usage terms.',
+  path: '/terms-of-service',
+});
 
 export default function TermsOfServicePage() {
   return (
@@ -37,38 +35,63 @@ export default function TermsOfServicePage() {
                 Terms of Service
               </h1>
               <p className="text-xs text-slate-500 mt-1">
-                Last updated: November 1, 2026 • SaveVibe Downloader
+                Last updated: November 23, 2026 • Save Vibe (savevibe.bond)
               </p>
             </div>
           </div>
 
           <div className="space-y-4 text-sm text-slate-600 leading-relaxed">
             <p>
-              Welcome to <strong>SaveVibe</strong>. By accessing or using our online media utility, you agree to be bound by these Terms of Service. Please read them carefully.
+              Welcome to <strong>Save Vibe</strong> (accessible at{' '}
+              <strong>https://savevibe.bond</strong>). By accessing or using our online media utility, you agree to be bound by these Terms of Service. Please read them carefully before using any downloader or transcript tool.
             </p>
 
-            <h2 className="text-lg font-bold text-slate-900 pt-2">1. Authorized Non-Commercial Personal Use</h2>
+            <h2 className="text-lg font-bold text-slate-900 pt-2">
+              1. Authorized Non-Commercial Personal Use
+            </h2>
             <p>
-              SaveVibe is provided strictly for non-commercial, personal archiving of public media content. Users must ensure that they have explicit rights or permissions from original content creators before downloading and using saved material.
+              Save Vibe is provided strictly for non-commercial, personal archiving of publicly available media content. Users must ensure that they own the content or have explicit permission from original creators and rights holders before downloading or using any saved media.
             </p>
 
-            <h2 className="text-lg font-bold text-slate-900 pt-2">2. Copyright Compliance & Limitations</h2>
+            <h2 className="text-lg font-bold text-slate-900 pt-2">
+              2. Copyright Compliance &amp; Platform Limitations
+            </h2>
             <p>
-              SaveVibe does not host, store, or re-publish copyrighted media on its servers. Our platform functions solely as an online link parser and direct CDN stream connector for publicly accessible content.
+              Save Vibe does not host, cache, store, or re-publish copyrighted videos on its servers. Our platform acts solely as a technical link parser and direct CDN stream connector for publicly accessible URLs.
             </p>
             <ul className="list-disc pl-5 space-y-1 text-slate-600">
               <li>Users are prohibited from redistributing, selling, or commercializing downloaded media.</li>
-              <li>SaveVibe reserves the right to rate-limit or restrict abusive requests.</li>
+              <li>Automated scraping, abusive traffic, or bypassing private access controls is strictly prohibited.</li>
+              <li>Save Vibe reserves the right to rate-limit or restrict abusive requests at any time.</li>
             </ul>
 
-            <h2 className="text-lg font-bold text-slate-900 pt-2">3. Disclaimer of Warranties</h2>
+            <h2 className="text-lg font-bold text-slate-900 pt-2">
+              3. Disclaimer of Warranties
+            </h2>
             <p>
-              The service is provided on an &quot;AS IS&quot; and &quot;AS AVAILABLE&quot; basis without warranties of any kind. We do not guarantee uninterrupted service or compatibility with all third-party media URLs.
+              The service is provided on an &quot;AS IS&quot; and &quot;AS AVAILABLE&quot; basis without warranties of any kind. We do not guarantee uninterrupted uptime or compatibility with all third-party social media URLs.
             </p>
 
-            <h2 className="text-lg font-bold text-slate-900 pt-2">4. Changes to Terms</h2>
+            <h2 className="text-lg font-bold text-slate-900 pt-2">
+              4. Related Policies &amp; Contact
+            </h2>
             <p>
-              We reserve the right to update these terms at any time. Continued use of SaveVibe constitutes acceptance of revised terms.
+              Please also review our{' '}
+              <Link href="/privacy-policy" className="text-[#1877F2] font-semibold hover:underline">
+                Privacy Policy
+              </Link>{' '}
+              and{' '}
+              <Link href="/dmca" className="text-[#1877F2] font-semibold hover:underline">
+                DMCA &amp; Copyright Policy
+              </Link>
+              . For legal or support inquiries, email us at{' '}
+              <a
+                href="mailto:support@savevibe.bond"
+                className="text-[#1877F2] font-semibold hover:underline"
+              >
+                support@savevibe.bond
+              </a>
+              .
             </p>
           </div>
         </div>

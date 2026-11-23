@@ -12,7 +12,7 @@ import {
   ExternalLink,
   AlertCircle,
 } from 'lucide-react';
-import { PLATFORMS, PlatformType } from '@/lib/platforms';
+import { PLATFORMS, PagePlatform, PlatformType } from '@/lib/platforms';
 import { mergeVideoAndAudioInBrowser, MergeProgress } from '@/lib/client-ffmpeg';
 
 export interface QualityItem {
@@ -88,7 +88,7 @@ interface DownloadOption {
 
 interface ResultCardProps {
   data: VideoData;
-  platform?: PlatformType;
+  platform?: PagePlatform;
   onReset: () => void;
   onRecordDownload: (quality: string) => void;
 }
@@ -138,7 +138,14 @@ export const ResultCard: React.FC<ResultCardProps> = ({
   onReset,
   onRecordDownload,
 }) => {
-  const platformConfig = PLATFORMS[platform] || PLATFORMS.facebook;
+  const detectedFromData = data.platform?.toLowerCase() as PlatformType | undefined;
+  const resolvedPlatform: PlatformType =
+    detectedFromData && detectedFromData in PLATFORMS
+      ? detectedFromData
+      : platform !== 'home'
+      ? platform
+      : 'facebook';
+  const platformConfig = PLATFORMS[resolvedPlatform] || PLATFORMS.facebook;
   const [copiedLink, setCopiedLink] = useState(false);
   const [downloadingType, setDownloadingType] = useState<string | null>(null);
   const [mergeProgress, setMergeProgress] = useState<MergeProgress | null>(null);
