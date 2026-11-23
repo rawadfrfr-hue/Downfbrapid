@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { PlatformType } from './platforms';
+import { PLATFORMS, PlatformType } from './platforms';
 
 export const SITE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL ||
@@ -185,6 +185,7 @@ export function generatePageMetadata(platform: PlatformType, isHome: boolean = f
   const data = SEO_DATA[platform];
   const canonicalUrl = isHome ? `${SITE_URL}/` : data.canonicalUrl;
   const pageTitle = isHome ? 'SaveVibe - Fast & Secure Social Media Video Downloader' : data.title;
+  const platformConfig = PLATFORMS[platform];
 
   return {
     title: pageTitle,
@@ -193,6 +194,24 @@ export function generatePageMetadata(platform: PlatformType, isHome: boolean = f
     alternates: {
       canonical: canonicalUrl,
     },
+    icons: isHome
+      ? {
+          icon: [
+            { url: '/favicons/search-logo-96.png', sizes: '96x96', type: 'image/png' },
+            { url: '/favicons/search-logo-192.png', sizes: '192x192', type: 'image/png' },
+          ],
+          shortcut: '/favicon.ico',
+          apple: '/favicons/apple-touch-icon.png',
+        }
+      : {
+          icon: [
+            { url: platformConfig.faviconPath, type: 'image/svg+xml' },
+            { url: '/favicons/search-logo-96.png', sizes: '96x96', type: 'image/png' },
+            { url: '/favicons/search-logo-192.png', sizes: '192x192', type: 'image/png' },
+          ],
+          shortcut: '/favicon.ico',
+          apple: '/favicons/apple-touch-icon.png',
+        },
     openGraph: {
       title: data.ogTitle,
       description: data.ogDescription,
@@ -201,9 +220,9 @@ export function generatePageMetadata(platform: PlatformType, isHome: boolean = f
       type: 'website',
       images: [
         {
-          url: `${SITE_URL}/assets/aistudio/logoosavevibe_afe0d13c.svg`,
-          width: 1200,
-          height: 630,
+          url: `${SITE_URL}/favicons/search-logo-512.png`,
+          width: 512,
+          height: 512,
           alt: `SaveVibe ${platform} Video Downloader`,
         },
       ],
@@ -212,7 +231,7 @@ export function generatePageMetadata(platform: PlatformType, isHome: boolean = f
       card: 'summary_large_image',
       title: data.ogTitle,
       description: data.ogDescription,
-      images: [`${SITE_URL}/assets/aistudio/logoosavevibe_afe0d13c.svg`],
+      images: [`${SITE_URL}/favicons/search-logo-512.png`],
     },
     robots: {
       index: true,

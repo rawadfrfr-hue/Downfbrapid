@@ -10,6 +10,15 @@ export const metadata: Metadata = {
   alternates: {
     canonical: `${SITE_URL}/youtube-transcript`,
   },
+  icons: {
+    icon: [
+      { url: '/favicons/youtube.svg', type: 'image/svg+xml' },
+      { url: '/favicons/search-logo-96.png', sizes: '96x96', type: 'image/png' },
+      { url: '/favicons/search-logo-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: '/favicons/apple-touch-icon.png',
+  },
   openGraph: {
     title: 'YouTube Transcript Downloader - SaveVibe',
     description:

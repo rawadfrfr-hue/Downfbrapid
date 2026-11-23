@@ -17,6 +17,7 @@ export interface PlatformConfig {
   selectionClass: string;
   accentGlow: string;
   themeClass: string;
+  faviconPath: string;
 }
 
 export const PLATFORMS: Record<PlatformType, PlatformConfig> = {
@@ -39,6 +40,7 @@ export const PLATFORMS: Record<PlatformType, PlatformConfig> = {
     selectionClass: 'selection:bg-[#1877F2]/20 selection:text-[#1877F2]',
     accentGlow: 'rgba(24, 119, 242, 0.15)',
     themeClass: 'theme-facebook',
+    faviconPath: '/favicons/facebook.svg',
   },
   youtube: {
     id: 'youtube',
@@ -59,6 +61,7 @@ export const PLATFORMS: Record<PlatformType, PlatformConfig> = {
     selectionClass: 'selection:bg-red-500/20 selection:text-red-600',
     accentGlow: 'rgba(255, 0, 0, 0.15)',
     themeClass: 'theme-youtube',
+    faviconPath: '/favicons/youtube.svg',
   },
   instagram: {
     id: 'instagram',
@@ -79,6 +82,7 @@ export const PLATFORMS: Record<PlatformType, PlatformConfig> = {
     selectionClass: 'selection:bg-pink-500/20 selection:text-[#E1306C]',
     accentGlow: 'rgba(225, 48, 108, 0.15)',
     themeClass: 'theme-instagram',
+    faviconPath: '/favicons/instagram.svg',
   },
   tiktok: {
     id: 'tiktok',
@@ -99,5 +103,6 @@ export const PLATFORMS: Record<PlatformType, PlatformConfig> = {
     selectionClass: 'selection:bg-slate-900/20 selection:text-slate-900',
     accentGlow: 'rgba(0, 0, 0, 0.15)',
     themeClass: 'theme-tiktok',
+    faviconPath: '/favicons/tiktok.svg',
   },
 };

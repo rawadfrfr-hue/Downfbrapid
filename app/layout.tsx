@@ -16,7 +16,9 @@ const jetbrainsMono = JetBrains_Mono({
   display: 'swap',
 });
 
-const LOGO_FAVICON_URL = '/assets/aistudio/logoosavevibe_afe0d13c.svg';
+const SEARCH_LOGO_96 = '/favicons/search-logo-96.png';
+const SEARCH_LOGO_192 = '/favicons/search-logo-192.png';
+const SEARCH_LOGO_APPLE = '/favicons/apple-touch-icon.png';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -27,9 +29,12 @@ export const metadata: Metadata = {
   description:
     'Effortlessly download public Facebook, YouTube, Instagram, and TikTok videos without watermark in HD MP4 or MP3 with SaveVibe.',
   icons: {
-    icon: LOGO_FAVICON_URL,
-    shortcut: LOGO_FAVICON_URL,
-    apple: LOGO_FAVICON_URL,
+    icon: [
+      { url: SEARCH_LOGO_96, sizes: '96x96', type: 'image/png' },
+      { url: SEARCH_LOGO_192, sizes: '192x192', type: 'image/png' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: SEARCH_LOGO_APPLE,
   },
   openGraph: {
     title: 'SaveVibe - Fast & Secure Social Media Video Downloader',
@@ -72,7 +77,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <head>
-        <link rel="icon" href={LOGO_FAVICON_URL} type="image/svg+xml" />
         <script dangerouslySetInnerHTML={{ __html: EARLY_ANTI_NETLIFY_SCRIPT }} />
       </head>
       <body

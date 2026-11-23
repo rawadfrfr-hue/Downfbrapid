@@ -58,6 +58,29 @@ export const Header: React.FC<HeaderProps> = ({ platform }) => {
   const activeThemeClass =
     activePlatform === 'default' ? 'theme-default' : PLATFORMS[activePlatform].themeClass;
 
+  // Sync browser tab SVG favicon cleanly on client-side navigation
+  useEffect(() => {
+    const faviconUrl =
+      activePlatform === 'default'
+        ? '/favicons/youtube.svg'
+        : PLATFORMS[activePlatform].faviconPath;
+
+    let svgIconLink = document.getElementById('savevibe-tab-favicon') as HTMLLinkElement | null;
+
+    if (!svgIconLink) {
+      svgIconLink = document.createElement('link');
+      svgIconLink.id = 'savevibe-tab-favicon';
+      svgIconLink.rel = 'icon';
+      svgIconLink.type = 'image/svg+xml';
+      svgIconLink.setAttribute('sizes', 'any');
+      document.head.prepend(svgIconLink);
+    }
+
+    if (svgIconLink.getAttribute('href') !== faviconUrl) {
+      svgIconLink.setAttribute('href', faviconUrl);
+    }
+  }, [activePlatform]);
+
   // Reset menu on route change
   const [prevPathname, setPrevPathname] = useState(pathname);
   if (pathname !== prevPathname) {
