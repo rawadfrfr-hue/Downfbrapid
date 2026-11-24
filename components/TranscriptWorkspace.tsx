@@ -37,14 +37,17 @@ import {
   hasNonAsciiCharacters,
   transliterateSegmentsClientSide,
 } from '@/lib/client-transliterate';
+import type { Locale } from '@/lib/i18n';
 
 const SAMPLE_VIDEOS = [
   {
     label: '3Blue1Brown: Neural Networks',
+    bnLabel: '3Blue1Brown: নিউরাল নেটওয়ার্ক',
     url: 'https://www.youtube.com/watch?v=aircAruvnKk',
   },
   {
     label: 'TED: How Great Leaders Inspire Action',
+    bnLabel: 'TED: নেতৃত্বের অনুপ্রেরণা',
     url: 'https://www.youtube.com/watch?v=qp0HIF3SfI4',
   },
 ];
@@ -53,42 +56,54 @@ const EXPORT_FORMATS: Array<{
   format: TranscriptExportFormat;
   ext: string;
   label: string;
+  bnLabel: string;
   description: string;
+  bnDescription: string;
   icon: React.ComponentType<{ className?: string }>;
 }> = [
   {
     format: 'txt',
     ext: '.txt',
     label: 'Plain Text',
+    bnLabel: 'প্লেইন টেক্সট',
     description: 'Clean readable text lines',
+    bnDescription: 'সহজে পড়ার উপযোগী পরিষ্কার টেক্সট',
     icon: FileText,
   },
   {
     format: 'srt',
     ext: '.srt',
     label: 'SubRip Subtitle',
+    bnLabel: 'SubRip সাবটাইটেল',
     description: 'Standard video editor format',
+    bnDescription: 'ভিডিও এডিটিং সফটওয়্যারের ফরম্যাট',
     icon: Subtitles,
   },
   {
     format: 'vtt',
     ext: '.vtt',
     label: 'WebVTT Caption',
+    bnLabel: 'WebVTT ক্যাপশন',
     description: 'HTML5 web player subtitles',
+    bnDescription: 'ওয়েব প্লেয়ার সাবটাইটেল ফরম্যাট',
     icon: FileCode2,
   },
   {
     format: 'pdf',
     ext: '.pdf',
     label: 'PDF Document',
+    bnLabel: 'PDF ডকুমেন্ট',
     description: 'Formatted printable transcript',
+    bnDescription: 'প্রিন্ট ও সংরক্ষণের উপযোগী PDF',
     icon: FileText,
   },
   {
     format: 'csv',
     ext: '.csv',
     label: 'Spreadsheet CSV',
+    bnLabel: 'স্প্রেডশিট CSV',
     description: 'Timeline & text columns for Excel',
+    bnDescription: 'এক্সেলের জন্য সময় ও টেক্সট টেবিল',
     icon: FileSpreadsheet,
   },
 ];
@@ -97,7 +112,12 @@ function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-export const TranscriptWorkspace: React.FC = () => {
+interface TranscriptWorkspaceProps {
+  locale?: Locale;
+}
+
+export const TranscriptWorkspace: React.FC<TranscriptWorkspaceProps> = ({ locale = 'en' }) => {
+  const isBn = locale === 'bn';
   const [url, setUrl] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -192,7 +212,11 @@ export const TranscriptWorkspace: React.FC = () => {
   const handleExtract = async (overrideUrl?: string, lang?: string) => {
     const targetUrl = (overrideUrl ?? url).trim();
     if (!targetUrl) {
-      setErrorMessage('Please paste a valid YouTube video or Shorts URL.');
+      setErrorMessage(
+        isBn
+          ? 'অনুগ্রহ করে একটি সঠিক ইউটিউব ভিডিও বা শর্টসের লিংক পেস্ট করুন।'
+          : 'Please paste a valid YouTube video or Shorts URL.'
+      );
       inputRef.current?.focus();
       return;
     }
@@ -225,7 +249,9 @@ export const TranscriptWorkspace: React.FC = () => {
       const json = await res.json();
       if (!res.ok || !json?.success || !json?.data) {
         throw new Error(
-          json?.error || 'Could not extract transcript for this YouTube video.'
+          isBn
+            ? 'এই ইউটিউব ভিডিওটির ট্রান্সক্রিপ্ট পাওয়া যায়নি। ভিডিওটিতে সাবটাইটেল বা অটো-ক্যাপশন আছে কি না যাচাই করুন।'
+            : json?.error || 'Could not extract transcript for this YouTube video.'
         );
       }
 
@@ -234,8 +260,13 @@ export const TranscriptWorkspace: React.FC = () => {
       setSearchQuery('');
       setActiveMatchCursor(0);
     } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : 'Failed to extract YouTube transcript.';
+      const msg = isBn
+        ? err instanceof Error && /[\u0980-\u09FF]/.test(err.message)
+          ? err.message
+          : 'ইউটিউব ট্রান্সক্রিপ্ট সংগ্রহ করা যায়নি। অনুগ্রহ করে লিংকটি যাচাই করে আবার চেষ্টা করুন।'
+        : err instanceof Error
+        ? err.message
+        : 'Failed to extract YouTube transcript.';
       setErrorMessage(msg);
       if (!lang) {
         setStatus('error');
@@ -268,7 +299,9 @@ export const TranscriptWorkspace: React.FC = () => {
     if (!needsTranslit) {
       setIsTransliterated(false);
       setTransliterationNotice(
-        'This transcript is already in English letters. Translate to a non-Latin language first to transliterate.'
+        isBn
+          ? 'এই ট্রান্সক্রিপ্টটি ইতিমধ্যেই ইংরেজি অক্ষরে রয়েছে। রূপান্তর করতে আগে বাংলা বা অন্য অ-ল্যাটিন ভাষায় অনুবাদ করুন।'
+          : 'This transcript is already in English letters. Translate to a non-Latin language first to transliterate.'
       );
       return;
     }
@@ -295,7 +328,11 @@ export const TranscriptWorkspace: React.FC = () => {
       }));
       setIsTransliterated(true);
     } catch {
-      setTransliterationNotice('Could not transliterate in this browser session.');
+      setTransliterationNotice(
+        isBn
+          ? 'এই ব্রাউজার সেশনে অক্ষর রূপান্তর করা যায়নি।'
+          : 'Could not transliterate in this browser session.'
+      );
       setIsTransliterated(false);
     } finally {
       setIsTransliterating(false);
@@ -377,7 +414,11 @@ export const TranscriptWorkspace: React.FC = () => {
         }
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Translation request failed.';
+      const msg = isBn
+        ? 'ট্রান্সক্রিপ্ট অনুবাদ করা যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন।'
+        : err instanceof Error
+        ? err.message
+        : 'Translation request failed.';
       setTranslateError(msg);
     } finally {
       setIsTranslating(false);
@@ -576,10 +617,12 @@ export const TranscriptWorkspace: React.FC = () => {
       {/* Minimal SaaS Header */}
       <div className="text-center space-y-2.5 mb-8">
         <h1 className="text-2xl sm:text-4xl font-bold text-[#0F0F0F] tracking-tight leading-tight text-balance">
-          YouTube Transcript Downloader
+          {isBn ? 'ইউটিউব ট্রান্সক্রিপ্ট ডাউনলোডার' : 'YouTube Transcript Downloader'}
         </h1>
         <p className="max-w-xl mx-auto text-sm sm:text-[15px] text-[#606060] leading-relaxed">
-          Extract, translate, search, and export YouTube captions in clean text, subtitles, or PDF.
+          {isBn
+            ? 'যেকোনো ইউটিউব ভিডিওর কথা ও সাবটাইটেল বের করুন, বাংলাসহ ৪০+ ভাষায় অনুবাদ করুন এবং TXT, SRT, VTT বা PDF হিসেবে সেভ করুন।'
+            : 'Extract, translate, search, and export YouTube captions in clean text, subtitles, or PDF.'}
         </p>
       </div>
 
@@ -601,8 +644,12 @@ export const TranscriptWorkspace: React.FC = () => {
                   handleExtract();
                 }
               }}
-              placeholder="Paste YouTube video or Shorts URL..."
-              aria-label="YouTube Video URL"
+              placeholder={
+                isBn
+                  ? 'ইউটিউব ভিডিও বা শর্টস লিংক পেস্ট করুন...'
+                  : 'Paste YouTube video or Shorts URL...'
+              }
+              aria-label={isBn ? 'ইউটিউব ভিডিও লিংক' : 'YouTube Video URL'}
               className="w-full h-full pl-3.5 pr-24 bg-transparent text-[#0F0F0F] placeholder:text-[#606060]/70 text-sm rounded-[8px] focus:outline-none"
             />
 
@@ -611,7 +658,7 @@ export const TranscriptWorkspace: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleClearInput}
-                  aria-label="Clear URL"
+                  aria-label={isBn ? 'লিংক মুছে ফেলুন' : 'Clear URL'}
                   className="p-1.5 rounded-[6px] text-[#606060] hover:text-[#0F0F0F] hover:bg-[#F2F2F2] transition-colors"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -621,11 +668,11 @@ export const TranscriptWorkspace: React.FC = () => {
               <button
                 type="button"
                 onClick={handlePaste}
-                aria-label="Paste URL from clipboard"
+                aria-label={isBn ? 'ক্লিপবোর্ড থেকে পেস্ট করুন' : 'Paste URL from clipboard'}
                 className="h-[32px] px-2.5 rounded-[6px] bg-[#F2F2F2] hover:bg-[#E5E5E5] text-[#0F0F0F] font-medium text-xs transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0"
               >
                 <Clipboard className="w-3.5 h-3.5 text-[#606060]" />
-                <span>Paste</span>
+                <span>{isBn ? 'পেস্ট করুন' : 'Paste'}</span>
               </button>
             </div>
           </div>
@@ -639,10 +686,10 @@ export const TranscriptWorkspace: React.FC = () => {
             {status === 'loading' ? (
               <>
                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0" />
-                <span>Extracting...</span>
+                <span>{isBn ? 'ট্রান্সক্রিপ্ট আনা হচ্ছে...' : 'Extracting...'}</span>
               </>
             ) : (
-              <span>Extract Transcript</span>
+              <span>{isBn ? 'ট্রান্সক্রিপ্ট বের করুন' : 'Extract Transcript'}</span>
             )}
           </button>
         </div>
@@ -650,7 +697,7 @@ export const TranscriptWorkspace: React.FC = () => {
         {/* Example Videos (visible when idle/error) */}
         {status !== 'success' && (
           <div className="flex items-center justify-center flex-wrap gap-x-4 gap-y-1.5 pt-1 text-xs text-[#606060]">
-            <span>Try an example:</span>
+            <span>{isBn ? 'উদাহরণ ভিডিও দেখুন:' : 'Try an example:'}</span>
             {SAMPLE_VIDEOS.map((sample) => (
               <button
                 key={sample.url}
@@ -659,7 +706,7 @@ export const TranscriptWorkspace: React.FC = () => {
                 disabled={status === 'loading'}
                 className="text-[#0F0F0F] hover:text-[#FF0000] underline underline-offset-4 decoration-[#E5E5E5] hover:decoration-[#FF0000] transition-colors font-medium"
               >
-                {sample.label}
+                {isBn ? sample.bnLabel : sample.label}
               </button>
             ))}
           </div>
@@ -770,7 +817,7 @@ export const TranscriptWorkspace: React.FC = () => {
                 <div className="relative">
                   <select
                     id="transcript-lang"
-                    aria-label="Source language"
+                    aria-label={isBn ? 'মূল ভাষা' : 'Source language'}
                     value={result.language}
                     disabled={
                       result.availableLanguages.length === 0 ||
@@ -783,13 +830,15 @@ export const TranscriptWorkspace: React.FC = () => {
                     {result.availableLanguages.length > 0 ? (
                       result.availableLanguages.map((lang) => (
                         <option key={lang.code} value={lang.code}>
-                          Source: {lang.name}
-                          {lang.isAutoGenerated ? ' (Auto)' : ''}
+                          {isBn ? 'মূল: ' : 'Source: '}
+                          {lang.name}
+                          {lang.isAutoGenerated ? (isBn ? ' (অটো)' : ' (Auto)') : ''}
                         </option>
                       ))
                     ) : (
                       <option value={result.language}>
-                        Source: {result.languageName}
+                        {isBn ? 'মূল: ' : 'Source: '}
+                        {result.languageName}
                       </option>
                     )}
                   </select>
@@ -806,7 +855,7 @@ export const TranscriptWorkspace: React.FC = () => {
                 <div className="relative">
                   <select
                     id="translate-target-lang"
-                    aria-label="Translate language"
+                    aria-label={isBn ? 'অনুবাদের ভাষা' : 'Translate language'}
                     value={selectedTranslateLang}
                     disabled={isTranslating || isSwitchingLang}
                     onChange={(e) => handleTranslateChange(e.target.value)}
@@ -818,7 +867,11 @@ export const TranscriptWorkspace: React.FC = () => {
                   >
                     <option value="original">
                       {selectedTranslateLang === 'original'
-                        ? 'Translate to...'
+                        ? isBn
+                          ? 'ভাষায় অনুবাদ করুন...'
+                          : 'Translate to...'
+                        : isBn
+                        ? `মূল (${result.languageName})`
                         : `Original (${result.languageName})`}
                     </option>
                     {TRANSLATE_LANGUAGES.map((lang) => (
@@ -859,7 +912,13 @@ export const TranscriptWorkspace: React.FC = () => {
                     />
                   </span>
                   <span className="text-[13px] font-medium text-[#0F0F0F] group-hover:text-[#606060] transition-colors">
-                    {isTransliterating ? 'Transliterating...' : 'Transliterate (A–Z)'}
+                    {isTransliterating
+                      ? isBn
+                        ? 'রূপান্তর হচ্ছে...'
+                        : 'Transliterating...'
+                      : isBn
+                      ? 'ইংরেজি অক্ষরে পড়ুন (A–Z)'
+                      : 'Transliterate (A–Z)'}
                   </span>
                 </button>
 
@@ -874,7 +933,15 @@ export const TranscriptWorkspace: React.FC = () => {
                     }`}
                   >
                     <Columns2 className="w-3.5 h-3.5 shrink-0" />
-                    <span>{showOriginalComparison ? 'Hide Original' : 'Compare Original'}</span>
+                    <span>
+                      {showOriginalComparison
+                        ? isBn
+                          ? 'মূল লেখা লুকান'
+                          : 'Hide Original'
+                        : isBn
+                        ? 'মূল লেখার সাথে তুলনা'
+                        : 'Compare Original'}
+                    </span>
                   </button>
                 )}
               </div>
@@ -930,12 +997,12 @@ export const TranscriptWorkspace: React.FC = () => {
                 {copiedAll ? (
                   <>
                     <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Copied Transcript!</span>
+                    <span>{isBn ? 'ট্রান্সক্রিপ্ট কপি হয়েছে!' : 'Copied Transcript!'}</span>
                   </>
                 ) : (
                   <>
                     <Copy className="w-4 h-4 shrink-0" />
-                    <span>Copy Transcript</span>
+                    <span>{isBn ? 'ট্রান্সক্রিপ্ট কপি করুন' : 'Copy Transcript'}</span>
                   </>
                 )}
               </button>
@@ -951,7 +1018,11 @@ export const TranscriptWorkspace: React.FC = () => {
                     <Download className="w-4 h-4 shrink-0" />
                     <span>
                       {lastDownloadedFormat
-                        ? `Downloaded .${lastDownloadedFormat.toLowerCase()}`
+                        ? isBn
+                          ? `.${lastDownloadedFormat.toLowerCase()} ডাউনলোড হয়েছে`
+                          : `Downloaded .${lastDownloadedFormat.toLowerCase()}`
+                        : isBn
+                        ? 'ট্রান্সক্রিপ্ট ডাউনলোড'
                         : 'Download Transcript'}
                     </span>
                   </button>
@@ -963,7 +1034,7 @@ export const TranscriptWorkspace: React.FC = () => {
                     onClick={() => setIsDownloadMenuOpen((prev) => !prev)}
                     aria-expanded={isDownloadMenuOpen}
                     aria-haspopup="menu"
-                    aria-label="Open export format and timestamp options"
+                    aria-label={isBn ? 'এক্সপোর্ট ফরম্যাট অপশন খুলুন' : 'Open export format and timestamp options'}
                     className="h-full px-4 flex items-center justify-center hover:bg-[#262626] active:bg-black transition-colors shrink-0 focus:outline-none"
                   >
                     <ChevronDown
@@ -990,7 +1061,7 @@ export const TranscriptWorkspace: React.FC = () => {
                         <div
                           className="grid grid-cols-2 gap-1 p-1 bg-[#F2F2F2] rounded-[8px]"
                           role="group"
-                          aria-label="Timestamp visibility"
+                          aria-label={isBn ? 'টাইমস্ট্যাম্প অপশন' : 'Timestamp visibility'}
                         >
                           <button
                             type="button"
@@ -1001,7 +1072,7 @@ export const TranscriptWorkspace: React.FC = () => {
                                 : 'text-[#606060] hover:text-[#0F0F0F]'
                             }`}
                           >
-                            With Timestamps
+                            {isBn ? 'টাইমস্ট্যাম্পসহ' : 'With Timestamps'}
                           </button>
                           <button
                             type="button"
@@ -1012,7 +1083,7 @@ export const TranscriptWorkspace: React.FC = () => {
                                 : 'text-[#606060] hover:text-[#0F0F0F]'
                             }`}
                           >
-                            Plain Text
+                            {isBn ? 'শুধু টেক্সট' : 'Plain Text'}
                           </button>
                         </div>
                       </div>
@@ -1034,14 +1105,14 @@ export const TranscriptWorkspace: React.FC = () => {
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center justify-between gap-2">
                                 <span className="text-[13px] font-semibold text-[#0F0F0F]">
-                                  {item.label}
+                                  {isBn ? item.bnLabel : item.label}
                                 </span>
                                 <span className="font-mono text-[11px] font-semibold text-[#606060]">
                                   {item.ext}
                                 </span>
                               </div>
                               <p className="text-[11px] text-[#606060] truncate">
-                                {item.description}
+                                {isBn ? item.bnDescription : item.description}
                               </p>
                             </div>
                           </button>
@@ -1071,8 +1142,8 @@ export const TranscriptWorkspace: React.FC = () => {
                         jumpToMatch(e.shiftKey ? 'prev' : 'next');
                       }
                     }}
-                    placeholder="Search in transcript..."
-                    aria-label="Search keyword in transcript"
+                    placeholder={isBn ? 'ট্রান্সক্রিপ্টে খুঁজুন...' : 'Search in transcript...'}
+                    aria-label={isBn ? 'ট্রান্সক্রিপ্টে শব্দ খুঁজুন' : 'Search keyword in transcript'}
                     className="w-full h-full bg-transparent text-[14px] text-[#0F0F0F] placeholder:text-[#606060] focus:outline-none"
                   />
                   {searchQuery && (
@@ -1083,7 +1154,7 @@ export const TranscriptWorkspace: React.FC = () => {
                         setFilterMatchesOnly(false);
                         setActiveMatchCursor(0);
                       }}
-                      aria-label="Clear keyword search"
+                      aria-label={isBn ? 'সার্চ মুছুন' : 'Clear keyword search'}
                       className="ml-1.5 text-[#606060] hover:text-[#0F0F0F] transition-colors"
                     >
                       <X className="w-4 h-4" />
@@ -1098,6 +1169,8 @@ export const TranscriptWorkspace: React.FC = () => {
                         ? `${(activeMatchCursor % matchingSegmentIndices.length) + 1} / ${
                             matchingSegmentIndices.length
                           }`
+                        : isBn
+                        ? '০টি মিল'
                         : '0 matches'}
                     </span>
 
@@ -1106,7 +1179,7 @@ export const TranscriptWorkspace: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => jumpToMatch('prev')}
-                          aria-label="Previous match"
+                          aria-label={isBn ? 'আগের মিল' : 'Previous match'}
                           className="p-1.5 text-[#606060] hover:bg-[#F2F2F2] hover:text-[#0F0F0F] transition-colors"
                         >
                           <ChevronUp className="w-3.5 h-3.5" />
@@ -1115,7 +1188,7 @@ export const TranscriptWorkspace: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => jumpToMatch('next')}
-                          aria-label="Next match"
+                          aria-label={isBn ? 'পরের মিল' : 'Next match'}
                           className="p-1.5 text-[#606060] hover:bg-[#F2F2F2] hover:text-[#0F0F0F] transition-colors"
                         >
                           <ChevronDown className="w-3.5 h-3.5" />
@@ -1133,7 +1206,7 @@ export const TranscriptWorkspace: React.FC = () => {
                             : 'text-[#606060] hover:text-[#0F0F0F]'
                         }`}
                       >
-                        All
+                        {isBn ? 'সবগুলো' : 'All'}
                       </button>
                       <button
                         type="button"
@@ -1144,7 +1217,7 @@ export const TranscriptWorkspace: React.FC = () => {
                             : 'text-[#606060] hover:text-[#0F0F0F]'
                         }`}
                       >
-                        Matches
+                        {isBn ? 'মিলে যাওয়া' : 'Matches'}
                       </button>
                     </div>
                   </div>
@@ -1156,7 +1229,9 @@ export const TranscriptWorkspace: React.FC = () => {
                 {displayedSegments.length === 0 ? (
                   <div className="py-12 px-4 text-center space-y-2">
                     <p className="text-sm font-medium text-[#0F0F0F]">
-                      No transcript lines match &ldquo;{searchQuery}&rdquo;
+                      {isBn
+                        ? `“${searchQuery}” এর সাথে কোনো লাইন মেলেনি`
+                        : `No transcript lines match “${searchQuery}”`}
                     </p>
                     <button
                       type="button"
@@ -1166,7 +1241,7 @@ export const TranscriptWorkspace: React.FC = () => {
                       }}
                       className="text-xs font-semibold text-[#FF0000] hover:underline underline-offset-4"
                     >
-                      Show all transcript lines
+                      {isBn ? 'সব লাইন দেখান' : 'Show all transcript lines'}
                     </button>
                   </div>
                 ) : (
@@ -1192,11 +1267,13 @@ export const TranscriptWorkspace: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleCopySegment(originalIdx, seg.startMs, seg.text)}
-                            title="Copy line"
+                            title={isBn ? 'লাইন কপি করুন' : 'Copy line'}
                             className="font-mono tabular-nums text-[12px] font-semibold text-[#606060] hover:text-[#0F0F0F] w-14 shrink-0 text-left focus:outline-none focus-visible:underline"
                           >
                             {isCopiedLine ? (
-                              <span className="text-emerald-600 font-sans">Copied</span>
+                              <span className="text-emerald-600 font-sans">
+                                {isBn ? 'কপি হয়েছে' : 'Copied'}
+                              </span>
                             ) : (
                               formatDisplayTimestamp(seg.startMs)
                             )}

@@ -3,7 +3,14 @@
 import React from 'react';
 import { motion } from 'motion/react';
 
-export const SkeletonLoader: React.FC = () => {
+import type { Locale } from '@/lib/i18n';
+
+interface SkeletonLoaderProps {
+  locale?: Locale;
+}
+
+export const SkeletonLoader: React.FC<SkeletonLoaderProps> = ({ locale = 'en' }) => {
+  const isBn = locale === 'bn';
   return (
     <motion.div
       initial={{ opacity: 0, y: 15 }}
@@ -17,7 +24,7 @@ export const SkeletonLoader: React.FC = () => {
         <div className="flex items-center gap-2">
           <div className="w-2.5 h-2.5 rounded-full bg-[#1877F2] animate-ping" />
           <span className="text-xs font-semibold text-[#1877F2] tracking-wide uppercase">
-            Fetching Video Streams...
+            {isBn ? 'ভিডিও স্ট্রিম আনা হচ্ছে...' : 'Fetching Video Streams...'}
           </span>
         </div>
         <div className="h-4 w-20 rounded-md bg-slate-200 dark:bg-slate-800 relative overflow-hidden">

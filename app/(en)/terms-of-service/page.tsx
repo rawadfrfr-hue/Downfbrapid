@@ -11,12 +11,15 @@ export const metadata: Metadata = generateLegalMetadata({
   description:
     'Read Save Vibe Terms of Service for authorized personal archiving, copyright compliance, fair use rules, and online video downloader usage terms.',
   path: '/terms-of-service',
+  locale: 'en',
+  alternateEnPath: '/terms-of-service',
+  alternateBnPath: '/bn/terms-of-service',
 });
 
 export default function TermsOfServicePage() {
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-slate-900">
-      <Header />
+      <Header locale="en" />
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-10 sm:py-14">
         <Link
           href="/"
@@ -96,7 +99,7 @@ export default function TermsOfServicePage() {
           </div>
         </div>
       </main>
-      <Footer />
+      <Footer locale="en" />
     </div>
   );
 }

@@ -16,8 +16,10 @@ import {
   Music,
   FileText,
   Home,
+  Globe,
 } from 'lucide-react';
 import { PLATFORMS, PagePlatform, PlatformType, getPlatformConfig } from '@/lib/platforms';
+import { Locale, getLocaleFromPathname, getLocalizedPath, getMatchingLanguagePath } from '@/lib/i18n';
 
 const TikTokIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -41,22 +43,31 @@ const BrandLogoSvg: React.FC<{ className?: string }> = ({ className = 'w-9 h-9' 
 
 interface HeaderProps {
   platform?: PagePlatform;
+  locale?: Locale;
 }
 
-export const Header: React.FC<HeaderProps> = ({ platform }) => {
+export const Header: React.FC<HeaderProps> = ({ platform, locale }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
 
+  const resolvedLocale: Locale = locale || getLocaleFromPathname(pathname);
+  const isBn = resolvedLocale === 'bn';
+  const basePath = pathname?.startsWith('/bn') ? pathname.slice(3) || '/' : pathname || '/';
+
   const activePlatform: PagePlatform = (() => {
     if (platform) return platform;
-    if (pathname?.startsWith('/youtube')) return 'youtube';
-    if (pathname?.startsWith('/instagram')) return 'instagram';
-    if (pathname?.startsWith('/tiktok')) return 'tiktok';
-    if (pathname?.startsWith('/facebook')) return 'facebook';
+    if (basePath.startsWith('/youtube')) return 'youtube';
+    if (basePath.startsWith('/instagram')) return 'instagram';
+    if (basePath.startsWith('/tiktok')) return 'tiktok';
+    if (basePath.startsWith('/facebook')) return 'facebook';
     return 'home';
   })();
 
   const activeThemeClass = getPlatformConfig(activePlatform).themeClass;
+  const homeHref = getLocalizedPath('/', resolvedLocale);
+  const alternateHref = getMatchingLanguagePath(pathname, isBn ? 'en' : 'bn');
+  const alternateLabel = isBn ? 'English' : 'বাংলা';
+  const alternateLangCode = isBn ? 'en' : 'bn';
 
   // Sync browser tab SVG favicon cleanly on client-side navigation for platform pages
   useEffect(() => {
@@ -119,8 +130,8 @@ export const Header: React.FC<HeaderProps> = ({ platform }) => {
   const desktopMenuItems = [
     {
       id: 'facebook' as PlatformType,
-      label: 'Facebook',
-      path: PLATFORMS.facebook.path,
+      label: isBn ? 'ফেসবুক' : 'Facebook',
+      path: getLocalizedPath(PLATFORMS.facebook.path, resolvedLocale),
       icon: Facebook,
       colorClass: 'text-[#1877F2]',
       activeBorder: 'border-[#1877F2]',
@@ -128,8 +139,8 @@ export const Header: React.FC<HeaderProps> = ({ platform }) => {
     },
     {
       id: 'youtube' as PlatformType,
-      label: 'YouTube',
-      path: PLATFORMS.youtube.path,
+      label: isBn ? 'ইউটিউব' : 'YouTube',
+      path: getLocalizedPath(PLATFORMS.youtube.path, resolvedLocale),
       icon: Youtube,
       colorClass: 'text-red-600',
       activeBorder: 'border-red-600',
@@ -137,8 +148,8 @@ export const Header: React.FC<HeaderProps> = ({ platform }) => {
     },
     {
       id: 'instagram' as PlatformType,
-      label: 'Instagram',
-      path: PLATFORMS.instagram.path,
+      label: isBn ? 'ইনস্টাগ্রাম' : 'Instagram',
+      path: getLocalizedPath(PLATFORMS.instagram.path, resolvedLocale),
       icon: Instagram,
       colorClass: 'text-[#E1306C]',
       activeBorder: 'border-[#E1306C]',
@@ -146,8 +157,8 @@ export const Header: React.FC<HeaderProps> = ({ platform }) => {
     },
     {
       id: 'tiktok' as PlatformType,
-      label: 'TikTok',
-      path: PLATFORMS.tiktok.path,
+      label: isBn ? 'টিকটক' : 'TikTok',
+      path: getLocalizedPath(PLATFORMS.tiktok.path, resolvedLocale),
       icon: TikTokIcon,
       colorClass: 'text-slate-900',
       activeBorder: 'border-slate-900',
@@ -155,8 +166,8 @@ export const Header: React.FC<HeaderProps> = ({ platform }) => {
     },
     {
       id: 'youtube-transcript',
-      label: 'YT Transcript',
-      path: '/youtube-transcript',
+      label: isBn ? 'ট্রান্সক্রিপ্ট' : 'YT Transcript',
+      path: getLocalizedPath('/youtube-transcript', resolvedLocale),
       icon: FileText,
       colorClass: 'text-red-600',
       activeBorder: 'border-red-600',
@@ -168,38 +179,38 @@ export const Header: React.FC<HeaderProps> = ({ platform }) => {
   const sidebarMenuItems = [
     {
       id: 'home',
-      label: 'Home (All-in-One)',
-      path: '/',
+      label: isBn ? 'হোম (সব প্ল্যাটফর্ম)' : 'Home (All-in-One)',
+      path: homeHref,
       icon: Home,
     },
     {
       id: 'facebook' as PlatformType,
-      label: 'Facebook Downloader',
-      path: PLATFORMS.facebook.path,
+      label: isBn ? 'ফেসবুক ডাউনলোডার' : 'Facebook Downloader',
+      path: getLocalizedPath(PLATFORMS.facebook.path, resolvedLocale),
       icon: Film,
     },
     {
       id: 'youtube' as PlatformType,
-      label: 'YouTube Downloader',
-      path: PLATFORMS.youtube.path,
+      label: isBn ? 'ইউটিউব ডাউনলোডার' : 'YouTube Downloader',
+      path: getLocalizedPath(PLATFORMS.youtube.path, resolvedLocale),
       icon: Play,
     },
     {
       id: 'instagram' as PlatformType,
-      label: 'Instagram Downloader',
-      path: PLATFORMS.instagram.path,
+      label: isBn ? 'ইনস্টাগ্রাম ডাউনলোডার' : 'Instagram Downloader',
+      path: getLocalizedPath(PLATFORMS.instagram.path, resolvedLocale),
       icon: Camera,
     },
     {
       id: 'tiktok' as PlatformType,
-      label: 'TikTok Downloader',
-      path: PLATFORMS.tiktok.path,
+      label: isBn ? 'টিকটক ডাউনলোডার' : 'TikTok Downloader',
+      path: getLocalizedPath(PLATFORMS.tiktok.path, resolvedLocale),
       icon: Music,
     },
     {
       id: 'youtube-transcript',
-      label: 'YouTube Transcript',
-      path: '/youtube-transcript',
+      label: isBn ? 'ইউটিউব ট্রান্সক্রিপ্ট' : 'YouTube Transcript',
+      path: getLocalizedPath('/youtube-transcript', resolvedLocale),
       icon: FileText,
     },
   ];
@@ -210,22 +221,25 @@ export const Header: React.FC<HeaderProps> = ({ platform }) => {
         data-platform={activePlatform}
         className={`w-full border-b border-slate-200/80 backdrop-blur-md bg-white/90 sticky top-0 z-40 transition-colors duration-250 ${activeThemeClass}`}
       >
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3 sm:gap-4">
           {/* Brand Logo & Name */}
-          <Link href="/" className="flex items-center gap-3 group focus:outline-none">
+          <Link href={homeHref} className="flex items-center gap-3 group focus:outline-none shrink-0">
             <BrandLogoSvg className="w-9 h-9 group-hover:scale-105" />
             <div className="flex flex-col">
-              <span className="font-bold text-xl tracking-tight text-slate-900 leading-none group-hover:text-slate-800">
+              <span className="font-bold text-xl tracking-tight text-slate-900 leading-none group-hover:text-slate-800 whitespace-nowrap">
                 Save Vibe
               </span>
-              <span className="text-[10px] font-medium text-slate-500 leading-none mt-1">
-                Social Video Downloader
+              <span className="text-[10px] font-medium text-slate-500 leading-none mt-1 whitespace-nowrap">
+                {isBn ? 'সোশ্যাল ভিডিও ডাউনলোডার' : 'Social Video Downloader'}
               </span>
             </div>
           </Link>
 
           {/* Desktop Quick Nav Links */}
-          <nav aria-label="Primary Navigation" className="hidden md:flex items-center gap-1.5">
+          <nav
+            aria-label={isBn ? 'প্রধান নেভিগেশন' : 'Primary Navigation'}
+            className="hidden md:flex items-center gap-1.5"
+          >
             {desktopMenuItems.map((item) => {
               const isActive = pathname === item.path;
               const Icon = item.icon;
@@ -246,16 +260,29 @@ export const Header: React.FC<HeaderProps> = ({ platform }) => {
             })}
           </nav>
 
-          {/* Top Right Corner 3-Line Hamburger Menu Button */}
-          <button
-            type="button"
-            onClick={() => setIsMenuOpen(true)}
-            aria-label="Open Navigation Sidebar Menu"
-            aria-expanded={isMenuOpen}
-            className="p-2 rounded-xl text-slate-700 hover:text-slate-900 hover:bg-slate-100 active:bg-slate-200/60 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-slate-300 ml-auto group"
-          >
-            <Menu className="w-6 h-6 text-slate-800 transition-transform duration-200 group-hover:scale-110" />
-          </button>
+          {/* Right Controls: Crawlable Language Switcher + Hamburger Menu */}
+          <div className="flex items-center gap-2 ml-auto shrink-0">
+            <Link
+              href={alternateHref}
+              hrefLang={alternateLangCode}
+              lang={alternateLangCode}
+              aria-label={isBn ? 'Switch to English' : 'বাংলা সংস্করণে যান'}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 hover:text-slate-900 transition-colors whitespace-nowrap shrink-0"
+            >
+              <Globe className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+              <span>{alternateLabel}</span>
+            </Link>
+
+            <button
+              type="button"
+              onClick={() => setIsMenuOpen(true)}
+              aria-label={isBn ? 'নেভিগেশন মেনু খুলুন' : 'Open Navigation Sidebar Menu'}
+              aria-expanded={isMenuOpen}
+              className="p-2 rounded-xl text-slate-700 hover:text-slate-900 hover:bg-slate-100 active:bg-slate-200/60 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-slate-300 group"
+            >
+              <Menu className="w-6 h-6 text-slate-800 transition-transform duration-200 group-hover:scale-110" />
+            </button>
+          </div>
         </div>
       </header>
 
@@ -285,7 +312,7 @@ export const Header: React.FC<HeaderProps> = ({ platform }) => {
             >
               <div className="p-4 border-b border-slate-200/50 flex items-center justify-between bg-[#F9FAFB]">
                 <Link
-                  href="/"
+                  href={homeHref}
                   onClick={() => setIsMenuOpen(false)}
                   className="flex items-center gap-2.5 group"
                 >
@@ -295,7 +322,7 @@ export const Header: React.FC<HeaderProps> = ({ platform }) => {
                       Save Vibe
                     </span>
                     <span className="text-[10px] font-medium text-slate-400 leading-none mt-1">
-                      Social Video Downloader
+                      {isBn ? 'সোশ্যাল ভিডিও ডাউনলোডার' : 'Social Video Downloader'}
                     </span>
                   </div>
                 </Link>
@@ -303,7 +330,7 @@ export const Header: React.FC<HeaderProps> = ({ platform }) => {
                 <button
                   type="button"
                   onClick={() => setIsMenuOpen(false)}
-                  aria-label="Close Sidebar Menu"
+                  aria-label={isBn ? 'সাইডবার মেনু বন্ধ করুন' : 'Close Sidebar Menu'}
                   className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-200/50 transition-colors focus:outline-none"
                 >
                   <X className="w-5 h-5" />
@@ -313,8 +340,8 @@ export const Header: React.FC<HeaderProps> = ({ platform }) => {
               <div className="flex-1 px-3 py-3 space-y-1">
                 {sidebarMenuItems.map((item) => {
                   const isActive =
-                    item.path === '/'
-                      ? pathname === '/' || pathname === ''
+                    item.path === '/' || item.path === '/bn'
+                      ? pathname === item.path
                       : pathname === item.path;
                   const Icon = item.icon;
 
@@ -336,10 +363,28 @@ export const Header: React.FC<HeaderProps> = ({ platform }) => {
                     </Link>
                   );
                 })}
+
+                <div className="pt-3 mt-3 border-t border-slate-200/60">
+                  <Link
+                    href={alternateHref}
+                    hrefLang={alternateLangCode}
+                    lang={alternateLangCode}
+                    onClick={() => setIsMenuOpen(false)}
+                    className="w-full py-2 px-3 rounded-lg transition-colors duration-150 flex items-center justify-between text-slate-800 hover:bg-slate-200/40"
+                  >
+                    <span className="flex items-center gap-2.5 text-xs font-bold">
+                      <Globe className="w-4 h-4 text-slate-700 shrink-0 stroke-[1.75]" />
+                      <span>{isBn ? 'ভাষা: English' : 'Language: বাংলা'}</span>
+                    </span>
+                    <span className="text-[11px] font-semibold text-slate-500">
+                      {alternateLabel}
+                    </span>
+                  </Link>
+                </div>
               </div>
 
               <div className="p-3 text-[10px] text-slate-400 text-center font-normal border-t border-slate-200/40">
-                © 2026 Save Vibe Downloader
+                {isBn ? '© ২০২৬ Save Vibe ডাউনলোডার' : '© 2026 Save Vibe Downloader'}
               </div>
             </motion.aside>
           </div>

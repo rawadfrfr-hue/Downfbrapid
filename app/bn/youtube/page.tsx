@@ -3,10 +3,10 @@ import type { Metadata } from 'next';
 import { generatePageMetadata, generateJsonLdSchema } from '@/lib/seo-data';
 import { PlatformPageClient } from '@/components/PlatformPageClient';
 
-export const metadata: Metadata = generatePageMetadata('home');
+export const metadata: Metadata = generatePageMetadata('youtube', 'bn');
 
-export default function HomePage() {
-  const schemas = generateJsonLdSchema('home');
+export default function BnYoutubeDownloaderPage() {
+  const schemas = generateJsonLdSchema('youtube', 'bn');
 
   return (
     <>
@@ -17,7 +17,7 @@ export default function HomePage() {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
         />
       ))}
-      <PlatformPageClient platform="home" />
+      <PlatformPageClient platform="youtube" locale="bn" />
     </>
   );
 }

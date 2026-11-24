@@ -2,16 +2,20 @@
 
 import React, { useState } from 'react';
 import { HelpCircle, ChevronDown, CheckCircle2, DownloadCloud } from 'lucide-react';
-import { PagePlatform, getPlatformConfig } from '@/lib/platforms';
-import { SEO_DATA } from '@/lib/seo-data';
+import { PagePlatform } from '@/lib/platforms';
+import { getLocalizedPlatformConfig } from '@/lib/platforms-bn';
+import { getLocalizedSeoData } from '@/lib/seo-data';
+import type { Locale } from '@/lib/i18n';
 
 interface FaqSectionProps {
   platform: PagePlatform;
+  locale?: Locale;
 }
 
-export const FaqSection: React.FC<FaqSectionProps> = ({ platform }) => {
-  const seoInfo = SEO_DATA[platform] || SEO_DATA.home;
-  const platformConfig = getPlatformConfig(platform);
+export const FaqSection: React.FC<FaqSectionProps> = ({ platform, locale = 'en' }) => {
+  const isBn = locale === 'bn';
+  const seoInfo = getLocalizedSeoData(platform, locale);
+  const platformConfig = getLocalizedPlatformConfig(platform, locale);
   const isHome = platform === 'home';
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
@@ -25,15 +29,23 @@ export const FaqSection: React.FC<FaqSectionProps> = ({ platform }) => {
       <div className="mb-14 text-center">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold mb-3">
           <DownloadCloud className="w-3.5 h-3.5 text-blue-600" />
-          Easy Step-by-Step Guide
+          {isBn ? 'সহজ ধাপে ধাপে নির্দেশিকা' : 'Easy Step-by-Step Guide'}
         </div>
         <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight mb-2">
-          {isHome
+          {isBn
+            ? isHome
+              ? 'কীভাবে অনলাইনে সোশ্যাল মিডিয়া ভিডিও ডাউনলোড করবেন'
+              : `কীভাবে অনলাইনে ${platformConfig.name} ভিডিও ডাউনলোড করবেন`
+            : isHome
             ? 'How to Download Social Media Videos Online'
             : `How to Download ${platformConfig.name} Videos Online`}
         </h2>
         <p className="text-xs sm:text-sm text-slate-600 max-w-xl mx-auto mb-8">
-          {isHome
+          {isBn
+            ? isHome
+              ? 'ফেসবুক, ইউটিউব, ইনস্টাগ্রাম ও টিকটকের পাবলিক ভিডিও HD কোয়ালিটিতে সেভ করতে নিচের ৩টি সহজ ধাপ অনুসরণ করুন।'
+              : `পাবলিক ${platformConfig.name} ভিডিও ও অডিও HD কোয়ালিটিতে সেভ করতে নিচের ৩টি সহজ ধাপ অনুসরণ করুন।`
+            : isHome
             ? 'Follow these 3 simple steps to save public Facebook, YouTube, Instagram, and TikTok videos in HD quality.'
             : `Follow these 3 simple steps to save public ${platformConfig.name} videos and audio clips in HD quality.`}
         </p>
@@ -64,15 +76,23 @@ export const FaqSection: React.FC<FaqSectionProps> = ({ platform }) => {
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold mb-3">
             <HelpCircle className="w-3.5 h-3.5" />
-            Frequently Asked Questions
+            {isBn ? 'সচরাচর জিজ্ঞাসিত প্রশ্ন (FAQ)' : 'Frequently Asked Questions'}
           </div>
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight mb-2">
-            {isHome
+            {isBn
+              ? isHome
+                ? 'Save Vibe ভিডিও ডাউনলোডার সম্পর্কিত প্রশ্নোত্তর'
+                : `Save Vibe ${platformConfig.name} ডাউনলোডার প্রশ্নোত্তর`
+              : isHome
               ? 'Save Vibe Video Downloader FAQs'
               : `Save Vibe ${platformConfig.name} Downloader FAQs`}
           </h2>
           <p className="text-xs sm:text-sm text-slate-600">
-            {isHome
+            {isBn
+              ? isHome
+                ? 'Save Vibe দিয়ে সোশ্যাল মিডিয়া ভিডিও ডাউনলোড সংক্রান্ত সাধারণ প্রশ্ন ও উত্তর নিচে দেখুন।'
+                : `${platformConfig.name} ভিডিও ডাউনলোড সম্পর্কে আপনার সাধারণ প্রশ্নগুলোর উত্তর নিচে দেওয়া হলো।`
+              : isHome
               ? 'Got questions about downloading social media videos with Save Vibe? Find quick answers below.'
               : `Got questions about downloading ${platformConfig.name} videos? Find all the quick answers below.`}
           </p>

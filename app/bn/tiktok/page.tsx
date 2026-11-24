@@ -3,10 +3,10 @@ import type { Metadata } from 'next';
 import { generatePageMetadata, generateJsonLdSchema } from '@/lib/seo-data';
 import { PlatformPageClient } from '@/components/PlatformPageClient';
 
-export const metadata: Metadata = generatePageMetadata('facebook');
+export const metadata: Metadata = generatePageMetadata('tiktok', 'bn');
 
-export default function FacebookDownloaderPage() {
-  const schemas = generateJsonLdSchema('facebook');
+export default function BnTiktokDownloaderPage() {
+  const schemas = generateJsonLdSchema('tiktok', 'bn');
 
   return (
     <>
@@ -17,7 +17,7 @@ export default function FacebookDownloaderPage() {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
         />
       ))}
-      <PlatformPageClient platform="facebook" />
+      <PlatformPageClient platform="tiktok" locale="bn" />
     </>
   );
 }

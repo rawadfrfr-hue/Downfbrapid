@@ -3,10 +3,10 @@ import type { Metadata } from 'next';
 import { generatePageMetadata, generateJsonLdSchema } from '@/lib/seo-data';
 import { PlatformPageClient } from '@/components/PlatformPageClient';
 
-export const metadata: Metadata = generatePageMetadata('instagram');
+export const metadata: Metadata = generatePageMetadata('home', 'bn');
 
-export default function InstagramDownloaderPage() {
-  const schemas = generateJsonLdSchema('instagram');
+export default function BnHomePage() {
+  const schemas = generateJsonLdSchema('home', 'bn');
 
   return (
     <>
@@ -17,7 +17,7 @@ export default function InstagramDownloaderPage() {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
         />
       ))}
-      <PlatformPageClient platform="instagram" />
+      <PlatformPageClient platform="home" locale="bn" />
     </>
   );
 }

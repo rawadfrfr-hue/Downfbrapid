@@ -3,10 +3,10 @@ import type { Metadata } from 'next';
 import { generateTranscriptMetadata, generateTranscriptJsonLd } from '@/lib/seo-data';
 import { TranscriptPageClient } from '@/components/TranscriptPageClient';
 
-export const metadata: Metadata = generateTranscriptMetadata();
+export const metadata: Metadata = generateTranscriptMetadata('bn');
 
-export default function YouTubeTranscriptPage() {
-  const schemas = generateTranscriptJsonLd();
+export default function BnYouTubeTranscriptPage() {
+  const schemas = generateTranscriptJsonLd('bn');
 
   return (
     <>
@@ -17,7 +17,7 @@ export default function YouTubeTranscriptPage() {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
         />
       ))}
-      <TranscriptPageClient />
+      <TranscriptPageClient locale="bn" />
     </>
   );
 }

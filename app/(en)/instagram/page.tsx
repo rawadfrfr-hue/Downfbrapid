@@ -3,10 +3,10 @@ import type { Metadata } from 'next';
 import { generatePageMetadata, generateJsonLdSchema } from '@/lib/seo-data';
 import { PlatformPageClient } from '@/components/PlatformPageClient';
 
-export const metadata: Metadata = generatePageMetadata('youtube');
+export const metadata: Metadata = generatePageMetadata('instagram', 'en');
 
-export default function YoutubeDownloaderPage() {
-  const schemas = generateJsonLdSchema('youtube');
+export default function InstagramDownloaderPage() {
+  const schemas = generateJsonLdSchema('instagram', 'en');
 
   return (
     <>
@@ -17,7 +17,7 @@ export default function YoutubeDownloaderPage() {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
         />
       ))}
-      <PlatformPageClient platform="youtube" />
+      <PlatformPageClient platform="instagram" locale="en" />
     </>
   );
 }

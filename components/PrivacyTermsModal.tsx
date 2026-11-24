@@ -3,18 +3,22 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ShieldCheck, FileText, Mail, CheckCircle2 } from 'lucide-react';
+import type { Locale } from '@/lib/i18n';
 
 export type ModalType = 'privacy' | 'terms' | 'contact' | null;
 
 interface PrivacyTermsModalProps {
   activeModal: ModalType;
   onClose: () => void;
+  locale?: Locale;
 }
 
 export const PrivacyTermsModal: React.FC<PrivacyTermsModalProps> = ({
   activeModal,
   onClose,
+  locale = 'en',
 }) => {
+  const isBn = locale === 'bn';
   const [sentMessage, setSentMessage] = React.useState(false);
   const [email, setEmail] = React.useState('');
   const [message, setMessage] = React.useState('');
@@ -69,16 +73,16 @@ export const PrivacyTermsModal: React.FC<PrivacyTermsModalProps> = ({
                 )}
 
                 <h3 className="text-lg font-bold text-slate-900">
-                  {activeModal === 'privacy' && 'Privacy Policy'}
-                  {activeModal === 'terms' && 'Terms of Service'}
-                  {activeModal === 'contact' && 'Contact Save Vibe Support'}
+                  {activeModal === 'privacy' && (isBn ? 'গোপনীয়তা নীতি' : 'Privacy Policy')}
+                  {activeModal === 'terms' && (isBn ? 'ব্যবহারের শর্তাবলি' : 'Terms of Service')}
+                  {activeModal === 'contact' && (isBn ? 'Save Vibe সাপোর্টে যোগাযোগ' : 'Contact Save Vibe Support')}
                 </h3>
               </div>
 
               <button
                 onClick={onClose}
                 className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"
-                aria-label="Close dialog"
+                aria-label={isBn ? 'বন্ধ করুন' : 'Close dialog'}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -87,47 +91,91 @@ export const PrivacyTermsModal: React.FC<PrivacyTermsModalProps> = ({
             {/* Content Body */}
             <div className="max-h-[60vh] overflow-y-auto pr-1 text-sm text-slate-600 space-y-4 leading-relaxed">
               {activeModal === 'privacy' && (
-                <>
-                  <p>
-                    Your privacy is paramount. <strong>Save Vibe</strong> operates with strict zero-logging policies.
-                  </p>
-                  <div className="space-y-2.5 bg-slate-50 p-4 rounded-xl border border-slate-200/60">
-                    <h4 className="font-semibold text-slate-900 text-xs uppercase tracking-wider">
-                      Key Privacy Standards
-                    </h4>
-                    <ul className="list-disc pl-4 space-y-1.5 text-xs text-slate-600">
-                      <li>We do not log or store the URLs you paste on our servers.</li>
-                      <li>Media downloads are fetched directly from content delivery networks (CDNs).</li>
-                      <li>No personal cookies or identifying user tracking scripts are used.</li>
-                      <li>Your browser session history remains strictly local on your device.</li>
-                    </ul>
-                  </div>
-                  <p className="text-xs text-slate-500">
-                    Questions? Reach us at{' '}
-                    <a href="mailto:support@savevibe.bond" className="text-[#1877F2] font-medium hover:underline">
-                      support@savevibe.bond
-                    </a>
-                    .
-                  </p>
-                </>
+                isBn ? (
+                  <>
+                    <p>
+                      আপনার গোপনীয়তা আমাদের কাছে সর্বোচ্চ অগ্রাধিকার। <strong>Save Vibe</strong> কঠোর জিরো-লগিং নীতিমালা অনুসরণ করে পরিচালিত হয়।
+                    </p>
+                    <div className="space-y-2.5 bg-slate-50 p-4 rounded-xl border border-slate-200/60">
+                      <h4 className="font-semibold text-slate-900 text-xs uppercase tracking-wider">
+                        মূল গোপনীয়তা মানদণ্ড
+                      </h4>
+                      <ul className="list-disc pl-4 space-y-1.5 text-xs text-slate-600">
+                        <li>আপনার পেস্ট করা কোনো ভিডিও লিংক আমাদের সার্ভারে সংরক্ষণ বা লগ করা হয় না।</li>
+                        <li>মিডিয়া ফাইল সরাসরি সংশ্লিষ্ট কনটেন্ট ডেলিভারি নেটওয়ার্ক (CDN) থেকে আনা হয়।</li>
+                        <li>কোনো ব্যক্তিগত ট্র্যাকিং কুকি বা পরিচয় শনাক্তকারী স্ক্রিপ্ট ব্যবহার করা হয় না।</li>
+                        <li>ব্রাউজার সেশনের ইতিহাস কেবল আপনার নিজস্ব ডিভাইসেই সীমাবদ্ধ থাকে।</li>
+                      </ul>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      কোনো প্রশ্ন থাকলে যোগাযোগ করুন:{' '}
+                      <a href="mailto:support@savevibe.bond" className="text-[#1877F2] font-medium hover:underline">
+                        support@savevibe.bond
+                      </a>
+                      ।
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p>
+                      Your privacy is paramount. <strong>Save Vibe</strong> operates with strict zero-logging policies.
+                    </p>
+                    <div className="space-y-2.5 bg-slate-50 p-4 rounded-xl border border-slate-200/60">
+                      <h4 className="font-semibold text-slate-900 text-xs uppercase tracking-wider">
+                        Key Privacy Standards
+                      </h4>
+                      <ul className="list-disc pl-4 space-y-1.5 text-xs text-slate-600">
+                        <li>We do not log or store the URLs you paste on our servers.</li>
+                        <li>Media downloads are fetched directly from content delivery networks (CDNs).</li>
+                        <li>No personal cookies or identifying user tracking scripts are used.</li>
+                        <li>Your browser session history remains strictly local on your device.</li>
+                      </ul>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      Questions? Reach us at{' '}
+                      <a href="mailto:support@savevibe.bond" className="text-[#1877F2] font-medium hover:underline">
+                        support@savevibe.bond
+                      </a>
+                      .
+                    </p>
+                  </>
+                )
               )}
 
               {activeModal === 'terms' && (
-                <>
-                  <p>
-                    By using Save Vibe, you agree to comply with copyright laws and terms of digital content usage.
-                  </p>
-                  <div className="space-y-2.5 bg-slate-50 p-4 rounded-xl border border-slate-200/60">
-                    <h4 className="font-semibold text-slate-900 text-xs uppercase tracking-wider">
-                      Usage Terms &amp; Guidelines
-                    </h4>
-                    <ul className="list-disc pl-4 space-y-1.5 text-xs text-slate-600">
-                      <li>Only download videos that you own or have explicit rights/permission to save.</li>
-                      <li>Do not use fetched content for commercial redistribution or unauthorized copyright violation.</li>
-                      <li>This platform is intended exclusively for non-commercial personal archive purposes.</li>
-                    </ul>
-                  </div>
-                </>
+                isBn ? (
+                  <>
+                    <p>
+                      Save Vibe ব্যবহারের মাধ্যমে আপনি কপিরাইট আইন ও ডিজিটাল কনটেন্ট ব্যবহারের শর্তাবলি মেনে চলতে সম্মত হচ্ছেন।
+                    </p>
+                    <div className="space-y-2.5 bg-slate-50 p-4 rounded-xl border border-slate-200/60">
+                      <h4 className="font-semibold text-slate-900 text-xs uppercase tracking-wider">
+                        ব্যবহারের নিয়ম ও নির্দেশিকা
+                      </h4>
+                      <ul className="list-disc pl-4 space-y-1.5 text-xs text-slate-600">
+                        <li>শুধুমাত্র নিজের মালিকানাধীন অথবা সংরক্ষণের অনুমতি রয়েছে এমন ভিডিও ডাউনলোড করুন।</li>
+                        <li>ডাউনলোড করা কনটেন্ট বাণিজ্যিক পুনঃবিতরণ বা কপিরাইট লঙ্ঘনের কাজে ব্যবহার করবেন না।</li>
+                        <li>এই টুলটি কেবল ব্যক্তিগত ও অ-বাণিজ্যিক অফলাইন সংরক্ষণের জন্য নির্মিত।</li>
+                      </ul>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p>
+                      By using Save Vibe, you agree to comply with copyright laws and terms of digital content usage.
+                    </p>
+                    <div className="space-y-2.5 bg-slate-50 p-4 rounded-xl border border-slate-200/60">
+                      <h4 className="font-semibold text-slate-900 text-xs uppercase tracking-wider">
+                        Usage Terms &amp; Guidelines
+                      </h4>
+                      <ul className="list-disc pl-4 space-y-1.5 text-xs text-slate-600">
+                        <li>Only download videos that you own or have explicit rights/permission to save.</li>
+                        <li>Do not use fetched content for commercial redistribution or unauthorized copyright violation.</li>
+                        <li>This platform is intended exclusively for non-commercial personal archive purposes.</li>
+                      </ul>
+                    </div>
+                  </>
+                )
               )}
 
               {activeModal === 'contact' && (
@@ -138,27 +186,29 @@ export const PrivacyTermsModal: React.FC<PrivacyTermsModalProps> = ({
                         <CheckCircle2 className="w-6 h-6" />
                       </div>
                       <h4 className="text-base font-bold text-slate-900">
-                        Message Sent Successfully
+                        {isBn ? 'বার্তা সফলভাবে পাঠানো হয়েছে' : 'Message Sent Successfully'}
                       </h4>
                       <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                        Thank you for contacting Save Vibe. Our team will review your inquiry shortly.
+                        {isBn
+                          ? 'Save Vibe-এর সাথে যোগাযোগ করার জন্য ধন্যবাদ। আমাদের টিম শীঘ্রই আপনার বার্তা পর্যালোচনা করবে।'
+                          : 'Thank you for contacting Save Vibe. Our team will review your inquiry shortly.'}
                       </p>
                     </div>
                   ) : (
                     <form onSubmit={handleContactSubmit} className="space-y-4">
                       <p className="text-xs text-slate-500">
-                        Have feedback, report an issue, or need assistance? Email us directly at{' '}
+                        {isBn ? 'কোনো মতামত, সমস্যা বা সহায়তার প্রয়োজন হলে সরাসরি ইমেইল করুন ' : 'Have feedback, report an issue, or need assistance? Email us directly at '}
                         <a
                           href="mailto:support@savevibe.bond"
                           className="font-semibold text-[#1877F2] hover:underline"
                         >
                           support@savevibe.bond
                         </a>{' '}
-                        or send a quick note below:
+                        {isBn ? 'অথবা নিচে একটি সংক্ষিপ্ত বার্তা পাঠান:' : 'or send a quick note below:'}
                       </p>
                       <div>
                         <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          Your Email (Optional)
+                          {isBn ? 'আপনার ইমেইল (ঐচ্ছিক)' : 'Your Email (Optional)'}
                         </label>
                         <input
                           type="email"
@@ -170,14 +220,14 @@ export const PrivacyTermsModal: React.FC<PrivacyTermsModalProps> = ({
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          Message
+                          {isBn ? 'বার্তা' : 'Message'}
                         </label>
                         <textarea
                           rows={4}
                           value={message}
                           onChange={(e) => setMessage(e.target.value)}
                           required
-                          placeholder="Type your message or inquiry here..."
+                          placeholder={isBn ? 'আপনার প্রশ্ন বা মতামত এখানে লিখুন...' : 'Type your message or inquiry here...'}
                           className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-[#1877F2]"
                         />
                       </div>
@@ -186,7 +236,7 @@ export const PrivacyTermsModal: React.FC<PrivacyTermsModalProps> = ({
                           type="submit"
                           className="px-5 py-2.5 rounded-xl bg-[#1877F2] hover:bg-[#166fe5] text-white text-xs font-bold transition-all shadow-md shadow-[#1877F2]/20"
                         >
-                          Send Message
+                          {isBn ? 'বার্তা পাঠান' : 'Send Message'}
                         </button>
                       </div>
                     </form>

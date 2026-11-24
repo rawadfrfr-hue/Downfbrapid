@@ -9,12 +9,14 @@ import { Footer } from '@/components/Footer';
 import { PrivacyTermsModal, ModalType } from '@/components/PrivacyTermsModal';
 import { VideoData } from '@/components/ResultCard';
 import { PagePlatform, getPlatformConfig } from '@/lib/platforms';
+import type { Locale } from '@/lib/i18n';
 
 interface PlatformPageClientProps {
   platform: PagePlatform;
+  locale?: Locale;
 }
 
-export function PlatformPageClient({ platform }: PlatformPageClientProps) {
+export function PlatformPageClient({ platform, locale = 'en' }: PlatformPageClientProps) {
   const [activeLegalModal, setActiveLegalModal] = useState<ModalType>(null);
   const [_historyItems, setHistoryItems] = useState<VideoData[]>(() => {
     if (typeof window === 'undefined') return [];
@@ -54,33 +56,36 @@ export function PlatformPageClient({ platform }: PlatformPageClientProps) {
       className={`min-h-screen flex flex-col bg-[#F8FAFC] text-slate-900 transition-colors duration-200 ${platformConfig.themeClass}`}
     >
       {/* Top Header */}
-      <Header platform={platform} />
+      <Header platform={platform} locale={locale} />
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col justify-start items-center">
         <VideoFetcher
           platform={platform}
+          locale={locale}
           onRecordDownload={handleRecordDownload}
           onAddHistory={handleAddHistory}
         />
 
         {/* Features, Cross-Links & Detailed Guide */}
-        <FeaturesGrid platform={platform} />
+        <FeaturesGrid platform={platform} locale={locale} />
 
         {/* SEO FAQ & Step-by-Step Section */}
-        <FaqSection platform={platform} />
+        <FaqSection platform={platform} locale={locale} />
       </main>
 
       {/* Professional Footer */}
       <Footer
         onOpenModal={(type) => setActiveLegalModal(type)}
         totalDownloadsCount={downloadsCount}
+        locale={locale}
       />
 
       {/* Interactive Contact Modal */}
       <PrivacyTermsModal
         activeModal={activeLegalModal}
         onClose={() => setActiveLegalModal(null)}
+        locale={locale}
       />
     </div>
   );

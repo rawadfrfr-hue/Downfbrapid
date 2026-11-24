@@ -7,20 +7,43 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Clipboard, X, Download, AlertCircle } from 'lucide-react';
 import { SkeletonLoader } from './SkeletonLoader';
 import { ResultCard, VideoData } from './ResultCard';
-import { PagePlatform, getPlatformConfig } from '@/lib/platforms';
+import { PagePlatform } from '@/lib/platforms';
+import { getLocalizedPlatformConfig } from '@/lib/platforms-bn';
+import { Locale, getLocalizedPath } from '@/lib/i18n';
 
 interface VideoFetcherProps {
   platform?: PagePlatform;
+  locale?: Locale;
   onRecordDownload: (quality: string) => void;
   onAddHistory: (item: VideoData) => void;
 }
 
+function localizeFetchError(rawMessage: string, platformName: string, isBn: boolean): string {
+  if (!isBn) return rawMessage;
+  const lower = rawMessage.toLowerCase();
+  if (lower.includes('private') || lower.includes('login') || lower.includes('friends')) {
+    return 'এই ভিডিওটি প্রাইভেট বা লগইন-সীমাবদ্ধ। শুধুমাত্র পাবলিক ভিডিওর লিংক ব্যবহার করুন।';
+  }
+  if (lower.includes('valid') && lower.includes('url')) {
+    return `অনুগ্রহ করে একটি সঠিক ${platformName} ভিডিওর লিংক পেস্ট করুন।`;
+  }
+  if (lower.includes('not found') || lower.includes('unavailable')) {
+    return 'ভিডিওটি খুঁজে পাওয়া যায়নি বা মুছে ফেলা হয়েছে। অনুগ্রহ করে অন্য একটি পাবলিক লিংক চেষ্টা করুন।';
+  }
+  if (lower.includes('rate') || lower.includes('too many') || lower.includes('429')) {
+    return 'অতিরিক্ত অনুরোধের কারণে সাময়িক বিলম্ব হচ্ছে। কয়েক সেকেন্ড পর আবার চেষ্টা করুন।';
+  }
+  return `${platformName} ভিডিও লিংক প্রসেস করা যায়নি। অনুগ্রহ করে লিংকটি যাচাই করে আবার চেষ্টা করুন।`;
+}
+
 export const VideoFetcher: React.FC<VideoFetcherProps> = ({
   platform = 'home',
+  locale = 'en',
   onRecordDownload,
   onAddHistory,
 }) => {
-  const platformConfig = getPlatformConfig(platform);
+  const isBn = locale === 'bn';
+  const platformConfig = getLocalizedPlatformConfig(platform, locale);
   const [url, setUrl] = useState('');
   const [state, setState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -50,7 +73,11 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
 
     if (!linkToFetch) {
       setErrorMessage(
-        platform === 'home'
+        isBn
+          ? platform === 'home'
+            ? 'অনুগ্রহ করে একটি সঠিক ফেসবুক, ইউটিউব, ইনস্টাগ্রাম বা টিকটক ভিডিও লিংক পেস্ট করুন।'
+            : `অনুগ্রহ করে একটি সঠিক ${platformConfig.name} ভিডিওর লিংক দিন।`
+          : platform === 'home'
           ? 'Please paste a valid Facebook, YouTube, Instagram, or TikTok video link.'
           : `Please paste or enter a valid ${platformConfig.name} video link.`
       );
@@ -76,20 +103,24 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
       const json = await res.json();
 
       if (!res.ok || !json.success) {
-        throw new Error(
-          json.error || `Unable to download ${platformConfig.name} video. Please check your link.`
-        );
+        const rawErr =
+          json.error || `Unable to download ${platformConfig.name} video. Please check your link.`;
+        throw new Error(localizeFetchError(rawErr, platformConfig.name, isBn));
       }
 
       setResultData(json.data);
       setState('success');
       onAddHistory(json.data);
     } catch (err: unknown) {
-      const msg =
+      const rawMsg =
         err instanceof Error
           ? err.message
           : `Failed to process ${platformConfig.name} video link.`;
-      setErrorMessage(msg);
+      setErrorMessage(
+        isBn && !/[\u0980-\u09FF]/.test(rawMsg)
+          ? localizeFetchError(rawMsg, platformConfig.name, true)
+          : rawMsg
+      );
       setState('error');
     }
   };
@@ -108,7 +139,11 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
         <div className="flex justify-center mb-1">
           <Image
             src="/assets/aistudio/bnrsavevibe_b7be51c6.svg"
-            alt="Save Vibe Social Media Video Downloader Banner"
+            alt={
+              isBn
+                ? 'Save Vibe সোশ্যাল মিডিয়া ভিডিও ডাউনলোডার ব্যানার'
+                : 'Save Vibe Social Media Video Downloader Banner'
+            }
             width={1017}
             height={245}
             priority
@@ -160,8 +195,8 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
                   type="button"
                   onClick={handleClear}
                   className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-                  aria-label="Clear input"
-                  title="Clear text"
+                  aria-label={isBn ? 'লিংক মুছে ফেলুন' : 'Clear input'}
+                  title={isBn ? 'মুছে ফেলুন' : 'Clear text'}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -171,10 +206,10 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
                 type="button"
                 onClick={handlePaste}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 font-medium text-xs transition-colors border border-slate-200/80 shadow-2xs focus:outline-none focus-visible:ring-2"
-                title="Paste link from clipboard"
+                title={isBn ? 'ক্লিপবোর্ড থেকে পেস্ট করুন' : 'Paste link from clipboard'}
               >
                 <Clipboard className={`w-3.5 h-3.5 ${platformConfig.iconColor}`} />
-                <span className="hidden sm:inline">Paste</span>
+                <span className="hidden sm:inline">{isBn ? 'পেস্ট করুন' : 'Paste'}</span>
               </button>
             </div>
           </div>
@@ -190,12 +225,12 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
           {state === 'loading' ? (
             <>
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              <span>Processing Link...</span>
+              <span>{isBn ? 'লিংক প্রসেস হচ্ছে...' : 'Processing Link...'}</span>
             </>
           ) : (
             <>
               <Download className="w-5 h-5 text-white" />
-              <span>Download</span>
+              <span>{isBn ? 'ডাউনলোড করুন' : 'Download'}</span>
             </>
           )}
         </button>
@@ -214,12 +249,14 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
 
         {(platformConfig.id === 'youtube' || platformConfig.id === 'home') && (
           <p className="text-xs text-slate-500 pt-1">
-            Need subtitles or searchable text?{' '}
+            {isBn ? 'সাবটাইটেল বা সার্চযোগ্য টেক্সট দরকার? ' : 'Need subtitles or searchable text? '}
             <Link
-              href="/youtube-transcript"
+              href={getLocalizedPath('/youtube-transcript', locale)}
               className="font-semibold text-red-600 hover:text-red-700 underline underline-offset-4"
             >
-              Open YouTube Transcript Downloader
+              {isBn
+                ? 'ইউটিউব ট্রান্সক্রিপ্ট ডাউনলোডার খুলুন'
+                : 'Open YouTube Transcript Downloader'}
             </Link>
           </p>
         )}
@@ -227,13 +264,14 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
 
       {/* Dynamic Results Display */}
       <AnimatePresence mode="wait">
-        {state === 'loading' && <SkeletonLoader key="skeleton" />}
+        {state === 'loading' && <SkeletonLoader key="skeleton" locale={locale} />}
 
         {state === 'success' && resultData && (
           <ResultCard
             key="result"
             data={resultData}
             platform={platform}
+            locale={locale}
             onReset={handleReset}
             onRecordDownload={onRecordDownload}
           />

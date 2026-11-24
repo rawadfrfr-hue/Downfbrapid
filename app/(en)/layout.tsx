@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
-import './globals.css';
+import '../globals.css';
 import { SITE_URL, OG_IMAGE_URL, getMetadataBase } from '@/lib/seo-data';
 
 const inter = Inter({
@@ -48,6 +48,7 @@ export const metadata: Metadata = {
     type: 'website',
     siteName: 'Save Vibe',
     url: SITE_URL,
+    locale: 'en_US',
     images: [
       {
         url: OG_IMAGE_URL,
@@ -66,9 +67,9 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function EnRootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang="en" dir="ltr" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body
         className="font-sans antialiased bg-[#F8FAFC] text-slate-900 selection:bg-[#1877F2]/20 selection:text-[#1877F2]"
         suppressHydrationWarning

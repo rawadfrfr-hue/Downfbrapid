@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { PLATFORMS, PagePlatform, PlatformType } from '@/lib/platforms';
 import { mergeVideoAndAudioInBrowser, MergeProgress } from '@/lib/client-ffmpeg';
+import type { Locale } from '@/lib/i18n';
 
 export interface QualityItem {
   id: string;
@@ -89,6 +90,7 @@ interface DownloadOption {
 interface ResultCardProps {
   data: VideoData;
   platform?: PagePlatform;
+  locale?: Locale;
   onReset: () => void;
   onRecordDownload: (quality: string) => void;
 }
@@ -135,9 +137,11 @@ function triggerFileDownload(href: string, filename: string): void {
 export const ResultCard: React.FC<ResultCardProps> = ({
   data,
   platform = 'facebook',
+  locale = 'en',
   onReset,
   onRecordDownload,
 }) => {
+  const isBn = locale === 'bn';
   const detectedFromData = data.platform?.toLowerCase() as PlatformType | undefined;
   const resolvedPlatform: PlatformType =
     detectedFromData && detectedFromData in PLATFORMS
@@ -232,7 +236,9 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         setMergeProgress({
           stage: 'merging',
           percent: 35,
-          message: 'Preparing & merging HD video + audio...',
+          message: isBn
+            ? 'HD ভিডিও এবং অডিও প্রস্তুত ও মার্জ হচ্ছে...'
+            : 'Preparing & merging HD video + audio...',
         });
 
         const prepareUrl = finalDownloadUrl
@@ -247,16 +253,18 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         const prepJson = await prepRes.json().catch(() => null);
         if (!prepRes.ok || !prepJson?.success) {
           throw new Error(
-            prepJson?.detail ||
-              prepJson?.error ||
-              'Failed to prepare video download. Please fetch the video link again.'
+            isBn
+              ? 'ভিডিও ডাউনলোড প্রস্তুত করা যায়নি। অনুগ্রহ করে লিংকটি আবার দিন।'
+              : prepJson?.detail ||
+                  prepJson?.error ||
+                  'Failed to prepare video download. Please fetch the video link again.'
           );
         }
 
         setMergeProgress({
           stage: 'saving',
           percent: 100,
-          message: 'Ready — starting download...',
+          message: isBn ? 'প্রস্তুত — ডাউনলোড শুরু হচ্ছে...' : 'Ready — starting download...',
         });
 
         setPreparedDownloads((prev) => ({
@@ -272,10 +280,11 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           onRecordDownload(qualityLabel);
           triggerFileDownload(finalDownloadUrl, targetFilename);
         } else {
-          const msg =
-            err instanceof Error
-              ? err.message
-              : 'Failed to prepare video download. Please fetch the link again.';
+          const msg = isBn
+            ? 'ভিডিও ডাউনলোড প্রস্তুত করা যায়নি। অনুগ্রহ করে লিংকটি আবার যাচাই করুন।'
+            : err instanceof Error
+            ? err.message
+            : 'Failed to prepare video download. Please fetch the link again.';
           setMergeError(msg);
         }
       } finally {
@@ -299,7 +308,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         setMergeProgress({
           stage: 'loading',
           percent: 5,
-          message: 'Preparing browser FFmpeg...',
+          message: isBn ? 'ব্রাউজার FFmpeg প্রস্তুত হচ্ছে...' : 'Preparing browser FFmpeg...',
         });
 
         const { blob, ext: mergedExt } = await mergeVideoAndAudioInBrowser({
@@ -326,10 +335,11 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           triggerFileDownload(blobUrl, finalFilename);
         }
       } catch (err: unknown) {
-        const msg =
-          err instanceof Error
-            ? err.message
-            : 'Browser merge failed. Please try fetching the video link again.';
+        const msg = isBn
+          ? 'ব্রাউজারে ভিডিও মার্জ করা যায়নি। অনুগ্রহ করে লিংকটি আবার দিন।'
+          : err instanceof Error
+          ? err.message
+          : 'Browser merge failed. Please try fetching the video link again.';
         setMergeError(msg);
       } finally {
         setMergeProgress(null);
@@ -357,8 +367,12 @@ export const ResultCard: React.FC<ResultCardProps> = ({
     ? [
         {
           type: 'sd',
-          mainTitle: 'Standard quality (without watermark)',
-          subDetails: `MP4 • Watermark-Free • ${data.qualities.sd?.size || 'Standard MP4'}`,
+          mainTitle: isBn
+            ? 'স্ট্যান্ডার্ড কোয়ালিটি (ওয়াটারমার্ক ছাড়া)'
+            : 'Standard quality (without watermark)',
+          subDetails: isBn
+            ? `MP4 • ওয়াটারমার্ক-মুক্ত • ${data.qualities.sd?.size || 'স্ট্যান্ডার্ড MP4'}`
+            : `MP4 • Watermark-Free • ${data.qualities.sd?.size || 'Standard MP4'}`,
           downloadUrl: data.qualities.sd?.downloadUrl || data.qualities.hd.downloadUrl,
           qualityLabel: 'Standard quality (without watermark)',
           format: data.qualities.sd?.format || 'MP4',
@@ -372,8 +386,12 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         },
         {
           type: 'hd',
-          mainTitle: 'High quality (without watermark)',
-          subDetails: `MP4 • Watermark-Free • ${data.qualities.hd.size || 'HD MP4'}`,
+          mainTitle: isBn
+            ? 'উচ্চ মানের HD (ওয়াটারমার্ক ছাড়া)'
+            : 'High quality (without watermark)',
+          subDetails: isBn
+            ? `MP4 • ওয়াটারমার্ক-মুক্ত • ${data.qualities.hd.size || 'HD MP4'}`
+            : `MP4 • Watermark-Free • ${data.qualities.hd.size || 'HD MP4'}`,
           downloadUrl: data.qualities.hd.downloadUrl,
           qualityLabel: 'High quality (without watermark)',
           format: data.qualities.hd.format || 'MP4',
@@ -389,7 +407,9 @@ export const ResultCard: React.FC<ResultCardProps> = ({
     : [
         {
           type: 'hd',
-          mainTitle: data.qualities.hd.quality || 'High Quality',
+          mainTitle: isBn
+            ? 'উচ্চ মানের কোয়ালিটি (HD)'
+            : data.qualities.hd.quality || 'High Quality',
           subDetails: `${data.qualities.hd.format || 'MP4'} • ${data.qualities.hd.size}`,
           downloadUrl: data.qualities.hd.downloadUrl,
           qualityLabel: data.qualities.hd.quality || 'High Quality',
@@ -406,7 +426,9 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           ? [
               {
                 type: 'sd',
-                mainTitle: data.qualities.sd.quality || 'Standard Quality',
+                mainTitle: isBn
+                  ? 'স্ট্যান্ডার্ড কোয়ালিটি (SD)'
+                  : data.qualities.sd.quality || 'Standard Quality',
                 subDetails: `${data.qualities.sd.format || 'MP4'} • ${data.qualities.sd.size}`,
                 downloadUrl: data.qualities.sd.downloadUrl,
                 qualityLabel: data.qualities.sd.quality || 'Standard Quality',
@@ -425,8 +447,12 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           ? [
               {
                 type: 'audio',
-                mainTitle: `${data.qualities.audio.format || 'M4A'} (Audio Only)`,
-                subDetails: `${data.qualities.audio.format || 'M4A'} • Audio Track • ${data.qualities.audio.size}`,
+                mainTitle: isBn
+                  ? `${data.qualities.audio.format || 'M4A'} (শুধুমাত্র অডিও)`
+                  : `${data.qualities.audio.format || 'M4A'} (Audio Only)`,
+                subDetails: isBn
+                  ? `${data.qualities.audio.format || 'M4A'} • অডিও ট্র্যাক • ${data.qualities.audio.size}`
+                  : `${data.qualities.audio.format || 'M4A'} • Audio Track • ${data.qualities.audio.size}`,
                 downloadUrl: data.qualities.audio.downloadUrl,
                 qualityLabel: 'Audio Only',
                 format: data.qualities.audio.format || 'M4A',
@@ -442,17 +468,21 @@ export const ResultCard: React.FC<ResultCardProps> = ({
       ? effectiveQualityList.map((item) => {
           const formatText = item.format || (item.id === 'audio' ? 'M4A' : 'MP4');
           let mainTitle = '';
-          if (isTikTok) mainTitle = item.label;
+          if (isTikTok) {
+            if (isBn && item.id === 'hd') mainTitle = 'উচ্চ মানের HD (ওয়াটারমার্ক ছাড়া)';
+            else if (isBn && item.id === 'sd') mainTitle = 'স্ট্যান্ডার্ড কোয়ালিটি (ওয়াটারমার্ক ছাড়া)';
+            else mainTitle = item.label;
+          }
           else if (item.id === '2160p') mainTitle = '2160p (4K Ultra HD)';
           else if (item.id === '1440p') mainTitle = '1440p (2K Quad HD)';
           else if (item.id === '1080p') mainTitle = '1080p (Full HD)';
           else if (item.id === '720p') mainTitle = '720p (HD)';
           else if (item.id === '540p') mainTitle = '540p (SD)';
           else if (item.id === '480p') mainTitle = '480p (SD)';
-          else if (item.id === '360p') mainTitle = '360p (Standard)';
-          else if (item.id === '240p') mainTitle = '240p (Low)';
-          else if (item.id === '144p') mainTitle = '144p (Data Saver)';
-          else if (item.id === 'audio') mainTitle = `${formatText} (Audio Only)`;
+          else if (item.id === '360p') mainTitle = isBn ? '360p (স্ট্যান্ডার্ড)' : '360p (Standard)';
+          else if (item.id === '240p') mainTitle = isBn ? '240p (লো কোয়ালিটি)' : '240p (Low)';
+          else if (item.id === '144p') mainTitle = isBn ? '144p (ডেটা সেভার)' : '144p (Data Saver)';
+          else if (item.id === 'audio') mainTitle = isBn ? `${formatText} (শুধুমাত্র অডিও)` : `${formatText} (Audio Only)`;
           else mainTitle = item.label;
 
           let cleanSub = item.sublabel;
@@ -502,14 +532,14 @@ export const ResultCard: React.FC<ResultCardProps> = ({
       {/* Top Header Row */}
       <div className="flex items-center justify-between gap-3 mb-4">
         <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider font-sans">
-          Download Quality Selection
+          {isBn ? 'ডাউনলোড কোয়ালিটি নির্বাচন করুন' : 'Download Quality Selection'}
         </span>
         <button
           onClick={onReset}
           className="text-xs font-medium text-slate-500 hover:text-slate-900 flex items-center gap-1.5 px-2.5 py-1 rounded-lg hover:bg-slate-100 transition-colors font-sans"
         >
           <RefreshCw className="w-3.5 h-3.5" />
-          Fetch Another
+          {isBn ? 'আরেকটি লিংক দিন' : 'Fetch Another'}
         </button>
       </div>
 
@@ -530,7 +560,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           <button
             onClick={() => setIsPreviewOpen(true)}
             className="absolute inset-0 flex items-center justify-center focus:outline-none"
-            aria-label="Preview video"
+            aria-label={isBn ? 'ভিডিও প্রিভিউ দেখুন' : 'Preview video'}
           >
             <div className="w-12 h-12 sm:w-13 sm:h-13 rounded-full bg-black/40 backdrop-blur-md border border-white/25 text-white flex items-center justify-center shadow-md group-hover:scale-110 group-hover:bg-black/60 transition-all duration-300">
               <Play className="w-5 h-5 fill-white ml-0.5 text-white" />
@@ -614,7 +644,9 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                     {showInlineProgress
                       ? mergeProgress.message
                       : isReadyToSave
-                      ? `${opt.format} • Ready — Click to Save`
+                      ? isBn
+                        ? `${opt.format} • প্রস্তুত — সেভ করতে ক্লিক করুন`
+                        : `${opt.format} • Ready — Click to Save`
                       : opt.subDetails}
                   </span>
                 </div>
@@ -693,12 +725,14 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           {copiedLink ? (
             <>
               <Check className="w-3.5 h-3.5 text-emerald-600" />
-              <span className="text-emerald-600 font-medium">Copied to Clipboard!</span>
+              <span className="text-emerald-600 font-medium">
+                {isBn ? 'ক্লিপবোর্ডে কপি হয়েছে!' : 'Copied to Clipboard!'}
+              </span>
             </>
           ) : (
             <>
               <Copy className="w-3.5 h-3.5" />
-              <span>Copy Link</span>
+              <span>{isBn ? 'লিংক কপি করুন' : 'Copy Link'}</span>
             </>
           )}
         </button>
@@ -710,7 +744,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           className="flex items-center gap-1 hover:text-slate-900 transition-colors font-medium text-slate-400 text-[11px]"
         >
           <ExternalLink className="w-3 h-3" />
-          <span>Direct Link</span>
+          <span>{isBn ? 'ডিরেক্ট লিংক' : 'Direct Link'}</span>
         </a>
       </div>
 
@@ -738,7 +772,9 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                   </span>
                   {isPreviewVideoOnly && (
                     <span className="text-[11px] text-slate-400 block mt-0.5">
-                      Muted preview — download an HD option to merge audio in your browser
+                      {isBn
+                        ? 'মিউট প্রিভিউ — অডিওসহ সেভ করতে HD অপশন ডাউনলোড করুন'
+                        : 'Muted preview — download an HD option to merge audio in your browser'}
                     </span>
                   )}
                 </div>
@@ -758,7 +794,9 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                   className="w-full h-full object-contain"
                   poster={data.thumbnail}
                 >
-                  Your browser does not support HTML video playback.
+                  {isBn
+                    ? 'আপনার ব্রাউজার HTML ভিডিও প্লেব্যাক সমর্থন করে না।'
+                    : 'Your browser does not support HTML video playback.'}
                 </video>
               </div>
             </motion.div>

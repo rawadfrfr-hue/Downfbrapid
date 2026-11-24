@@ -30,6 +30,10 @@ body {
   transition: background-color 0.25s ease, color 0.25s ease;
 }
 
+html[lang="bn"] body {
+  font-family: var(--font-bengali), var(--font-sans), system-ui, -apple-system, sans-serif;
+}
+
 /* Platform-Specific Inline SVG Logo Themes */
 .savevibe-logo {
   color: #1877F2;

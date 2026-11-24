@@ -1,5 +1,12 @@
 import type { Metadata } from 'next';
 import { PLATFORMS, PagePlatform } from './platforms';
+import type { Locale } from './i18n';
+import {
+  getBnSeoData,
+  getBnTranscriptSeo,
+  type BanglaPlatformSeoConfig,
+  type TranscriptSeoBnConfig,
+} from './seo-data-bn';
 
 const DEFAULT_SITE_URL = 'https://savevibe.bond';
 
@@ -516,7 +523,17 @@ export const SEO_DATA: Record<PagePlatform, PlatformSeoConfig> = {
   },
 };
 
-export const TRANSCRIPT_SEO = {
+export interface TranscriptSeoConfig {
+  title: string;
+  description: string;
+  canonicalUrl: string;
+  ogTitle: string;
+  ogDescription: string;
+  faqs: FAQItem[];
+  howToSteps: HowToStepItem[];
+}
+
+export const TRANSCRIPT_SEO: TranscriptSeoConfig = {
   title: 'YouTube Transcript Downloader - Save Vibe TXT & SRT',
   description:
     'Extract time-synced YouTube video transcripts in seconds. Search keywords, translate to 40+ languages, and export TXT, SRT, VTT, PDF, or CSV.',
@@ -565,10 +582,39 @@ export const TRANSCRIPT_SEO = {
   ],
 };
 
-export function generatePageMetadata(platform: PagePlatform): Metadata {
-  const data = SEO_DATA[platform];
-  const platformConfig =
-    platform === 'home' ? null : PLATFORMS[platform];
+export function getLocalizedSeoData(
+  platform: PagePlatform,
+  locale: Locale = 'en'
+): PlatformSeoConfig | BanglaPlatformSeoConfig {
+  if (locale === 'bn') {
+    const bnMap = getBnSeoData(SITE_URL);
+    return bnMap[platform] || bnMap.home;
+  }
+  return SEO_DATA[platform] || SEO_DATA.home;
+}
+
+export function getLocalizedTranscriptSeo(
+  locale: Locale = 'en'
+): TranscriptSeoConfig | (TranscriptSeoBnConfig & { canonicalUrl: string }) {
+  if (locale === 'bn') {
+    return getBnTranscriptSeo(SITE_URL);
+  }
+  return TRANSCRIPT_SEO;
+}
+
+function buildLanguageAlternates(enUrl: string, bnUrl: string) {
+  return {
+    en: enUrl,
+    bn: bnUrl,
+    'x-default': enUrl,
+  };
+}
+
+export function generatePageMetadata(platform: PagePlatform, locale: Locale = 'en'): Metadata {
+  const enData = SEO_DATA[platform];
+  const bnData = getBnSeoData(SITE_URL)[platform];
+  const data = locale === 'bn' ? bnData : enData;
+  const platformConfig = platform === 'home' ? null : PLATFORMS[platform];
 
   return {
     title: {
@@ -578,6 +624,7 @@ export function generatePageMetadata(platform: PagePlatform): Metadata {
     keywords: data.keywords,
     alternates: {
       canonical: data.canonicalUrl,
+      languages: buildLanguageAlternates(enData.canonicalUrl, bnData.canonicalUrl),
     },
     icons:
       platform === 'home' || !platformConfig
@@ -604,6 +651,8 @@ export function generatePageMetadata(platform: PagePlatform): Metadata {
       url: data.canonicalUrl,
       siteName: 'Save Vibe',
       type: 'website',
+      locale: locale === 'bn' ? 'bn_BD' : 'en_US',
+      alternateLocale: locale === 'bn' ? ['en_US'] : ['bn_BD'],
       images: [
         {
           url: OG_IMAGE_URL,
@@ -633,21 +682,29 @@ export function generatePageMetadata(platform: PagePlatform): Metadata {
   };
 }
 
-export function generateTranscriptMetadata(): Metadata {
+export function generateTranscriptMetadata(locale: Locale = 'en'): Metadata {
+  const enData = TRANSCRIPT_SEO;
+  const bnData = getBnTranscriptSeo(SITE_URL);
+  const isBn = locale === 'bn';
+  const data = isBn ? bnData : enData;
+
   return {
     title: {
-      absolute: TRANSCRIPT_SEO.title,
+      absolute: data.title,
     },
-    description: TRANSCRIPT_SEO.description,
-    keywords: [
-      'YouTube transcript downloader',
-      'YouTube subtitle extractor',
-      'YouTube captions to TXT SRT VTT',
-      'translate YouTube transcript',
-      'Save Vibe transcript tool',
-    ],
+    description: data.description,
+    keywords: isBn
+      ? bnData.keywords
+      : [
+          'YouTube transcript downloader',
+          'YouTube subtitle extractor',
+          'YouTube captions to TXT SRT VTT',
+          'translate YouTube transcript',
+          'Save Vibe transcript tool',
+        ],
     alternates: {
-      canonical: TRANSCRIPT_SEO.canonicalUrl,
+      canonical: data.canonicalUrl,
+      languages: buildLanguageAlternates(enData.canonicalUrl, bnData.canonicalUrl),
     },
     icons: {
       icon: [
@@ -659,24 +716,26 @@ export function generateTranscriptMetadata(): Metadata {
       apple: '/favicons/apple-touch-icon.png',
     },
     openGraph: {
-      title: TRANSCRIPT_SEO.ogTitle,
-      description: TRANSCRIPT_SEO.ogDescription,
-      url: TRANSCRIPT_SEO.canonicalUrl,
+      title: data.ogTitle,
+      description: data.ogDescription,
+      url: data.canonicalUrl,
       siteName: 'Save Vibe',
       type: 'website',
+      locale: isBn ? 'bn_BD' : 'en_US',
+      alternateLocale: isBn ? ['en_US'] : ['bn_BD'],
       images: [
         {
           url: OG_IMAGE_URL,
           width: 1200,
           height: 630,
-          alt: TRANSCRIPT_SEO.ogTitle,
+          alt: data.ogTitle,
         },
       ],
     },
     twitter: {
       card: 'summary_large_image',
-      title: TRANSCRIPT_SEO.ogTitle,
-      description: TRANSCRIPT_SEO.ogDescription,
+      title: data.ogTitle,
+      description: data.ogDescription,
       images: [OG_IMAGE_URL],
     },
     robots: {
@@ -697,8 +756,17 @@ export function generateLegalMetadata(opts: {
   title: string;
   description: string;
   path: string;
+  locale?: Locale;
+  alternateEnPath?: string;
+  alternateBnPath?: string;
 }): Metadata {
+  const locale = opts.locale || 'en';
   const url = `${SITE_URL}${opts.path}`;
+  const enPath = opts.alternateEnPath || (opts.path.startsWith('/bn') ? opts.path.slice(3) || '/' : opts.path);
+  const bnPath = opts.alternateBnPath || (opts.path.startsWith('/bn') ? opts.path : `/bn${opts.path}`);
+  const enUrl = `${SITE_URL}${enPath}`;
+  const bnUrl = `${SITE_URL}${bnPath}`;
+
   return {
     title: {
       absolute: opts.title,
@@ -706,6 +774,7 @@ export function generateLegalMetadata(opts: {
     description: opts.description,
     alternates: {
       canonical: url,
+      languages: buildLanguageAlternates(enUrl, bnUrl),
     },
     openGraph: {
       title: opts.title,
@@ -713,6 +782,8 @@ export function generateLegalMetadata(opts: {
       url,
       siteName: 'Save Vibe',
       type: 'website',
+      locale: locale === 'bn' ? 'bn_BD' : 'en_US',
+      alternateLocale: locale === 'bn' ? ['en_US'] : ['bn_BD'],
       images: [
         {
           url: OG_IMAGE_URL,
@@ -735,11 +806,23 @@ export function generateLegalMetadata(opts: {
   };
 }
 
-export function generateJsonLdSchema(platform: PagePlatform) {
-  const data = SEO_DATA[platform];
+const BN_PLATFORM_SCHEMA_NAMES: Record<PagePlatform, string> = {
+  home: 'সোশ্যাল মিডিয়া ভিডিও',
+  facebook: 'ফেসবুক',
+  youtube: 'ইউটিউব',
+  instagram: 'ইনস্টাগ্রাম',
+  tiktok: 'টিকটক',
+};
+
+export function generateJsonLdSchema(platform: PagePlatform, locale: Locale = 'en') {
+  const isBn = locale === 'bn';
+  const data = getLocalizedSeoData(platform, locale);
   const isHome = platform === 'home';
   const pageUrl = data.canonicalUrl;
-  const platformName = isHome
+  const homeUrl = isBn ? `${SITE_URL}/bn` : `${SITE_URL}/`;
+  const platformName = isBn
+    ? BN_PLATFORM_SCHEMA_NAMES[platform]
+    : isHome
     ? 'Social Media Video'
     : platform.charAt(0).toUpperCase() + platform.slice(1);
 
@@ -749,7 +832,10 @@ export function generateJsonLdSchema(platform: PagePlatform) {
     '@id': `${SITE_URL}/#website`,
     url: SITE_URL,
     name: 'Save Vibe',
-    description: 'Fast & Free Social Media Video Downloader',
+    description: isBn
+      ? 'দ্রুত ও ফ্রি সোশ্যাল মিডিয়া ভিডিও ডাউনলোডার'
+      : 'Fast & Free Social Media Video Downloader',
+    inLanguage: locale,
   };
 
   const webPageSchema = {
@@ -759,6 +845,7 @@ export function generateJsonLdSchema(platform: PagePlatform) {
     url: pageUrl,
     name: data.title,
     description: data.description,
+    inLanguage: locale,
     isPartOf: { '@id': `${SITE_URL}/#website` },
     breadcrumb: { '@id': `${pageUrl}#breadcrumb` },
   };
@@ -772,21 +859,21 @@ export function generateJsonLdSchema(platform: PagePlatform) {
           {
             '@type': 'ListItem',
             position: 1,
-            name: 'Home',
-            item: `${SITE_URL}/`,
+            name: isBn ? 'হোম' : 'Home',
+            item: homeUrl,
           },
         ]
       : [
           {
             '@type': 'ListItem',
             position: 1,
-            name: 'Home',
-            item: `${SITE_URL}/`,
+            name: isBn ? 'হোম' : 'Home',
+            item: homeUrl,
           },
           {
             '@type': 'ListItem',
             position: 2,
-            name: `${platformName} Downloader`,
+            name: isBn ? `${platformName} ভিডিও ডাউনলোডার` : `${platformName} Downloader`,
             item: pageUrl,
           },
         ],
@@ -795,9 +882,16 @@ export function generateJsonLdSchema(platform: PagePlatform) {
   const softwareAppSchema = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
-    name: isHome ? 'Save Vibe Video Downloader' : `Save Vibe ${platformName} Downloader`,
+    name: isBn
+      ? isHome
+        ? 'Save Vibe ভিডিও ডাউনলোডার'
+        : `Save Vibe ${platformName} ভিডিও ডাউনলোডার`
+      : isHome
+      ? 'Save Vibe Video Downloader'
+      : `Save Vibe ${platformName} Downloader`,
     operatingSystem: 'All',
     applicationCategory: 'MultimediaApplication',
+    inLanguage: locale,
     url: pageUrl,
     description: data.description,
     offers: {
@@ -811,6 +905,7 @@ export function generateJsonLdSchema(platform: PagePlatform) {
   const faqSchema = {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
+    inLanguage: locale,
     mainEntity: data.faqs.map((faq) => ({
       '@type': 'Question',
       name: faq.question,
@@ -824,7 +919,12 @@ export function generateJsonLdSchema(platform: PagePlatform) {
   const howToSchema = {
     '@context': 'https://schema.org',
     '@type': 'HowTo',
-    name: isHome
+    inLanguage: locale,
+    name: isBn
+      ? isHome
+        ? 'Save Vibe দিয়ে অনলাইনে সোশ্যাল মিডিয়া ভিডিও ডাউনলোড করার নিয়ম'
+        : `কীভাবে অনলাইনে ${platformName} ভিডিও ডাউনলোড করবেন`
+      : isHome
       ? 'How to Download Social Media Videos Online with Save Vibe'
       : `How to Download ${platformName} Videos Online`,
     description: data.description,
@@ -839,8 +939,11 @@ export function generateJsonLdSchema(platform: PagePlatform) {
   return [websiteSchema, webPageSchema, breadcrumbSchema, softwareAppSchema, faqSchema, howToSchema];
 }
 
-export function generateTranscriptJsonLd() {
-  const pageUrl = TRANSCRIPT_SEO.canonicalUrl;
+export function generateTranscriptJsonLd(locale: Locale = 'en') {
+  const isBn = locale === 'bn';
+  const data = getLocalizedTranscriptSeo(locale);
+  const pageUrl = data.canonicalUrl;
+  const homeUrl = isBn ? `${SITE_URL}/bn` : `${SITE_URL}/`;
 
   const websiteSchema = {
     '@context': 'https://schema.org',
@@ -848,7 +951,10 @@ export function generateTranscriptJsonLd() {
     '@id': `${SITE_URL}/#website`,
     url: SITE_URL,
     name: 'Save Vibe',
-    description: 'Fast & Free Social Media Video Downloader',
+    description: isBn
+      ? 'দ্রুত ও ফ্রি সোশ্যাল মিডিয়া ভিডিও ডাউনলোডার'
+      : 'Fast & Free Social Media Video Downloader',
+    inLanguage: locale,
   };
 
   const webPageSchema = {
@@ -856,8 +962,9 @@ export function generateTranscriptJsonLd() {
     '@type': 'WebPage',
     '@id': `${pageUrl}#webpage`,
     url: pageUrl,
-    name: TRANSCRIPT_SEO.title,
-    description: TRANSCRIPT_SEO.description,
+    name: data.title,
+    description: data.description,
+    inLanguage: locale,
     isPartOf: { '@id': `${SITE_URL}/#website` },
     breadcrumb: { '@id': `${pageUrl}#breadcrumb` },
   };
@@ -870,13 +977,13 @@ export function generateTranscriptJsonLd() {
       {
         '@type': 'ListItem',
         position: 1,
-        name: 'Home',
-        item: `${SITE_URL}/`,
+        name: isBn ? 'হোম' : 'Home',
+        item: homeUrl,
       },
       {
         '@type': 'ListItem',
         position: 2,
-        name: 'YouTube Transcript Downloader',
+        name: isBn ? 'ইউটিউব ট্রান্সক্রিপ্ট ডাউনলোডার' : 'YouTube Transcript Downloader',
         item: pageUrl,
       },
     ],
@@ -885,11 +992,14 @@ export function generateTranscriptJsonLd() {
   const softwareAppSchema = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
-    name: 'Save Vibe YouTube Transcript Downloader',
+    name: isBn
+      ? 'Save Vibe ইউটিউব ট্রান্সক্রিপ্ট ডাউনলোডার'
+      : 'Save Vibe YouTube Transcript Downloader',
     operatingSystem: 'All',
     applicationCategory: 'UtilitiesApplication',
+    inLanguage: locale,
     url: pageUrl,
-    description: TRANSCRIPT_SEO.description,
+    description: data.description,
     offers: {
       '@type': 'Offer',
       price: '0',
@@ -901,7 +1011,8 @@ export function generateTranscriptJsonLd() {
   const faqSchema = {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
-    mainEntity: TRANSCRIPT_SEO.faqs.map((faq) => ({
+    inLanguage: locale,
+    mainEntity: data.faqs.map((faq) => ({
       '@type': 'Question',
       name: faq.question,
       acceptedAnswer: {
@@ -914,9 +1025,12 @@ export function generateTranscriptJsonLd() {
   const howToSchema = {
     '@context': 'https://schema.org',
     '@type': 'HowTo',
-    name: 'How to Extract and Export YouTube Video Transcripts',
-    description: TRANSCRIPT_SEO.description,
-    step: TRANSCRIPT_SEO.howToSteps.map((stepItem, idx) => ({
+    inLanguage: locale,
+    name: isBn
+      ? 'কীভাবে ইউটিউব ভিডিওর ট্রান্সক্রিপ্ট ও সাবটাইটেল ডাউনলোড করবেন'
+      : 'How to Extract and Export YouTube Video Transcripts',
+    description: data.description,
+    step: data.howToSteps.map((stepItem, idx) => ({
       '@type': 'HowToStep',
       position: idx + 1,
       name: stepItem.title,

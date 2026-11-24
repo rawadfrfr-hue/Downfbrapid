@@ -11,9 +11,13 @@ import {
   Instagram,
   FileText,
   CheckCircle2,
+  Wrench,
 } from 'lucide-react';
-import { PagePlatform, PlatformType, getPlatformConfig } from '@/lib/platforms';
-import { SEO_DATA } from '@/lib/seo-data';
+import { PagePlatform, PlatformType } from '@/lib/platforms';
+import { getLocalizedPlatformConfig } from '@/lib/platforms-bn';
+import { getLocalizedSeoData } from '@/lib/seo-data';
+import type { BanglaPlatformSeoConfig } from '@/lib/seo-data-bn';
+import { Locale, getLocalizedPath } from '@/lib/i18n';
 
 const TikTokIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -23,11 +27,13 @@ const TikTokIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' })
 
 interface FeaturesGridProps {
   platform?: PagePlatform;
+  locale?: Locale;
 }
 
 interface ToolSuggestionOption {
   id: PlatformType | 'youtube-transcript';
   title: string;
+  bnTitle: string;
   path: string;
   icon: React.ComponentType<{ className?: string }>;
   iconColor: string;
@@ -39,6 +45,7 @@ const ALL_TOOL_SUGGESTIONS: ToolSuggestionOption[] = [
   {
     id: 'facebook',
     title: 'Facebook Video Downloader',
+    bnTitle: 'ফেসবুক ভিডিও ডাউনলোডার',
     path: '/facebook',
     icon: Facebook,
     iconColor: 'text-[#1877F2]',
@@ -49,6 +56,7 @@ const ALL_TOOL_SUGGESTIONS: ToolSuggestionOption[] = [
   {
     id: 'youtube',
     title: 'YouTube Video Downloader',
+    bnTitle: 'ইউটিউব ভিডিও ডাউনলোডার',
     path: '/youtube',
     icon: Youtube,
     iconColor: 'text-red-600',
@@ -59,6 +67,7 @@ const ALL_TOOL_SUGGESTIONS: ToolSuggestionOption[] = [
   {
     id: 'instagram',
     title: 'Instagram Video Downloader',
+    bnTitle: 'ইনস্টাগ্রাম ভিডিও ডাউনলোডার',
     path: '/instagram',
     icon: Instagram,
     iconColor: 'text-[#E1306C]',
@@ -69,6 +78,7 @@ const ALL_TOOL_SUGGESTIONS: ToolSuggestionOption[] = [
   {
     id: 'tiktok',
     title: 'TikTok Video Downloader',
+    bnTitle: 'টিকটক ভিডিও ডাউনলোডার',
     path: '/tiktok',
     icon: TikTokIcon,
     iconColor: 'text-slate-900',
@@ -79,6 +89,7 @@ const ALL_TOOL_SUGGESTIONS: ToolSuggestionOption[] = [
   {
     id: 'youtube-transcript',
     title: 'YouTube Transcript Tool',
+    bnTitle: 'ইউটিউব ট্রান্সক্রিপ্ট টুল',
     path: '/youtube-transcript',
     icon: FileText,
     iconColor: 'text-red-600',
@@ -88,9 +99,11 @@ const ALL_TOOL_SUGGESTIONS: ToolSuggestionOption[] = [
   },
 ];
 
-export const FeaturesGrid: React.FC<FeaturesGridProps> = ({ platform = 'home' }) => {
-  const platformConfig = getPlatformConfig(platform);
-  const seoInfo = SEO_DATA[platform] || SEO_DATA.home;
+export const FeaturesGrid: React.FC<FeaturesGridProps> = ({ platform = 'home', locale = 'en' }) => {
+  const isBn = locale === 'bn';
+  const platformConfig = getLocalizedPlatformConfig(platform, locale);
+  const seoInfo = getLocalizedSeoData(platform, locale);
+  const bnSeo = isBn ? (seoInfo as BanglaPlatformSeoConfig) : null;
   const isHome = platform === 'home';
 
   const relatedSuggestions = isHome
@@ -110,7 +123,11 @@ export const FeaturesGrid: React.FC<FeaturesGridProps> = ({ platform = 'home' })
       <div>
         <div className="text-center mb-6 space-y-1.5">
           <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
-            {isHome
+            {isBn
+              ? isHome
+                ? 'কেন Save Vibe ভিডিও ডাউনলোডার ব্যবহার করবেন?'
+                : `কেন Save Vibe ${platformConfig.name} ডাউনলোডার সেরা?`
+              : isHome
               ? 'Why Choose Save Vibe Video Downloader'
               : `Why Choose Save Vibe ${platformConfig.name} Downloader`}
           </h2>
@@ -124,7 +141,13 @@ export const FeaturesGrid: React.FC<FeaturesGridProps> = ({ platform = 'home' })
           <div className="flex items-center justify-center gap-2 mb-3.5">
             <span className="h-px bg-slate-200/80 flex-1 max-w-[50px] sm:max-w-[90px]" />
             <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider text-center px-1">
-              {isHome ? 'Supported Platform Downloaders' : 'Explore More Save Vibe Tools'}
+              {isBn
+                ? isHome
+                  ? 'সাপোর্টেড প্ল্যাটফর্ম ডাউনলোডারসমূহ'
+                  : 'Save Vibe-এর অন্যান্য টুলস দেখুন'
+                : isHome
+                ? 'Supported Platform Downloaders'
+                : 'Explore More Save Vibe Tools'}
             </span>
             <span className="h-px bg-slate-200/80 flex-1 max-w-[50px] sm:max-w-[90px]" />
           </div>
@@ -139,7 +162,7 @@ export const FeaturesGrid: React.FC<FeaturesGridProps> = ({ platform = 'home' })
               return (
                 <Link
                   key={item.id}
-                  href={item.path}
+                  href={getLocalizedPath(item.path, locale)}
                   className={`group relative flex items-center gap-2.5 p-3 rounded-xl border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 ${item.btnStyle}`}
                 >
                   <div
@@ -150,7 +173,7 @@ export const FeaturesGrid: React.FC<FeaturesGridProps> = ({ platform = 'home' })
                     />
                   </div>
                   <span className="text-xs font-bold leading-tight truncate group-hover:text-white transition-colors">
-                    {item.title}
+                    {isBn ? item.bnTitle : item.title}
                   </span>
                 </Link>
               );
@@ -179,7 +202,7 @@ export const FeaturesGrid: React.FC<FeaturesGridProps> = ({ platform = 'home' })
         </div>
       </div>
 
-      {/* Rich Platform Guide & Supported Formats Section (Eliminates Thin Content) */}
+      {/* Rich Platform Guide & Supported Formats Section */}
       <article className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs p-6 sm:p-8 space-y-5">
         <div className="space-y-2">
           <span className="inline-block text-[11px] font-bold uppercase tracking-wider text-[#1877F2] bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-md">
@@ -198,7 +221,9 @@ export const FeaturesGrid: React.FC<FeaturesGridProps> = ({ platform = 'home' })
 
         <div className="pt-2 border-t border-slate-100">
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-3">
-            Supported Links, Resolutions &amp; Formats
+            {isBn
+              ? 'সাপোর্টেড লিংক, রেজোলিউশন ও ফরম্যাট'
+              : 'Supported Links, Resolutions & Formats'}
           </h3>
           <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {seoInfo.supportedFormats.map((fmt, fIdx) => (
@@ -210,6 +235,34 @@ export const FeaturesGrid: React.FC<FeaturesGridProps> = ({ platform = 'home' })
           </ul>
         </div>
       </article>
+
+      {/* Troubleshooting Guide for Bangla Pages */}
+      {bnSeo && bnSeo.troubleshooting?.length > 0 && (
+        <section className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs p-6 sm:p-8 space-y-4">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-lg bg-amber-50 text-amber-600">
+              <Wrench className="w-4 h-4" />
+            </div>
+            <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+              {bnSeo.troubleshootingTitle}
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {bnSeo.troubleshooting.map((item, tIdx) => (
+              <div
+                key={tIdx}
+                className="p-4 rounded-xl bg-slate-50/80 border border-slate-200/70 space-y-2"
+              >
+                <h3 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
+                  {item.issue}
+                </h3>
+                <p className="text-xs text-slate-600 leading-relaxed">{item.solution}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </section>
   );
 };
