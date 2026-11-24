@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { cookies } from 'next/headers';
 import { NextRequest } from 'next/server';
@@ -9,8 +10,16 @@ import { getPrismaClient } from './prisma';
 
 export const ADMIN_SESSION_COOKIE = 'savevibe_admin_session';
 
-const DATA_DIR = path.resolve(process.cwd(), '.savevibe-data');
-const AUTH_STORE_FILE = path.resolve(DATA_DIR, 'admin-auth.json');
+const BUNDLED_DATA_DIR = path.resolve(process.cwd(), '.savevibe-data');
+const BUNDLED_AUTH_FILE = path.resolve(BUNDLED_DATA_DIR, 'admin-auth.json');
+const TMP_DATA_DIR = path.resolve(os.tmpdir(), '.savevibe-data');
+const TMP_AUTH_FILE = path.resolve(TMP_DATA_DIR, 'admin-auth.json');
+const IS_SERVERLESS_READONLY = Boolean(
+  process.env.VERCEL ||
+    process.env.AWS_LAMBDA_FUNCTION_NAME ||
+    process.env.AWS_EXECUTION_ENV ||
+    process.env.NOW_REGION
+);
 
 interface StoredAdminCredential {
   email: string;
@@ -37,22 +46,24 @@ function getSigningKey(): string {
   return globalThis.__savevibeEphemeralSessionKey;
 }
 
-function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-}
-
 export function getClaimedLocalAdmin(): StoredAdminCredential | null {
-  try {
-    if (!fs.existsSync(AUTH_STORE_FILE)) return null;
-    const raw = fs.readFileSync(AUTH_STORE_FILE, 'utf-8');
-    const parsed = JSON.parse(raw) as StoredAdminCredential;
-    if (!parsed?.email || !parsed?.passwordHash || !parsed?.salt) return null;
-    return parsed;
-  } catch {
-    return null;
+  const candidateFiles = IS_SERVERLESS_READONLY
+    ? [TMP_AUTH_FILE, BUNDLED_AUTH_FILE]
+    : [BUNDLED_AUTH_FILE, TMP_AUTH_FILE];
+
+  for (const filePath of candidateFiles) {
+    try {
+      if (!fs.existsSync(filePath)) continue;
+      const raw = fs.readFileSync(filePath, 'utf-8');
+      const parsed = JSON.parse(raw) as StoredAdminCredential;
+      if (parsed?.email && parsed?.passwordHash && parsed?.salt) {
+        return parsed;
+      }
+    } catch {
+      // Try next file path
+    }
   }
+  return null;
 }
 
 export function getAuthSetupState(): {
@@ -114,7 +125,6 @@ export function claimFirstLocalAdmin(email: string, name: string, password: stri
     throw new Error('Admin account has already been claimed.');
   }
 
-  ensureDataDir();
   const { salt, hash } = hashPassword(password);
   const record: StoredAdminCredential = {
     email: email.trim().toLowerCase(),
@@ -123,7 +133,27 @@ export function claimFirstLocalAdmin(email: string, name: string, password: stri
     passwordHash: hash,
     createdAt: new Date().toISOString(),
   };
-  fs.writeFileSync(AUTH_STORE_FILE, JSON.stringify(record, null, 2), { mode: 0o600 });
+  const serialized = JSON.stringify(record, null, 2);
+
+  if (!IS_SERVERLESS_READONLY) {
+    try {
+      if (!fs.existsSync(BUNDLED_DATA_DIR)) {
+        fs.mkdirSync(BUNDLED_DATA_DIR, { recursive: true });
+      }
+      fs.writeFileSync(BUNDLED_AUTH_FILE, serialized, { mode: 0o600 });
+      return record;
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException | null)?.code;
+      if (code !== 'EROFS' && code !== 'EACCES' && code !== 'EPERM') {
+        throw err;
+      }
+    }
+  }
+
+  if (!fs.existsSync(TMP_DATA_DIR)) {
+    fs.mkdirSync(TMP_DATA_DIR, { recursive: true });
+  }
+  fs.writeFileSync(TMP_AUTH_FILE, serialized, { mode: 0o600 });
   return record;
 }
 

@@ -1,4 +1,5 @@
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache';
 import {
@@ -22,8 +23,17 @@ import {
 } from './cms-defaults';
 import { getPrismaClient } from './prisma';
 
-const DATA_DIR = path.resolve(process.cwd(), '.savevibe-data');
-const CMS_STORE_FILE = path.resolve(DATA_DIR, 'cms-store.json');
+const BUNDLED_DATA_DIR = path.resolve(process.cwd(), '.savevibe-data');
+const BUNDLED_CMS_STORE_FILE = path.resolve(BUNDLED_DATA_DIR, 'cms-store.json');
+const TMP_DATA_DIR = path.resolve(os.tmpdir(), '.savevibe-data');
+const TMP_CMS_STORE_FILE = path.resolve(TMP_DATA_DIR, 'cms-store.json');
+
+const IS_SERVERLESS_READONLY = Boolean(
+  process.env.VERCEL ||
+    process.env.AWS_LAMBDA_FUNCTION_NAME ||
+    process.env.AWS_EXECUTION_ENV ||
+    process.env.NOW_REGION
+);
 
 interface FileStoreSchema {
   languages: CmsLanguageRecord[];
@@ -33,55 +43,99 @@ interface FileStoreSchema {
   downloadLogs: CmsDownloadLogRecord[];
 }
 
-function ensureStoreFile(): FileStoreSchema {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-  if (!fs.existsSync(CMS_STORE_FILE)) {
-    const initial: FileStoreSchema = {
-      languages: buildDefaultLanguages(),
-      contents: buildAllDefaultContents(),
-      platformConfigs: buildDefaultPlatformConfigs(),
-      globalSettings: buildDefaultGlobalSettings(),
-      downloadLogs: [],
-    };
-    fs.writeFileSync(CMS_STORE_FILE, JSON.stringify(initial, null, 2), 'utf-8');
-    return initial;
-  }
+declare global {
+  var __savevibeMemoryStore: FileStoreSchema | undefined;
+}
 
-  try {
-    const raw = fs.readFileSync(CMS_STORE_FILE, 'utf-8');
-    const parsed = JSON.parse(raw) as Partial<FileStoreSchema>;
-    return {
-      languages: Array.isArray(parsed.languages) && parsed.languages.length > 0
+function buildInitialStore(): FileStoreSchema {
+  return {
+    languages: buildDefaultLanguages(),
+    contents: buildAllDefaultContents(),
+    platformConfigs: buildDefaultPlatformConfigs(),
+    globalSettings: buildDefaultGlobalSettings(),
+    downloadLogs: [],
+  };
+}
+
+function normalizeParsedStore(raw: string): FileStoreSchema {
+  const parsed = JSON.parse(raw) as Partial<FileStoreSchema>;
+  return {
+    languages:
+      Array.isArray(parsed.languages) && parsed.languages.length > 0
         ? parsed.languages
         : buildDefaultLanguages(),
-      contents: Array.isArray(parsed.contents) && parsed.contents.length > 0
+    contents:
+      Array.isArray(parsed.contents) && parsed.contents.length > 0
         ? parsed.contents
         : buildAllDefaultContents(),
-      platformConfigs: Array.isArray(parsed.platformConfigs) && parsed.platformConfigs.length > 0
+    platformConfigs:
+      Array.isArray(parsed.platformConfigs) && parsed.platformConfigs.length > 0
         ? parsed.platformConfigs
         : buildDefaultPlatformConfigs(),
-      globalSettings: parsed.globalSettings || buildDefaultGlobalSettings(),
-      downloadLogs: Array.isArray(parsed.downloadLogs) ? parsed.downloadLogs : [],
-    };
-  } catch {
-    const fallback: FileStoreSchema = {
-      languages: buildDefaultLanguages(),
-      contents: buildAllDefaultContents(),
-      platformConfigs: buildDefaultPlatformConfigs(),
-      globalSettings: buildDefaultGlobalSettings(),
-      downloadLogs: [],
-    };
-    return fallback;
+    globalSettings: parsed.globalSettings || buildDefaultGlobalSettings(),
+    downloadLogs: Array.isArray(parsed.downloadLogs) ? parsed.downloadLogs : [],
+  };
+}
+
+function isReadOnlyFsError(err: unknown): boolean {
+  const code = (err as NodeJS.ErrnoException | null)?.code;
+  return code === 'EROFS' || code === 'EACCES' || code === 'EPERM';
+}
+
+function ensureStoreFile(): FileStoreSchema {
+  const candidateFiles = IS_SERVERLESS_READONLY
+    ? [TMP_CMS_STORE_FILE, BUNDLED_CMS_STORE_FILE]
+    : [BUNDLED_CMS_STORE_FILE, TMP_CMS_STORE_FILE];
+
+  for (const filePath of candidateFiles) {
+    try {
+      if (fs.existsSync(filePath)) {
+        const raw = fs.readFileSync(filePath, 'utf-8');
+        const normalized = normalizeParsedStore(raw);
+        globalThis.__savevibeMemoryStore = normalized;
+        return normalized;
+      }
+    } catch {
+      // Try next candidate or memory/default fallback
+    }
   }
+
+  if (globalThis.__savevibeMemoryStore) {
+    return globalThis.__savevibeMemoryStore;
+  }
+
+  const initial = buildInitialStore();
+  globalThis.__savevibeMemoryStore = initial;
+  writeStoreFile(initial);
+  return initial;
 }
 
 function writeStoreFile(store: FileStoreSchema) {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  globalThis.__savevibeMemoryStore = store;
+  const serialized = JSON.stringify(store, null, 2);
+
+  if (!IS_SERVERLESS_READONLY) {
+    try {
+      if (!fs.existsSync(BUNDLED_DATA_DIR)) {
+        fs.mkdirSync(BUNDLED_DATA_DIR, { recursive: true });
+      }
+      fs.writeFileSync(BUNDLED_CMS_STORE_FILE, serialized, 'utf-8');
+      return;
+    } catch (err) {
+      if (!isReadOnlyFsError(err)) {
+        console.warn('CMS store write to project dir failed, falling back to tmp:', err);
+      }
+    }
   }
-  fs.writeFileSync(CMS_STORE_FILE, JSON.stringify(store, null, 2), 'utf-8');
+
+  try {
+    if (!fs.existsSync(TMP_DATA_DIR)) {
+      fs.mkdirSync(TMP_DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(TMP_CMS_STORE_FILE, serialized, 'utf-8');
+  } catch (err) {
+    console.warn('CMS store write to tmp dir failed, keeping in-memory store:', err);
+  }
 }
 
 // ---------- Cache Revalidation ----------
@@ -810,20 +864,24 @@ export async function recordDownloadEvent(input: {
     }
   }
 
-  const store = ensureStoreFile();
-  store.downloadLogs.unshift({
-    id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    platform: input.platform,
-    videoUrl: safeUrl,
-    status: input.status,
-    errorMessage: safeErr,
-    errorCode: input.errorCode || null,
-    quality: input.quality || null,
-    locale: input.locale || 'en',
-    createdAt: new Date().toISOString(),
-  });
-  store.downloadLogs = store.downloadLogs.slice(0, 500);
-  writeStoreFile(store);
+  try {
+    const store = ensureStoreFile();
+    store.downloadLogs.unshift({
+      id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      platform: input.platform,
+      videoUrl: safeUrl,
+      status: input.status,
+      errorMessage: safeErr,
+      errorCode: input.errorCode || null,
+      quality: input.quality || null,
+      locale: input.locale || 'en',
+      createdAt: new Date().toISOString(),
+    });
+    store.downloadLogs = store.downloadLogs.slice(0, 500);
+    writeStoreFile(store);
+  } catch (error) {
+    console.warn('recordDownloadEvent file fallback skipped:', error);
+  }
 }
 
 export async function clearFailedDownloadLogs(): Promise<void> {
