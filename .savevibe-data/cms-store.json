@@ -1,0 +1,1045 @@
+{
+  "languages": [
+    {
+      "id": "lang-en",
+      "code": "en",
+      "name": "English",
+      "nativeName": "English",
+      "hreflang": "en",
+      "direction": "ltr",
+      "isDefault": true,
+      "isActive": true,
+      "sortOrder": 0,
+      "updatedAt": "2026-11-24T03:11:45.837Z"
+    },
+    {
+      "id": "lang-bn",
+      "code": "bn",
+      "name": "Bengali",
+      "nativeName": "বাংলা",
+      "hreflang": "bn",
+      "direction": "ltr",
+      "isDefault": false,
+      "isActive": true,
+      "sortOrder": 1,
+      "updatedAt": "2026-11-24T03:11:45.837Z"
+    }
+  ],
+  "contents": [
+    {
+      "id": "content-en-home",
+      "languageCode": "en",
+      "pageSlug": "home",
+      "heroTitle": "Download Social Media Videos Free in HD",
+      "heroSubtitle": "Save Vibe is an all-in-one online video downloader for Facebook, YouTube, Instagram, and TikTok. Paste any public video link below to save watermark-free HD MP4 or MP3 in seconds.",
+      "placeholder": "Paste Facebook, YouTube, Instagram, or TikTok URL here...",
+      "featuresSubtitle": "One unified platform built to detect links automatically and deliver fast, clean media downloads",
+      "features": [
+        {
+          "title": "Smart Auto-Detection",
+          "description": "Paste any public link from Facebook, YouTube, Instagram, or TikTok and Save Vibe automatically recognizes the source and prepares downloadable streams."
+        },
+        {
+          "title": "Full HD MP4 & MP3",
+          "description": "Choose from crisp 1080p Full HD, 720p HD, standard MP4, watermark-free TikTok downloads, or extracted MP3 audio tracks in a single click."
+        },
+        {
+          "title": "Private & Ad-Free Utility",
+          "description": "Save Vibe runs directly in your web browser over encrypted HTTPS connections with zero pop-up ads, zero software installs, and zero URL logging."
+        }
+      ],
+      "guideBadge": "All-in-One Media Saver",
+      "guideTitle": "Why Creators and Everyday Users Choose Save Vibe",
+      "guideParagraphs": [
+        "Save Vibe brings four dedicated social video downloaders and a live YouTube transcript extractor together inside one fast, clutter-free web application. Instead of jumping between sketchy pop-up sites for each network, you can paste any public video URL right here or switch to a specialized platform tool from the top menu.",
+        "Our server-side extraction pipeline parses public video metadata and streams directly from content delivery networks, preserving original resolution, frame rate, and clear stereo audio. For high-definition YouTube videos that separate video and audio tracks, Save Vibe safely merges them right inside your browser so your final MP4 plays smoothly on iPhone, Android, Windows, and macOS.",
+        "Everything works 100% online without browser extensions, desktop software, or account logins. Whether you are archiving educational clips, saving viral Reels for offline viewing, backing up your own content, or extracting clean MP3 audio, Save Vibe keeps your downloads fast, reliable, and strictly private."
+      ],
+      "supportedFormats": [
+        "MP4 Video (4K, 1080p Full HD, 720p HD, 480p SD)",
+        "TikTok Watermark-Free HD & Standard MP4",
+        "MP3 & M4A Audio Extraction",
+        "YouTube Shorts, Instagram Reels & Facebook Watch Clips",
+        "YouTube Time-Synced Captions (TXT, SRT, VTT, PDF, CSV)"
+      ],
+      "howToSteps": [
+        {
+          "title": "Copy Any Public Video Link",
+          "description": "Open Facebook, YouTube, Instagram, or TikTok and copy the share link of the public video, Reel, or Short you want to save."
+        },
+        {
+          "title": "Paste URL Into Save Vibe",
+          "description": "Paste the copied link into the Save Vibe search bar above and click Download. Our system automatically detects the platform."
+        },
+        {
+          "title": "Pick Format & Save File",
+          "description": "Preview the video details, choose your preferred HD MP4 resolution or MP3 audio option, and save the file directly to your device."
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Which platforms does Save Vibe support?",
+          "answer": "Save Vibe supports public videos from Facebook (Reels, Watch, and feed posts), YouTube (standard videos, Shorts, and transcripts), Instagram (Reels, IGTV, and video posts), and TikTok (watermark-free HD and Standard MP4)."
+        },
+        {
+          "question": "Is Save Vibe completely free and safe to use?",
+          "answer": "Yes. Save Vibe is 100% free with unlimited downloads, no registration, no pop-up ads, and HTTPS-encrypted connections. We never store the links you paste or track personal accounts."
+        },
+        {
+          "question": "Does Save Vibe work on iPhone, Android, and desktop?",
+          "answer": "Yes! Save Vibe works natively in Safari, Chrome, Edge, and Firefox across iOS, Android, Windows, and macOS without installing any app or browser extension."
+        },
+        {
+          "question": "Can I download private or copyrighted content?",
+          "answer": "No. Save Vibe only accesses publicly available video streams and is intended strictly for personal offline archiving of content you own or have permission to save."
+        }
+      ],
+      "seoTitle": "Save Vibe - Free Social Media Video Downloader Online",
+      "seoDescription": "Download Facebook, YouTube, Instagram, and TikTok videos free in HD MP4 or MP3 with Save Vibe. Fast, secure, ad-free, and no login required.",
+      "seoKeywords": [
+        "Save Vibe",
+        "social media video downloader",
+        "online video downloader",
+        "download Facebook videos HD",
+        "YouTube video downloader",
+        "Instagram Reels downloader",
+        "TikTok downloader no watermark"
+      ],
+      "ogTitle": "Save Vibe - Free Social Media Video Downloader Online",
+      "ogDescription": "Download public Facebook, YouTube, Instagram, and TikTok videos in Full HD MP4 or MP3 with Save Vibe. Zero ads, fast processing, and works on any device.",
+      "ogImageUrl": "https://savevibe.bond/og-image.png",
+      "updatedAt": "2026-11-24T03:11:45.837Z"
+    },
+    {
+      "id": "content-en-facebook",
+      "languageCode": "en",
+      "pageSlug": "facebook",
+      "heroTitle": "Download Facebook Videos & Reels",
+      "heroSubtitle": "Effortlessly download public Facebook videos, Reels, and Watch clips in Full HD 1080p or 720p with Save Vibe. Paste your link below to save in MP4 or MP3 format.",
+      "placeholder": "Paste Facebook video, Reel, or Watch URL here...",
+      "featuresSubtitle": "Built for fast, reliable Facebook Watch, Reels, and public feed video downloads in full clarity",
+      "features": [
+        {
+          "title": "1080p Full HD & SD",
+          "description": "Save public Facebook Watch videos, Reels, and live replay clips in crisp 1080p Full HD or lightweight 720p/480p MP4 depending on your storage needs."
+        },
+        {
+          "title": "Fast CDN Proxy Streaming",
+          "description": "Save Vibe streams Facebook media directly through a secure download proxy with proper filenames so files save cleanly instead of opening in a dead tab."
+        },
+        {
+          "title": "No Facebook Login Needed",
+          "description": "Keep your Facebook account completely separate. Paste any public fb.watch or facebook.com link anonymously without cookies or third-party permissions."
+        }
+      ],
+      "guideBadge": "Facebook Media Guide",
+      "guideTitle": "Save Facebook Videos, Reels & Watch Clips Effortlessly",
+      "guideParagraphs": [
+        "The Save Vibe Facebook Video Downloader is built to handle every public Facebook video format, including standard timeline uploads, Facebook Reels, Facebook Watch episodes, and short fb.watch share links. Whether you are saving a cooking tutorial, an educational talk, or your own archived page clip, our parser extracts both high-definition MP4 streams and audio-only tracks cleanly.",
+        "Unlike desktop extensions that slow down your browser or mobile apps packed with intrusive ads, Save Vibe works straight inside Chrome, Safari, or Firefox. Once you click Download, our server proxy attaches clean download headers so iOS, Android, Windows, and Mac browsers save the MP4 file directly into your Downloads folder or gallery.",
+        "Because we strictly respect user privacy and platform rules, Save Vibe only works with publicly accessible Facebook posts. Private group videos or friends-only uploads are intentionally blocked to protect creator privacy."
+      ],
+      "supportedFormats": [
+        "facebook.com/watch & fb.watch short links",
+        "Facebook Reels (facebook.com/reel/...)",
+        "Public Facebook Page & Profile video posts",
+        "1080p Full HD, 720p HD, and Standard MP4",
+        "Audio-only MP3/M4A extraction"
+      ],
+      "howToSteps": [
+        {
+          "title": "Copy Facebook Video Link",
+          "description": "Open the Facebook app or website, tap Share on the public video or Reel, and select Copy Link."
+        },
+        {
+          "title": "Paste Link in Save Vibe",
+          "description": "Paste the copied Facebook URL into the input box above and press the Download button."
+        },
+        {
+          "title": "Choose HD or MP3 Quality",
+          "description": "Select 1080p Full HD MP4, Standard MP4, or MP3 Audio to save the Facebook clip straight to your device."
+        }
+      ],
+      "faqs": [
+        {
+          "question": "How do I download Facebook videos in 1080p HD quality?",
+          "answer": "Copy the public video link from Facebook, paste it into the Save Vibe Facebook Downloader search bar, click Download, and pick the 1080p Full HD or 720p HD MP4 option when the quality card appears."
+        },
+        {
+          "question": "Can I download Facebook Reels and Watch clips on mobile?",
+          "answer": "Yes. Save Vibe is fully responsive for iPhone (Safari), Android (Chrome), PC, and Mac browsers so you can save public Facebook Reels and Watch videos directly to your phone."
+        },
+        {
+          "question": "Why did a private Facebook video link fail to download?",
+          "answer": "Save Vibe only processes public Facebook videos that do not require logging in. Videos set to \"Friends Only\" or inside private groups cannot be accessed without authentication."
+        },
+        {
+          "question": "Is Save Vibe Facebook Video Downloader free to use?",
+          "answer": "Yes, it is 100% free with unlimited downloads. You never need to sign up, install browser extensions, or share your Facebook credentials."
+        }
+      ],
+      "seoTitle": "Facebook Video Downloader - Save FB Reels & Videos HD",
+      "seoDescription": "Download Facebook videos, reels, and watch clips in 1080p Full HD & MP3. Free, fast, and secure online FB downloader with no login required.",
+      "seoKeywords": [
+        "Facebook video downloader",
+        "Download FB videos HD",
+        "Facebook reels downloader",
+        "Free Facebook video saver",
+        "FB video to MP4",
+        "Facebook Watch downloader 1080p"
+      ],
+      "ogTitle": "Facebook Video Downloader - Save FB Reels & Videos HD | Save Vibe",
+      "ogDescription": "Effortlessly download public Facebook videos, Reels, and Watch clips in Full HD MP4 or MP3 with Save Vibe. Free, fast, and zero software installation.",
+      "ogImageUrl": "https://savevibe.bond/og-image.png",
+      "updatedAt": "2026-11-24T03:11:45.838Z"
+    },
+    {
+      "id": "content-en-youtube",
+      "languageCode": "en",
+      "pageSlug": "youtube",
+      "heroTitle": "Download YouTube Videos & Shorts",
+      "heroSubtitle": "Download public YouTube videos, Shorts, and audio tracks in 4K, 1080p Full HD MP4, or MP3 with Save Vibe. Paste any YouTube link below to get started.",
+      "placeholder": "Paste YouTube video or Shorts URL here...",
+      "featuresSubtitle": "Engineered for high-definition YouTube videos, vertical Shorts, and crisp MP3 audio extraction",
+      "features": [
+        {
+          "title": "4K, 1080p & Shorts Support",
+          "description": "Download crisp 4K, 1080p Full HD, and 720p YouTube videos or vertical YouTube Shorts with smooth in-browser video and audio merging."
+        },
+        {
+          "title": "Clear Audio Extraction",
+          "description": "Extract clean MP3 and M4A audio tracks from lectures, podcasts, and music clips for effortless offline listening on any device."
+        },
+        {
+          "title": "Transcripts Included",
+          "description": "Need text instead of video? Switch to our dedicated YouTube Transcript Downloader to export time-synced TXT, SRT, VTT, PDF, or CSV captions."
+        }
+      ],
+      "guideBadge": "YouTube Downloader Guide",
+      "guideTitle": "Download YouTube Videos, Shorts & Audio Without Software",
+      "guideParagraphs": [
+        "Save Vibe makes saving public YouTube videos and vertical YouTube Shorts simple across desktop and mobile browsers. Whether you use a standard youtube.com/watch URL, a shortened youtu.be link, or a youtube.com/shorts link, our extractor retrieves all available video resolutions alongside clean audio-only streams.",
+        "Modern YouTube 1080p and 4K streams split video and audio into separate high-bitrate tracks. Save Vibe handles this automatically with built-in client-side FFmpeg merging, combining crisp video with synchronized audio right inside your browser before saving a single compatible MP4 file.",
+        "If you are studying a lecture, researching an interview, or creating subtitles, you can also open the integrated Save Vibe YouTube Transcript Downloader to search spoken keywords, translate captions into 40+ languages, and download clean subtitle files."
+      ],
+      "supportedFormats": [
+        "Standard youtube.com/watch?v=... & youtu.be/... links",
+        "YouTube Shorts (youtube.com/shorts/...)",
+        "1080p Full HD, 720p HD, and 360p/480p MP4",
+        "High-bitrate MP3 & M4A audio tracks",
+        "Built-in link to YouTube Transcript & Subtitle Extractor"
+      ],
+      "howToSteps": [
+        {
+          "title": "Copy YouTube Video or Shorts URL",
+          "description": "Open YouTube, tap Share on any public video or Short, and copy the URL to your clipboard."
+        },
+        {
+          "title": "Paste Into Save Vibe Downloader",
+          "description": "Paste the YouTube URL in the field above and click Download to fetch available video and audio qualities."
+        },
+        {
+          "title": "Select Resolution & Save",
+          "description": "Pick 1080p HD MP4, 720p MP4, or MP3 Audio. High-definition streams merge cleanly and download straight to your device."
+        }
+      ],
+      "faqs": [
+        {
+          "question": "How do I download YouTube Shorts and videos for free?",
+          "answer": "Copy the YouTube video or Shorts link, paste it into the Save Vibe YouTube Downloader input box, choose your preferred MP4 resolution, and click Download."
+        },
+        {
+          "question": "Why does 1080p YouTube video show a brief merge progress?",
+          "answer": "YouTube serves 1080p and higher resolutions as separate video and audio streams. Save Vibe automatically merges both streams cleanly in your browser so your saved MP4 has full sound."
+        },
+        {
+          "question": "Can I extract MP3 audio from YouTube videos?",
+          "answer": "Yes. Every compatible YouTube link displays an audio extraction option so you can save lectures, podcasts, and soundtracks for offline playback."
+        },
+        {
+          "question": "Can I also download YouTube captions or transcripts?",
+          "answer": "Yes! Click \"Open YouTube Transcript Downloader\" right below the input box to extract, translate, search, and export captions in TXT, SRT, VTT, PDF, or CSV formats."
+        }
+      ],
+      "seoTitle": "YouTube Video Downloader - Save YT Shorts & MP4 in HD",
+      "seoDescription": "Download YouTube videos, Shorts, and audio tracks in 4K, 1080p HD MP4 or 320kbps MP3. Fast, free Save Vibe YouTube downloader with no login.",
+      "seoKeywords": [
+        "YouTube video downloader",
+        "Download YouTube Shorts",
+        "YouTube to MP4 HD",
+        "YouTube video saver free",
+        "YouTube MP3 audio extractor",
+        "Fast YT downloader online"
+      ],
+      "ogTitle": "YouTube Video Downloader - Save YT Shorts & MP4 in HD | Save Vibe",
+      "ogDescription": "Save public YouTube videos, Shorts, and audio clips in 4K, 1080p Full HD MP4, or MP3 using Save Vibe. Free, fast, and works right in your browser.",
+      "ogImageUrl": "https://savevibe.bond/og-image.png",
+      "updatedAt": "2026-11-24T03:11:45.838Z"
+    },
+    {
+      "id": "content-en-instagram",
+      "languageCode": "en",
+      "pageSlug": "instagram",
+      "heroTitle": "Download Instagram Videos & Reels",
+      "heroSubtitle": "Save public Instagram Reels, IGTV clips, and video posts in original HD MP4 quality with Save Vibe. Paste your Instagram link below for an instant browser download.",
+      "placeholder": "Paste Instagram Reel, IGTV, or post URL here...",
+      "featuresSubtitle": "Designed for crisp Instagram Reels, IGTV, and public video post downloads with zero quality loss",
+      "features": [
+        {
+          "title": "Original HD Reels Quality",
+          "description": "Save public Instagram Reels and feed videos in their original aspect ratio and sharp HD MP4 clarity without re-encoding blur."
+        },
+        {
+          "title": "Anonymous & Login-Free",
+          "description": "Download public Instagram clips without signing into your IG account, sharing passwords, or leaving any trace."
+        },
+        {
+          "title": "Direct Mobile Gallery Save",
+          "description": "Works smoothly in mobile Safari and Android Chrome so saved Reels and tutorials land straight in your device Downloads or Camera Roll."
+        }
+      ],
+      "guideBadge": "Instagram Reels Guide",
+      "guideTitle": "Save Instagram Reels, IGTV & Public Video Posts in HD",
+      "guideParagraphs": [
+        "Save Vibe gives creators, social media managers, and everyday viewers a fast, reliable way to download public Instagram Reels, IGTV clips, and feed video posts directly in their web browser. Simply copy the share link from Instagram and paste it above—no risky third-party mobile apps or Instagram login credentials required.",
+        "Unlike screen-recording methods that capture UI buttons, lower frame rates, or introduce audio sync issues, Save Vibe fetches the original CDN MP4 stream directly. That preserves crisp vertical 9:16 framing and clear sound for offline inspiration boards or personal archiving.",
+        "Please note that Save Vibe strictly respects user privacy settings on Instagram. Only public posts and Reels can be fetched; private Instagram accounts cannot be accessed."
+      ],
+      "supportedFormats": [
+        "Instagram Reels (instagram.com/reel/...)",
+        "Instagram Video Posts (instagram.com/p/...)",
+        "IGTV & Long-Form Public Clips (instagram.com/tv/...)",
+        "Original HD MP4 Video + Stereo Audio",
+        "Mobile & Desktop Browser Compatibility (iOS, Android, PC, Mac)"
+      ],
+      "howToSteps": [
+        {
+          "title": "Copy Instagram Reel or Post Link",
+          "description": "Open Instagram, tap the Share or three-dot icon on a public Reel or video post, and choose Copy Link."
+        },
+        {
+          "title": "Paste Link Into Save Vibe",
+          "description": "Paste the Instagram link into the Save Vibe search bar above and click Download."
+        },
+        {
+          "title": "Save Original HD MP4",
+          "description": "Choose the HD MP4 option from the result card to download the Instagram video straight to your phone or computer."
+        }
+      ],
+      "faqs": [
+        {
+          "question": "How do I download Instagram Reels without installing an app?",
+          "answer": "Copy the share link of the public Instagram Reel, paste it into the Save Vibe Instagram Downloader box, and click Download to save the MP4 file directly in your browser."
+        },
+        {
+          "question": "Do I need to log into my Instagram account?",
+          "answer": "No login or password is required. Save Vibe fetches publicly accessible Instagram Reels and video posts completely anonymously."
+        },
+        {
+          "question": "Can I download videos from a private Instagram profile?",
+          "answer": "No. For privacy and security reasons, Save Vibe only downloads content from public Instagram accounts and cannot access private posts."
+        },
+        {
+          "question": "Are downloaded Instagram videos saved in original quality?",
+          "answer": "Yes. Save Vibe delivers the original high-definition MP4 stream provided by Instagram CDN servers without adding any watermark or reducing resolution."
+        }
+      ],
+      "seoTitle": "Instagram Video Downloader - Save IG Reels & Video HD",
+      "seoDescription": "Download Instagram Reels, IGTV, and video posts in original Full HD MP4 quality. Fast, free, and private Save Vibe Instagram downloader online.",
+      "seoKeywords": [
+        "Instagram video downloader",
+        "Download Instagram Reels",
+        "IG Reel saver HD",
+        "Instagram IGTV downloader",
+        "Instagram video to MP4",
+        "Save IG videos online"
+      ],
+      "ogTitle": "Instagram Video Downloader - Save IG Reels & Video HD | Save Vibe",
+      "ogDescription": "Download public Instagram Reels, video posts, and IGTV clips in crisp HD MP4 quality with Save Vibe. Free, anonymous, and instant browser download.",
+      "ogImageUrl": "https://savevibe.bond/og-image.png",
+      "updatedAt": "2026-11-24T03:11:45.838Z"
+    },
+    {
+      "id": "content-en-tiktok",
+      "languageCode": "en",
+      "pageSlug": "tiktok",
+      "heroTitle": "Download TikTok Videos Without Watermark",
+      "heroSubtitle": "Download public TikTok videos without watermark in crisp HD MP4 or extract clean MP3 audio using Save Vibe. Paste your TikTok link below to save directly to your device.",
+      "placeholder": "Paste TikTok video URL here (e.g., https://vm.tiktok.com/...)...",
+      "featuresSubtitle": "Built to deliver clean, watermark-free TikTok videos in HD and Standard MP4 on any device",
+      "features": [
+        {
+          "title": "Zero TikTok Watermark",
+          "description": "Remove the bouncing TikTok logo and username overlay automatically so your saved TikTok clips look clean and unobstructed."
+        },
+        {
+          "title": "HD & Standard MP4 Options",
+          "description": "Pick High Quality (without watermark) for maximum sharpness or Standard Quality for smaller file sizes and quick mobile sharing."
+        },
+        {
+          "title": "Works With Short Links",
+          "description": "Paste full tiktok.com/@user/video/... URLs or shortened vm.tiktok.com and vt.tiktok.com share links copied directly from the TikTok app."
+        }
+      ],
+      "guideBadge": "TikTok Watermark-Free Guide",
+      "guideTitle": "Download Clean TikTok Videos Without Watermark on Any Device",
+      "guideParagraphs": [
+        "Save Vibe makes it effortless to save public TikTok videos without the distracting floating TikTok watermark or end-card tag. Just tap Share and Copy Link inside the TikTok mobile app or desktop browser, paste the URL above, and get clean MP4 streams in seconds.",
+        "Whether you use a full tiktok.com video address or a short vm.tiktok.com / vt.tiktok.com link, Save Vibe resolves the original video feed and gives you both High Quality (without watermark) and Standard Quality (without watermark) MP4 choices. You can preview the video metadata, creator handle, and estimated file size before saving.",
+        "All downloads route cleanly through our secure download proxy so iOS Safari, Android Chrome, and desktop browsers save the MP4 directly without pop-ups or redirects. Use saved clips responsibly for personal offline viewing or your own creator backups."
+      ],
+      "supportedFormats": [
+        "tiktok.com/@username/video/... full URLs",
+        "Short vm.tiktok.com/... and vt.tiktok.com/... mobile links",
+        "High Quality HD MP4 (No Watermark)",
+        "Standard Quality MP4 (No Watermark)",
+        "Direct iPhone, Android, Windows & macOS browser downloads"
+      ],
+      "howToSteps": [
+        {
+          "title": "Copy TikTok Video Link",
+          "description": "Open the TikTok app or website, tap the Share arrow on the video you want, and select Copy Link."
+        },
+        {
+          "title": "Paste Link Into Save Vibe",
+          "description": "Paste your tiktok.com or vm.tiktok.com link into the input bar above and click Download."
+        },
+        {
+          "title": "Download Watermark-Free MP4",
+          "description": "Choose High Quality or Standard Quality (without watermark) to save the clean MP4 video directly to your device."
+        }
+      ],
+      "faqs": [
+        {
+          "question": "How do I download TikTok videos without watermark?",
+          "answer": "Tap Share and Copy Link on any public TikTok video, paste the URL into Save Vibe TikTok Downloader, and click High Quality (without watermark) to save a clean MP4."
+        },
+        {
+          "question": "Does Save Vibe work with vm.tiktok.com and vt.tiktok.com links?",
+          "answer": "Yes! Save Vibe automatically resolves shortened mobile share links (vm.tiktok.com and vt.tiktok.com) as well as full desktop TikTok URLs."
+        },
+        {
+          "question": "Where are saved TikTok videos stored on my phone?",
+          "answer": "Downloaded MP4 files are saved to your browser Downloads folder on Android, Windows, and Mac, or inside the Files / Downloads manager on iPhone Safari where you can save them to Photos."
+        },
+        {
+          "question": "Is there any limit on how many TikTok videos I can save?",
+          "answer": "No. Save Vibe is free to use with unlimited watermark-free TikTok downloads and no account registration required."
+        }
+      ],
+      "seoTitle": "TikTok Video Downloader Without Watermark - Save Vibe",
+      "seoDescription": "Download TikTok videos without watermark in HD MP4 or MP3 audio with Save Vibe. Free, ultra-fast online TikTok video saver for mobile & desktop.",
+      "seoKeywords": [
+        "TikTok video downloader",
+        "Download TikTok without watermark",
+        "TikTok video saver HD",
+        "TikTok no watermark MP4",
+        "Free TikTok downloader online",
+        "Save TikTok videos mobile"
+      ],
+      "ogTitle": "TikTok Video Downloader Without Watermark - Save Vibe",
+      "ogDescription": "Download TikTok videos in HD MP4 without watermark using Save Vibe. Free, fast, direct browser downloads for iPhone, Android, and desktop.",
+      "ogImageUrl": "https://savevibe.bond/og-image.png",
+      "updatedAt": "2026-11-24T03:11:45.839Z"
+    },
+    {
+      "id": "content-en-youtube-transcript",
+      "languageCode": "en",
+      "pageSlug": "youtube-transcript",
+      "heroTitle": "YouTube Transcript & Subtitle Downloader",
+      "heroSubtitle": "Extract time-synced transcripts from any public YouTube video or Short, translate into 40+ languages, and export as TXT, SRT, VTT, PDF, or CSV.",
+      "placeholder": "Paste YouTube video or Shorts URL here...",
+      "featuresSubtitle": "Extract time-synced YouTube video transcripts in seconds. Search keywords, translate to 40+ languages, and export TXT, SRT, VTT, PDF, or CSV.",
+      "features": [],
+      "guideBadge": "YouTube Transcript Extractor",
+      "guideTitle": "YouTube Transcript Downloader - Save Vibe TXT & SRT",
+      "guideParagraphs": [],
+      "supportedFormats": [
+        "TXT",
+        "SRT",
+        "VTT",
+        "PDF",
+        "CSV"
+      ],
+      "howToSteps": [
+        {
+          "title": "Paste YouTube Video or Shorts URL",
+          "description": "Copy any public YouTube video or Shorts link that has captions or auto-generated subtitles and paste it into the extractor."
+        },
+        {
+          "title": "Search, Translate, or Transliterate",
+          "description": "Use live keyword search to jump to exact moments, translate captions into 40+ languages, or toggle A–Z transliteration."
+        },
+        {
+          "title": "Copy or Export Subtitles & Text",
+          "description": "Click Copy All or export your transcript in TXT, SRT, VTT, PDF, or CSV format with optional timestamps."
+        }
+      ],
+      "faqs": [
+        {
+          "question": "How does transcript translation work in Save Vibe?",
+          "answer": "You can translate extracted YouTube captions into 40+ languages directly inside the workspace while keeping every single line aligned with its original video timestamp."
+        },
+        {
+          "question": "What does Transliterate (A–Z) do?",
+          "answer": "Transliteration keeps the transcript in the same spoken language (such as Bengali, Hindi, Arabic, Urdu, Japanese, or Korean) while converting the script into readable English letters right in your browser."
+        },
+        {
+          "question": "Which transcript export formats are supported?",
+          "answer": "Original, translated, and transliterated transcripts can be copied to your clipboard or downloaded as Plain Text (.txt), SubRip (.srt), WebVTT (.vtt), PDF (.pdf), or CSV (.csv) with or without timestamps."
+        },
+        {
+          "question": "Do PDF and CSV exports support non-Latin scripts?",
+          "answer": "Yes. Both CSV and PDF exports support Unicode scripts including Bengali, Hindi, Arabic, Japanese, Korean, and European languages cleanly."
+        }
+      ],
+      "seoTitle": "YouTube Transcript Downloader - Save Vibe TXT & SRT",
+      "seoDescription": "Extract time-synced YouTube video transcripts in seconds. Search keywords, translate to 40+ languages, and export TXT, SRT, VTT, PDF, or CSV.",
+      "seoKeywords": [
+        "YouTube transcript downloader",
+        "YouTube subtitle extractor",
+        "SRT VTT TXT export"
+      ],
+      "ogTitle": "YouTube Transcript Downloader - Save Vibe TXT & SRT",
+      "ogDescription": "Extract YouTube captions in seconds, translate into 40+ languages, transliterate scripts, and download as TXT, SRT, VTT, PDF, or CSV with Save Vibe.",
+      "ogImageUrl": "https://savevibe.bond/og-image.png",
+      "updatedAt": "2026-11-24T03:11:45.839Z"
+    },
+    {
+      "id": "content-bn-home",
+      "languageCode": "bn",
+      "pageSlug": "home",
+      "heroTitle": "যেকোনো সোশ্যাল মিডিয়া ভিডিও ডাউনলোড করুন HD কোয়ালিটিতে",
+      "heroSubtitle": "Save Vibe হলো ফেসবুক, ইউটিউব, ইনস্টাগ্রাম এবং টিকটক ভিডিও ডাউনলোডের দ্রুত ও নিরাপদ অনলাইন টুল। যেকোনো পাবলিক ভিডিও লিংক নিচে পেস্ট করে মুহূর্তেই ওয়াটারমার্ক-মুক্ত HD MP4 বা MP3 সেভ করুন।",
+      "placeholder": "এখানে ফেসবুক, ইউটিউব, ইনস্টাগ্রাম বা টিকটক ভিডিওর লিংক পেস্ট করুন...",
+      "featuresSubtitle": "লিংক পেস্ট করলেই স্বয়ংক্রিয়ভাবে প্ল্যাটফর্ম চিনে দ্রুত ও পরিষ্কার ভিডিও ডাউনলোড সুবিধা",
+      "features": [
+        {
+          "title": "স্বয়ংক্রিয় প্ল্যাটফর্ম শনাক্তকরণ",
+          "description": "ফেসবুক, ইউটিউব, ইনস্টাগ্রাম বা টিকটকের যেকোনো পাবলিক লিংক পেস্ট করলেই Save Vibe নিজে থেকেই উৎস শনাক্ত করে ডাউনলোডের অপশন দেখায়।"
+        },
+        {
+          "title": "Full HD MP4 ও MP3 সাপোর্ট",
+          "description": "প্রয়োজন অনুযায়ী 4K, 1080p Full HD, 720p HD, ওয়াটারমার্ক-মুক্ত টিকটক ভিডিও কিংবা শুধু MP3/M4A অডিও ফাইল এক ক্লিকেই ডাউনলোড করুন।"
+        },
+        {
+          "title": "নিরাপদ ও লগইন-মুক্ত ব্যবহার",
+          "description": "এনক্রিপ্টেড HTTPS সংযোগের মাধ্যমে সরাসরি ব্রাউজারে কাজ করে। কোনো অ্যাকাউন্ট লগইন, এক্সটেনশন ইনস্টল বা লিংক সংরক্ষণের ঝামেলা নেই।"
+        }
+      ],
+      "guideBadge": "অল-ইন-ওয়ান ভিডিও সেভার",
+      "guideTitle": "কেন বাংলাদেশের ব্যবহারকারী ও ক্রিয়েটররা Save Vibe পছন্দ করেন?",
+      "guideParagraphs": [
+        "দৈনন্দিন কাজে বা শেখার প্রয়োজনে আমাদের প্রায়ই ফেসবুক রিলস, ইউটিউব টিউটোরিয়াল, ইনস্টাগ্রাম ভিডিও বা টিকটক ক্লিপ অফলাইনে সংরক্ষণ করতে হয়। কিন্তু বেশিরভাগ ওয়েবসাইটে অসংখ্য পপ-আপ বিজ্ঞাপন ও ভুয়া বাটনের কারণে আসল ফাইল ডাউনলোড করা কঠিন হয়ে পড়ে। Save Vibe একটি পরিচ্ছন্ন ও দ্রুতগতির প্ল্যাটফর্মে সব প্রধান সোশ্যাল মিডিয়া ডাউনলোডারকে একত্রিত করেছে।",
+        "আমাদের সার্ভার-সাইড স্ট্রিম প্রসেসিং প্রযুক্তি মূল ভিডিওর রেজোলিউশন, ফ্রেম রেট এবং অডিওর মান অক্ষুণ্ণ রেখে সরাসরি আপনার ব্রাউজারে ফাইল পৌঁছে দেয়। যেসব হাই-ডেফিনেশন ইউটিউব ভিডিওতে অডিও ও ভিডিও আলাদা ট্র্যাকে থাকে, সেগুলো স্বয়ংক্রিয়ভাবে মার্জ হয়ে একটি সম্পূর্ণ MP4 ফাইল হিসেবে সেভ হয়।",
+        "iPhone, Android স্মার্টফোন, Windows পিসি বা Mac—যেকোনো ডিভাইসের Chrome, Safari বা Firefox ব্রাউজার থেকেই এটি নির্বিঘ্নে ব্যবহার করা যায়। শিক্ষামূলক ভিডিও সংরক্ষণ, নিজের কনটেন্ট ব্যাকআপ রাখা বা অফলাইনে দেখার জন্য Save Vibe একটি নির্ভরযোগ্য সমাধান।"
+      ],
+      "supportedFormats": [
+        "MP4 ভিডিও (4K, 1080p Full HD, 720p HD, 480p SD)",
+        "ওয়াটারমার্ক-মুক্ত টিকটক HD ও স্ট্যান্ডার্ড MP4",
+        "MP3 ও M4A অডিও ফরম্যাট",
+        "ইউটিউব শর্টস, ইনস্টাগ্রাম রিলস ও ফেসবুক Watch ক্লিপ",
+        "ইউটিউব টাইমস্ট্যাম্পসহ ট্রান্সক্রিপ্ট (TXT, SRT, VTT, PDF, CSV)"
+      ],
+      "howToSteps": [
+        {
+          "title": "পাবলিক ভিডিওর লিংক কপি করুন",
+          "description": "ফেসবুক, ইউটিউব, ইনস্টাগ্রাম বা টিকটক অ্যাপ থেকে যে পাবলিক ভিডিও বা রিলসটি সেভ করতে চান, তার Share অপশনে গিয়ে Copy Link করুন।"
+        },
+        {
+          "title": "Save Vibe বক্সে লিংক পেস্ট করুন",
+          "description": "উপরের ইনপুট বক্সে কপি করা লিংকটি পেস্ট করে \"ডাউনলোড করুন\" বাটনে ক্লিক করুন। আমাদের সিস্টেম সাথে সাথে প্ল্যাটফর্ম ও ফরম্যাট খুঁজে বের করবে।"
+        },
+        {
+          "title": "কোয়ালিটি বেছে সেভ করুন",
+          "description": "ভিডিও প্রিভিউ দেখে আপনার পছন্দের HD MP4 রেজোলিউশন বা অডিও ফরম্যাট নির্বাচন করুন—ফাইলটি সরাসরি আপনার ডিভাইসে ডাউনলোড হয়ে যাবে।"
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Save Vibe কোন কোন প্ল্যাটফর্মের ভিডিও ডাউনলোড সাপোর্ট করে?",
+          "answer": "Save Vibe দিয়ে ফেসবুক (ভিডিও, রিলস ও Watch), ইউটিউব (ভিডিও, শর্টস ও ট্রান্সক্রিপ্ট), ইনস্টাগ্রাম (রিলস, IGTV ও ভিডিও পোস্ট) এবং টিকটক (ওয়াটারমার্ক ছাড়া HD ও স্ট্যান্ডার্ড MP4) ডাউনলোড করা যায়।"
+        },
+        {
+          "question": "Save Vibe ব্যবহার করা কি সম্পূর্ণ ফ্রি এবং নিরাপদ?",
+          "answer": "হ্যাঁ, এটি ১০০% ফ্রি এবং কোনো ডাউনলোড সীমা নেই। কোনো অ্যাকাউন্ট লগইন বা সফটওয়্যার ইনস্টল করতে হয় না, আর আপনার পেস্ট করা লিংক আমাদের সার্ভারে সংরক্ষণ করা হয় না।"
+        },
+        {
+          "question": "মোবাইল ও কম্পিউটার—উভয় ডিভাইসেই কি এটি ব্যবহার করা যায়?",
+          "answer": "অবশ্যই। Android, iPhone, Windows এবং Mac—যেকোনো ডিভাইসের আধুনিক ওয়েব ব্রাউজার (Chrome, Safari, Firefox, Edge) থেকেই এটি ব্যবহার করা সম্ভব।"
+        },
+        {
+          "question": "কপিরাইট বা ব্যক্তিগত ভিডিও ডাউনলোডের নিয়ম কী?",
+          "answer": "Save Vibe শুধুমাত্র ব্যক্তিগত ও অফলাইন সংরক্ষণের উদ্দেশ্যে পাবলিক ভিডিও ডাউনলোডের সুবিধা দেয়। অন্যের কপিরাইটযুক্ত কনটেন্ট বাণিজ্যিক কাজে ব্যবহার করা উচিত নয়।"
+        }
+      ],
+      "seoTitle": "Save Vibe - ফ্রি সোশ্যাল মিডিয়া ভিডিও ডাউনলোডার",
+      "seoDescription": "ফেসবুক, ইউটিউব, ইনস্টাগ্রাম ও টিকটক ভিডিও ডাউনলোড করুন HD MP4 বা MP3 ফরম্যাটে। কোনো লগইন বা অ্যাপ ছাড়াই দ্রুত, নিরাপদ ও সম্পূর্ণ ফ্রি অনলাইন টুল।",
+      "seoKeywords": [
+        "ভিডিও ডাউনলোডার",
+        "অনলাইন ভিডিও ডাউনলোড",
+        "ফেসবুক ভিডিও ডাউনলোডার",
+        "ইউটিউব ভিডিও ডাউনলোড",
+        "ইনস্টাগ্রাম রিলস ডাউনলোডার",
+        "টিকটক ভিডিও ডাউনলোড ওয়াটারমার্ক ছাড়া",
+        "Save Vibe বাংলা"
+      ],
+      "ogTitle": "Save Vibe - ফ্রি সোশ্যাল মিডিয়া ভিডিও ডাউনলোডার (HD MP4 ও MP3)",
+      "ogDescription": "এক জায়গা থেকেই ফেসবুক, ইউটিউব, ইনস্টাগ্রাম ও টিকটকের পাবলিক ভিডিও HD কোয়ালিটিতে সেভ করুন। বিজ্ঞাপনমুক্ত, নিরাপদ এবং মোবাইল ও পিসি—সব ডিভাইসে কাজ করে।",
+      "ogImageUrl": "https://savevibe.bond/og-image.png",
+      "updatedAt": "2026-11-24T03:11:45.839Z"
+    },
+    {
+      "id": "content-bn-facebook",
+      "languageCode": "bn",
+      "pageSlug": "facebook",
+      "heroTitle": "ফেসবুক ভিডিও ও রিলস ডাউনলোড করুন Full HD-তে",
+      "heroSubtitle": "পাবলিক ফেসবুক ভিডিও, রিলস (Reels) এবং Watch ক্লিপ সহজেই 1080p Full HD বা 720p কোয়ালিটিতে ডাউনলোড করুন। নিচে লিংক পেস্ট করে MP4 ভিডিও বা MP3 অডিও সেভ করুন সম্পূর্ণ ফ্রিতে।",
+      "placeholder": "ফেসবুক ভিডিও, রিলস বা fb.watch লিংক এখানে পেস্ট করুন...",
+      "featuresSubtitle": "ফেসবুক Watch, রিলস এবং পাবলিক টাইমলাইন ভিডিও ঝকঝকে HD কোয়ালিটিতে ডাউনলোডের জন্য তৈরি",
+      "features": [
+        {
+          "title": "1080p Full HD ও SD অপশন",
+          "description": "পাবলিক ফেসবুক Watch ভিডিও, Reels এবং লাইভ রিপ্লে ক্লিপ 1080p Full HD অথবা কম ডেটা খরচে 720p/480p MP4 হিসেবে সেভ করুন।"
+        },
+        {
+          "title": "দ্রুত CDN প্রক্সি ডাউনলোড",
+          "description": "নিরাপদ সার্ভার প্রক্সির মাধ্যমে সরাসরি সঠিক ফাইলের নামসহ MP4 ডাউনলোড শুরু হয়, ফলে ব্রাউজারের অন্য ট্যাবে ভিডিও আটকে যায় না।"
+        },
+        {
+          "title": "ফেসবুক লগইনের প্রয়োজন নেই",
+          "description": "আপনার ফেসবুক আইডি বা পাসওয়ার্ড দেওয়ার কোনো দরকার নেই। যেকোনো পাবলিক facebook.com বা fb.watch লিংক থেকেই সরাসরি ভিডিও ডাউনলোড করা যায়।"
+        }
+      ],
+      "guideBadge": "ফেসবুক ভিডিও ডাউনলোড গাইড",
+      "guideTitle": "ফেসবুক ভিডিও, রিলস ও Watch ক্লিপ সহজেই ডাউনলোড করুন",
+      "guideParagraphs": [
+        "Save Vibe ফেসবুক ভিডিও ডাউনলোডারটি পাবলিক ফেসবুকের প্রায় সব ধরনের ভিডিও ফরম্যাট—যেমন টাইমলাইন ভিডিও, Facebook Reels, Facebook Watch এপিসোড এবং fb.watch শর্ট লিংক—সমর্থন করে। শিক্ষামূলক ক্লাস, রান্নার রেসিপি বা নিজের পেজের পুরনো ভিডিও সংরক্ষণ করতে এটি অত্যন্ত কার্যকর।",
+        "অনেক থার্ড-পার্টি মোবাইল অ্যাপে বিরক্তিকর বিজ্ঞাপন থাকে বা ব্রাউজার এক্সটেনশন পিসিকে ধীর করে দেয়। Save Vibe সম্পূর্ণ ওয়েব-ভিত্তিক হওয়ায় আপনি Chrome, Safari বা Firefox-এ থেকেই নিরাপদে কাজটি করতে পারবেন। আমাদের প্রক্সি সার্ভার সঠিক Content-Disposition হেডার যুক্ত করে দেওয়ায় ফাইল সরাসরি আপনার ফোনের Downloads ফোল্ডারে সেভ হয়।",
+        "ব্যবহারকারীর গোপনীয়তা ও প্ল্যাটফর্ম নীতিমালা রক্ষার স্বার্থে Save Vibe শুধুমাত্র সবার জন্য উন্মুক্ত (Public) ফেসবুক পোস্ট থেকে ভিডিও আনতে পারে। প্রাইভেট গ্রুপ বা Friends Only ভিডিও সুরক্ষিত থাকে এবং সেগুলো ডাউনলোড করা যায় না।"
+      ],
+      "supportedFormats": [
+        "facebook.com/watch ও fb.watch শর্ট লিংক",
+        "ফেসবুক রিলস (facebook.com/reel/...)",
+        "পাবলিক ফেসবুক পেজ ও প্রোফাইলের ভিডিও পোস্ট",
+        "1080p Full HD, 720p HD ও স্ট্যান্ডার্ড MP4",
+        "শুধুমাত্র অডিও MP3/M4A ডাউনলোড সুবিধা"
+      ],
+      "howToSteps": [
+        {
+          "title": "ফেসবুক ভিডিওর লিংক কপি করুন",
+          "description": "ফেসবুক অ্যাপ বা ব্রাউজারে গিয়ে কাঙ্ক্ষিত পাবলিক ভিডিও বা রিলসের Share বাটনে ট্যাপ করুন এবং Copy Link নির্বাচন করুন।"
+        },
+        {
+          "title": "উপরের বক্সে লিংক পেস্ট করুন",
+          "description": "Save Vibe ফেসবুক ডাউনলোডারের ইনপুট ফিল্ডে লিংকটি পেস্ট করুন এবং \"ডাউনলোড করুন\" বাটনে ক্লিক করুন।"
+        },
+        {
+          "title": "HD MP4 বা MP3 সেভ করুন",
+          "description": "রেজোলিউশন তালিকা থেকে 1080p HD, 720p বা অডিও অপশন বেছে নিয়ে ক্লিক করলেই আপনার ডিভাইসে ডাউনলোড শুরু হবে।"
+        }
+      ],
+      "faqs": [
+        {
+          "question": "কীভাবে ফেসবুক ভিডিও 1080p Full HD কোয়ালিটিতে ডাউনলোড করব?",
+          "answer": "পাবলিক ফেসবুক ভিডিওর লিংক কপি করে Save Vibe-এর সার্চ বক্সে পেস্ট করুন এবং ডাউনলোড বাটনে ক্লিক করুন। এরপর প্রদর্শিত তালিকা থেকে 1080p Full HD বা 720p HD অপশনটি বেছে নিন।"
+        },
+        {
+          "question": "মোবাইলে কি ফেসবুক রিলস (Reels) ডাউনলোড করা যাবে?",
+          "answer": "হ্যাঁ, Android ও iPhone-এর মোবাইল ব্রাউজার থেকেই আপনি খুব সহজে পাবলিক ফেসবুক রিলস ও Watch ভিডিও ডাউনলোড করতে পারবেন।"
+        },
+        {
+          "question": "প্রাইভেট ফেসবুক ভিডিও কি ডাউনলোড করা সম্ভব?",
+          "answer": "না। গোপনীয়তা সুরক্ষার কারণে Save Vibe শুধুমাত্র পাবলিক ফেসবুক ভিডিও সাপোর্ট করে। Friends Only বা Private অ্যাকাউন্টের ভিডিও এখানে আনা যায় না।"
+        },
+        {
+          "question": "ফেসবুক ভিডিও ডাউনলোড করতে কি কোনো টাকা বা অ্যাকাউন্ট লাগে?",
+          "answer": "একেবারেই না। Save Vibe সম্পূর্ণ ফ্রি এবং আনলিমিটেড ব্যবহার করা যায়; কোনো রেজিস্ট্রেশন বা লগইনের প্রয়োজন নেই।"
+        }
+      ],
+      "seoTitle": "ফেসবুক ভিডিও ডাউনলোডার - HD ও রিলস ফ্রি সেভ করুন",
+      "seoDescription": "ফেসবুক ভিডিও, রিলস ও Watch ক্লিপ 1080p Full HD MP4 বা MP3 ফরম্যাটে ডাউনলোড করুন। কোনো লগইন বা অ্যাপ ছাড়াই দ্রুত ও নিরাপদ FB ভিডিও ডাউনলোডার।",
+      "seoKeywords": [
+        "ফেসবুক ভিডিও ডাউনলোডার",
+        "ফেসবুক ভিডিও ডাউনলোড",
+        "ফেসবুক রিলস ডাউনলোড",
+        "FB ভিডিও ডাউনলোড HD",
+        "fb.watch ডাউনলোডার",
+        "ফেসবুক থেকে ভিডিও নামানোর নিয়ম"
+      ],
+      "ogTitle": "ফেসবুক ভিডিও ও রিলস ডাউনলোডার (1080p HD MP4) | Save Vibe",
+      "ogDescription": "পাবলিক ফেসবুক ভিডিও, Reels এবং Watch ক্লিপ সহজেই 1080p Full HD MP4 বা MP3 হিসেবে ফোনে ও কম্পিউটারে সেভ করুন—সম্পূর্ণ ফ্রি ও লগইন ছাড়াই।",
+      "ogImageUrl": "https://savevibe.bond/og-image.png",
+      "updatedAt": "2026-11-24T03:11:45.839Z"
+    },
+    {
+      "id": "content-bn-youtube",
+      "languageCode": "bn",
+      "pageSlug": "youtube",
+      "heroTitle": "ইউটিউব ভিডিও ও শর্টস ডাউনলোড করুন 4K ও HD-তে",
+      "heroSubtitle": "পাবলিক ইউটিউব ভিডিও, ইউটিউব শর্টস এবং অডিও ট্র্যাক 4K, 1080p Full HD MP4 কিংবা MP3 ফরম্যাটে সেভ করুন। শুরু করতে নিচে যেকোনো ইউটিউব লিংক পেস্ট করুন।",
+      "placeholder": "ইউটিউব ভিডিও বা শর্টস (Shorts) লিংক এখানে পেস্ট করুন...",
+      "featuresSubtitle": "হাই-রেজোলিউশন ইউটিউব ভিডিও, ভার্টিক্যাল শর্টস এবং পরিষ্কার MP3 অডিও সেভ করার আধুনিক টুল",
+      "features": [
+        {
+          "title": "4K, 1080p ও শর্টস সাপোর্ট",
+          "description": "4K, 1080p Full HD এবং 720p ইউটিউব ভিডিওর পাশাপাশি ভার্টিক্যাল YouTube Shorts সহজেই অডিওসহ মসৃণ MP4 ফরম্যাটে ডাউনলোড করুন।"
+        },
+        {
+          "title": "অডিও ট্র্যাক (MP3 / M4A)",
+          "description": "লেকচার, পডকাস্ট, ইসলামিক আলোচনা বা মিউজিক ক্লিপ থেকে সরাসরি পরিষ্কার MP3 বা M4A অডিও ফাইল আলাদা করে অফলাইনে শোনার জন্য সেভ করুন।"
+        },
+        {
+          "title": "ট্রান্সক্রিপ্ট ও সাবটাইটেল টুল",
+          "description": "ভিডিওর বদলে কথাগুলোর লেখা দরকার? আমাদের ইউটিউব ট্রান্সক্রিপ্ট ডাউনলোডার ব্যবহার করে TXT, SRT, VTT বা PDF ফরম্যাটে সাবটাইটেল বের করুন।"
+        }
+      ],
+      "guideBadge": "ইউটিউব ডাউনলোডার গাইড",
+      "guideTitle": "সফটওয়্যার ছাড়াই ইউটিউব ভিডিও, শর্টস ও অডিও ডাউনলোড করুন",
+      "guideParagraphs": [
+        "Save Vibe ব্যবহার করে ডেস্কটপ ও মোবাইল ব্রাউজার থেকে খুব সহজেই পাবলিক ইউটিউব ভিডিও এবং YouTube Shorts সংরক্ষণ করা যায়। সাধারণ youtube.com/watch লিংক, শর্ট youtu.be লিংক কিংবা youtube.com/shorts লিংক—সব ধরনের ইউটিউব URL থেকেই আমাদের সিস্টেম উপলব্ধ সব রেজোলিউশন খুঁজে আনে।",
+        "আধুনিক ইউটিউব প্ল্যাটফর্মে 1080p ও 4K কোয়ালিটির ভিডিও এবং অডিও আলাদা স্ট্রিমে থাকে। অনেক ডাউনলোডার এই কারণে সাউন্ড ছাড়া ভিডিও সেভ করে ফেলে। কিন্তু Save Vibe-এর বিল্ট-ইন মার্জিং সিস্টেম ভিডিও ও অডিওকে নিখুঁতভাবে একত্রিত করে সম্পূর্ণ সাউন্ডসহ একটি MP4 ফাইল তৈরি করে দেয়।",
+        "এছাড়া পড়াশোনা, গবেষণা বা কনটেন্ট তৈরির জন্য ভিডিওর পুরো টেক্সট বা সাবটাইটেল দরকার হলে পেজের নিচে থাকা \"ইউটিউব ট্রান্সক্রিপ্ট ডাউনলোডার\" লিংকে গিয়ে ৪০টিরও বেশি ভাষায় অনুবাদ ও টেক্সট এক্সপোর্ট করতে পারবেন।"
+      ],
+      "supportedFormats": [
+        "youtube.com/watch?v=... এবং youtu.be/... লিংক",
+        "ইউটিউব শর্টস (youtube.com/shorts/...)",
+        "4K, 1080p Full HD, 720p HD এবং 480p/360p MP4",
+        "উচ্চমানের MP3 ও M4A অডিও ট্র্যাক",
+        "ইউটিউব ট্রান্সক্রিপ্ট ও সাবটাইটেল এক্সপোর্টের সরাসরি সংযোগ"
+      ],
+      "howToSteps": [
+        {
+          "title": "ইউটিউব ভিডিও বা শর্টসের লিংক কপি করুন",
+          "description": "ইউটিউব অ্যাপ বা ব্রাউজার থেকে ভিডিওর Share অপশনে ক্লিক করে লিংকটি কপি করুন।"
+        },
+        {
+          "title": "Save Vibe বক্সে লিংক পেস্ট করুন",
+          "description": "উপরের ইনপুট বক্সে লিংকটি বসিয়ে \"ডাউনলোড করুন\" বাটনে চাপ দিন—সকল ভিডিও ও অডিও কোয়ালিটি চলে আসবে।"
+        },
+        {
+          "title": "রেজোলিউশন বেছে ডাউনলোড করুন",
+          "description": "1080p HD, 720p MP4 অথবা Audio Only অপশনে ক্লিক করুন। হাই-ডেফিনেশন ফাইল মার্জ হয়ে সরাসরি আপনার ডিভাইসে সেভ হবে।"
+        }
+      ],
+      "faqs": [
+        {
+          "question": "কীভাবে ফ্রিতে ইউটিউব শর্টস (Shorts) ও ভিডিও ডাউনলোড করব?",
+          "answer": "ইউটিউব ভিডিও বা শর্টসের লিংক কপি করে Save Vibe ইউটিউব ডাউনলোডারে পেস্ট করুন। এরপর আপনার পছন্দের MP4 কোয়ালিটি নির্বাচন করে ডাউনলোড করুন।"
+        },
+        {
+          "question": "1080p ইউটিউব ভিডিওতে কি সাউন্ড থাকবে?",
+          "answer": "হ্যাঁ, Save Vibe স্বয়ংক্রিয়ভাবে আলাদা ভিডিও ও অডিও স্ট্রিম মার্জ করে, তাই ডাউনলোড করা প্রতিটি 1080p ও 4K ফাইলেই সম্পূর্ণ সাউন্ড থাকবে।"
+        },
+        {
+          "question": "ইউটিউব ভিডিও থেকে শুধু MP3 অডিও ডাউনলোড করা যাবে কি?",
+          "answer": "অবশ্যই। প্রতিটি সাপোর্টেড ইউটিউব লিংকের ফলাফলেই আলাদা Audio Only (MP3/M4A) ডাউনলোডের বাটন দেওয়া থাকে।"
+        },
+        {
+          "question": "আমি কি ইউটিউব ভিডিওর সাবটাইটেল বা ট্রান্সক্রিপ্টও নামাতে পারব?",
+          "answer": "হ্যাঁ! সার্চ বক্সের নিচে থাকা ইউটিউব ট্রান্সক্রিপ্ট ডাউনলোডার লিংকে ক্লিক করে আপনি ভিডিওর কথাগুলো TXT, SRT, VTT, PDF বা CSV ফরম্যাটে ডাউনলোড করতে পারবেন।"
+        }
+      ],
+      "seoTitle": "ইউটিউব ভিডিও ডাউনলোডার - YT শর্টস ও 4K MP4/MP3 সেভ",
+      "seoDescription": "ইউটিউব ভিডিও ও শর্টস ডাউনলোড করুন 4K, 1080p HD MP4 বা MP3 অডিওতে। কোনো সফটওয়্যার ছাড়াই দ্রুত ও ফ্রি Save Vibe ইউটিউব ডাউনলোডার।",
+      "seoKeywords": [
+        "ইউটিউব ভিডিও ডাউনলোডার",
+        "ইউটিউব ভিডিও ডাউনলোড",
+        "ইউটিউব শর্টস ডাউনলোড",
+        "YouTube থেকে MP4 ডাউনলোড",
+        "ইউটিউব অডিও MP3 ডাউনলোড",
+        "ফ্রি ইউটিউব ডাউনলোডার"
+      ],
+      "ogTitle": "ইউটিউব ভিডিও ও শর্টস ডাউনলোডার (4K, 1080p MP4 ও MP3) | Save Vibe",
+      "ogDescription": "যেকোনো পাবলিক ইউটিউব ভিডিও, শর্টস বা লেকচারের অডিও 4K, 1080p Full HD MP4 কিংবা MP3 ফরম্যাটে ডাউনলোড করুন সরাসরি ব্রাউজার থেকেই।",
+      "ogImageUrl": "https://savevibe.bond/og-image.png",
+      "updatedAt": "2026-11-24T03:11:45.839Z"
+    },
+    {
+      "id": "content-bn-instagram",
+      "languageCode": "bn",
+      "pageSlug": "instagram",
+      "heroTitle": "ইনস্টাগ্রাম রিলস ও ভিডিও ডাউনলোড করুন অরিজিনাল HD-তে",
+      "heroSubtitle": "কোনো লগইন বা অ্যাপ ছাড়াই পাবলিক ইনস্টাগ্রাম রিলস, IGTV এবং ভিডিও পোস্ট মূল HD MP4 কোয়ালিটিতে সেভ করুন। সরাসরি ব্রাউজারে ডাউনলোড করতে নিচে লিংক দিন।",
+      "placeholder": "ইনস্টাগ্রাম রিলস, IGTV বা পোস্টের লিংক এখানে পেস্ট করুন...",
+      "featuresSubtitle": "অরিজিনাল কোয়ালিটি অক্ষুণ্ণ রেখে দ্রুত ইনস্টাগ্রাম রিলস ও ভিডিও পোস্ট সেভ করার সমাধান",
+      "features": [
+        {
+          "title": "অরিজিনাল HD রিলস কোয়ালিটি",
+          "description": "ইনস্টাগ্রাম রিলস এবং ফিড ভিডিও তাদের আসল ৯:১৬ ফ্রেম ও ঝকঝকে HD MP4 মান অক্ষুণ্ণ রেখেই ডাউনলোড হয়, কোনো মান কমে না।"
+        },
+        {
+          "title": "সম্পূর্ণ ব্যক্তিগত ও লগইন-মুক্ত",
+          "description": "আপনার ইনস্টাগ্রাম অ্যাকাউন্টে লগইন বা পাসওয়ার্ড শেয়ার না করেই সম্পূর্ণ অজ্ঞাতনামা অবস্থায় পাবলিক রিলস ও পোস্ট সেভ করুন।"
+        },
+        {
+          "title": "মোবাইল গ্যালারিতে সহজ সংরক্ষণ",
+          "description": "Android Chrome ও iPhone Safari ব্রাউজারে নির্বিঘ্নে কাজ করে, ফলে পছন্দের টিউটোরিয়াল বা রিলস সহজেই ফোনে সেভ করা যায়।"
+        }
+      ],
+      "guideBadge": "ইনস্টাগ্রাম রিলস গাইড",
+      "guideTitle": "ইনস্টাগ্রাম রিলস, IGTV ও ভিডিও পোস্ট HD-তে সেভ করুন",
+      "guideParagraphs": [
+        "ইনস্টাগ্রাম অ্যাপের ভেতরে অন্যের রিলস বা ভিডিও সরাসরি ফোনের গ্যালারিতে ডাউনলোড করার সহজ উপায় সবসময় থাকে না। Save Vibe ইনস্টাগ্রাম ভিডিও ডাউনলোডার আপনাকে ব্রাউজার থেকেই যেকোনো পাবলিক Reel, IGTV বা ফিড ভিডিও পোস্ট সরাসরি HD MP4 হিসেবে সেভ করার সুবিধা দেয়।",
+        "স্ক্রিন রেকর্ডিং করলে ভিডিওর পাশে লাইক-কমেন্ট বাটন চলে আসে, রেজোলিউশন কমে যায় এবং অডিও নষ্ট হয়। Save Vibe সরাসরি ইনস্টাগ্রামের CDN থেকে মূল MP4 ফাইল সংগ্রহ করে, ফলে আপনি পান একদম পরিষ্কার স্ক্রিন ও স্পষ্ট স্টেরিও অডিও।",
+        "গোপনীয়তার প্রতি শ্রদ্ধা রেখে Save Vibe শুধুমাত্র পাবলিক ইনস্টাগ্রাম অ্যাকাউন্টের ভিডিওই ডাউনলোড করে। প্রাইভেট অ্যাকাউন্টের পোস্ট বা ক্লোজ ফ্রেন্ডস স্টোরি ডাউনলোড করা যায় না।"
+      ],
+      "supportedFormats": [
+        "ইনস্টাগ্রাম রিলস (instagram.com/reel/...)",
+        "ইনস্টাগ্রাম ভিডিও পোস্ট (instagram.com/p/...)",
+        "IGTV ও দীর্ঘ পাবলিক ভিডিও (instagram.com/tv/...)",
+        "অরিজিনাল HD MP4 ভিডিও ও অডিও",
+        "Android, iPhone, Windows ও Mac ব্রাউজার সাপোর্ট"
+      ],
+      "howToSteps": [
+        {
+          "title": "ইনস্টাগ্রাম রিলস বা পোস্টের লিংক কপি করুন",
+          "description": "ইনস্টাগ্রাম অ্যাপে পাবলিক রিলস বা ভিডিওর Share অথবা তিন ডট (...) আইকনে ট্যাপ করে Copy Link বেছে নিন।"
+        },
+        {
+          "title": "Save Vibe বক্সে লিংক পেস্ট করুন",
+          "description": "উপরের ইনপুট বক্সে কপি করা ইনস্টাগ্রাম লিংকটি পেস্ট করে \"ডাউনলোড করুন\" বাটনে ক্লিক করুন।"
+        },
+        {
+          "title": "HD MP4 ফাইল সেভ করুন",
+          "description": "রেজাল্ট কার্ড আসার পর HD MP4 ডাউনলোড বাটনে ক্লিক করলেই ভিডিওটি আপনার ফোন বা পিসিতে সেভ হয়ে যাবে।"
+        }
+      ],
+      "faqs": [
+        {
+          "question": "কোনো অ্যাপ ইনস্টল না করে কীভাবে ইনস্টাগ্রাম রিলস ডাউনলোড করব?",
+          "answer": "পাবলিক ইনস্টাগ্রাম রিলসের শেয়ার লিংক কপি করে Save Vibe ইনস্টাগ্রাম ডাউনলোডারে পেস্ট করুন এবং ডাউনলোড বাটনে ক্লিক করুন—কোনো অ্যাপ ছাড়াই MP4 সেভ হয়ে যাবে।"
+        },
+        {
+          "question": "ভিডিও নামাতে কি আমার ইনস্টাগ্রাম অ্যাকাউন্টে লগইন করতে হবে?",
+          "answer": "না, কোনো লগইন বা পাসওয়ার্ডের দরকার নেই। Save Vibe সম্পূর্ণ বেনামে পাবলিক ইনস্টাগ্রাম ভিডিও এনে দেয়।"
+        },
+        {
+          "question": "প্রাইভেট ইনস্টাগ্রাম প্রোফাইলের ভিডিও কি ডাউনলোড করা যায়?",
+          "answer": "না। ব্যবহারকারীর গোপনীয়তা ও নিরাপত্তার স্বার্থে শুধুমাত্র পাবলিক ইনস্টাগ্রাম অ্যাকাউন্টের ভিডিও ডাউনলোড করা সম্ভব।"
+        },
+        {
+          "question": "ডাউনলোড করা ইনস্টাগ্রাম ভিডিওতে কি কোনো ওয়াটারমার্ক থাকবে?",
+          "answer": "না, Save Vibe সরাসরি ইনস্টাগ্রামের অরিজিনাল HD MP4 স্ট্রিম প্রদান করে—এতে কোনো অতিরিক্ত লোগো বা ওয়াটারমার্ক যোগ করা হয় না।"
+        }
+      ],
+      "seoTitle": "ইনস্টাগ্রাম রিলস ও ভিডিও ডাউনলোডার - ফ্রি HD MP4 সেভ",
+      "seoDescription": "ইনস্টাগ্রাম রিলস, IGTV ও ভিডিও পোস্ট অরিজিনাল HD MP4 কোয়ালিটিতে ডাউনলোড করুন। কোনো লগইন ছাড়াই দ্রুত ও ব্যক্তিগত Save Vibe ইনস্টাগ্রাম ডাউনলোডার।",
+      "seoKeywords": [
+        "ইনস্টাগ্রাম ভিডিও ডাউনলোডার",
+        "ইনস্টাগ্রাম রিলস ডাউনলোড",
+        "IG রিলস ডাউনলোডার",
+        "ইনস্টাগ্রাম থেকে ভিডিও ডাউনলোড",
+        "ইনস্টাগ্রাম IGTV ডাউনলোড",
+        "ইনস্টাগ্রাম ভিডিও MP4"
+      ],
+      "ogTitle": "ইনস্টাগ্রাম রিলস ও ভিডিও ডাউনলোডার (অরিজিনাল HD MP4) | Save Vibe",
+      "ogDescription": "পাবলিক ইনস্টাগ্রাম রিলস, ভিডিও পোস্ট এবং IGTV ক্লিপ মূল HD কোয়ালিটিতে ডাউনলোড করুন—কোনো অ্যাপ বা ইনস্টাগ্রাম লগইন ছাড়াই।",
+      "ogImageUrl": "https://savevibe.bond/og-image.png",
+      "updatedAt": "2026-11-24T03:11:45.839Z"
+    },
+    {
+      "id": "content-bn-tiktok",
+      "languageCode": "bn",
+      "pageSlug": "tiktok",
+      "heroTitle": "ওয়াটারমার্ক ছাড়া টিকটক ভিডিও ডাউনলোড করুন",
+      "heroSubtitle": "লোগো বা ওয়াটারমার্ক ছাড়াই পরিষ্কার HD MP4 ফরম্যাটে পাবলিক টিকটক ভিডিও ডাউনলোড করুন। ফোনে বা কম্পিউটারে সরাসরি সেভ করতে নিচে টিকটক লিংক পেস্ট করুন।",
+      "placeholder": "টিকটক ভিডিওর লিংক পেস্ট করুন (যেমন: https://vm.tiktok.com/...)...",
+      "featuresSubtitle": "ওয়াটারমার্ক ছাড়াই পরিষ্কার টিকটক ভিডিও HD ও স্ট্যান্ডার্ড কোয়ালিটিতে সেভ করার সেরা উপায়",
+      "features": [
+        {
+          "title": "সম্পূর্ণ ওয়াটারমার্ক-মুক্ত ভিডিও",
+          "description": "ভিডিওর ওপর ভাসমান TikTok লোগো এবং শেষের ইউজারনেম কার্ড ছাড়াই একদম পরিষ্কার অরিজিনাল ভিডিও ডাউনলোড করুন।"
+        },
+        {
+          "title": "HD ও স্ট্যান্ডার্ড MP4 কোয়ালিটি",
+          "description": "সর্বোচ্চ স্পষ্টতার জন্য High Quality (ওয়াটারমার্ক ছাড়া) অথবা কম ডেটা ও দ্রুত শেয়ারিংয়ের জন্য Standard Quality বেছে নিন।"
+        },
+        {
+          "title": "সব শর্ট লিংক সাপোর্ট করে",
+          "description": "পূর্ণাঙ্গ tiktok.com/@user/video/... URL-এর পাশাপাশি মোবাইল অ্যাপ থেকে কপি করা vm.tiktok.com ও vt.tiktok.com শর্ট লিংকও সাথে সাথে কাজ করে।"
+        }
+      ],
+      "guideBadge": "ওয়াটারমার্ক-মুক্ত টিকটক গাইড",
+      "guideTitle": "যেকোনো ডিভাইসে ওয়াটারমার্ক ছাড়া পরিষ্কার টিকটক ভিডিও ডাউনলোড করুন",
+      "guideParagraphs": [
+        "টিকটক অ্যাপ থেকে সরাসরি ভিডিও সেভ করলে ভিডিওর দুই পাশে ভাসমান TikTok লোগো ও ক্রিয়েটরের আইডি থেকে যায় এবং অনেক সময় ডাউনলোড অপশন বন্ধ থাকে। Save Vibe টিকটক ভিডিও ডাউনলোডার দিয়ে আপনি কয়েক সেকেন্ডেই কোনো ওয়াটারমার্ক ছাড়াই পরিষ্কার MP4 ভিডিও সংরক্ষণ করতে পারেন।",
+        "টিকটক অ্যাপ থেকে Share চাপ দিয়ে Copy Link করলেই যে শর্ট লিংক (vm.tiktok.com বা vt.tiktok.com) পাওয়া যায়, তা সরাসরি উপরের বক্সে পেস্ট করুন। আমাদের সিস্টেম ক্রিয়েটরের নাম, ভিডিও থাম্বনেইল এবং ওয়াটারমার্ক-মুক্ত HD ও স্ট্যান্ডার্ড MP4 লিংক নিয়ে আসে।",
+        "iPhone Safari, Android Chrome বা কম্পিউটার—সব ক্ষেত্রেই ডাউনলোড লিংক আমাদের নিরাপদ প্রক্সির মাধ্যমে আসে বলে পপ-আপ বা বিরক্তিকর রিডাইরেক্ট ছাড়াই ফাইল সেভ হয়। নিজের ভিডিও ব্যাকআপ রাখা বা ব্যক্তিগত অফলাইন সংগ্রহের জন্য এটি নিশ্চিন্তে ব্যবহার করতে পারেন।"
+      ],
+      "supportedFormats": [
+        "tiktok.com/@username/video/... পূর্ণাঙ্গ লিংক",
+        "vm.tiktok.com/... ও vt.tiktok.com/... মোবাইল শর্ট লিংক",
+        "High Quality HD MP4 (ওয়াটারমার্ক ছাড়া)",
+        "Standard Quality MP4 (ওয়াটারমার্ক ছাড়া)",
+        "iPhone, Android, Windows ও macOS সরাসরি ব্রাউজার ডাউনলোড"
+      ],
+      "howToSteps": [
+        {
+          "title": "টিকটক ভিডিওর লিংক কপি করুন",
+          "description": "টিকটক অ্যাপ বা ওয়েবসাইট খুলে কাঙ্ক্ষিত ভিডিওর Share তীর চিহ্নে ট্যাপ করুন এবং Copy Link নির্বাচন করুন।"
+        },
+        {
+          "title": "Save Vibe বক্সে লিংক পেস্ট করুন",
+          "description": "কপি করা tiktok.com বা vm.tiktok.com লিংকটি উপরের সার্চ বক্সে পেস্ট করে \"ডাউনলোড করুন\" বাটনে ক্লিক করুন।"
+        },
+        {
+          "title": "ওয়াটারমার্ক ছাড়া MP4 সেভ করুন",
+          "description": "High Quality বা Standard Quality (ওয়াটারমার্ক ছাড়া) বাটনে ক্লিক করলেই পরিষ্কার MP4 ভিডিও আপনার ডিভাইসে সেভ হবে।"
+        }
+      ],
+      "faqs": [
+        {
+          "question": "কীভাবে ওয়াটারমার্ক ছাড়া টিকটক ভিডিও ডাউনলোড করব?",
+          "answer": "যেকোনো পাবলিক টিকটক ভিডিওর Share অপশন থেকে Copy Link করুন, Save Vibe টিকটক ডাউনলোডারে পেস্ট করুন এবং \"High quality (without watermark)\" বাটনে ক্লিক করুন।"
+        },
+        {
+          "question": "vm.tiktok.com ও vt.tiktok.com শর্ট লিংক কি এখানে কাজ করে?",
+          "answer": "হ্যাঁ! মোবাইল অ্যাপ থেকে কপি করা সব শর্ট লিংক এবং ডেস্কটপের পূর্ণাঙ্গ টিকটক URL—উভয়ই নির্ভুলভাবে কাজ করে।"
+        },
+        {
+          "question": "দিনে সর্বোচ্চ কয়টি টিকটক ভিডিও ডাউনলোড করা যাবে?",
+          "answer": "কোনো সীমা নেই। আপনি সম্পূর্ণ ফ্রিতে এবং কোনো অ্যাকাউন্ট ছাড়াই যত খুশি ওয়াটারমার্ক-মুক্ত টিকটক ভিডিও সেভ করতে পারবেন।"
+        },
+        {
+          "question": "ভিডিওর পাশাপাশি কি অডিও কোয়ালিটি ঠিক থাকে?",
+          "answer": "হ্যাঁ, মূল টিকটক CDN স্ট্রিম থেকেই সরাসরি MP4 আনা হয় বলে অডিও ও ভিডিওর মান একদম অরিজিনাল থাকে।"
+        }
+      ],
+      "seoTitle": "টিকটক ভিডিও ডাউনলোডার - ওয়াটারমার্ক ছাড়া ফ্রি HD MP4",
+      "seoDescription": "লোগো বা ওয়াটারমার্ক ছাড়াই টিকটক ভিডিও ডাউনলোড করুন HD MP4 ফরম্যাটে। মোবাইল ও পিসির জন্য দ্রুত, সহজ ও সম্পূর্ণ ফ্রি Save Vibe টিকটক সেভার।",
+      "seoKeywords": [
+        "টিকটক ভিডিও ডাউনলোডার",
+        "ওয়াটারমার্ক ছাড়া টিকটক ডাউনলোড",
+        "টিকটক ভিডিও ডাউনলোড",
+        "TikTok no watermark বাংলা",
+        "টিকটক HD MP4 সেভ",
+        "vm.tiktok.com ডাউনলোডার"
+      ],
+      "ogTitle": "ওয়াটারমার্ক ছাড়া টিকটক ভিডিও ডাউনলোডার (HD MP4) | Save Vibe",
+      "ogDescription": "লাফানো টিকটক লোগো ও ইউজারনেম ছাড়াই পরিষ্কার HD MP4 কোয়ালিটিতে টিকটক ভিডিও সেভ করুন। iPhone, Android ও পিসিতে সরাসরি কাজ করে।",
+      "ogImageUrl": "https://savevibe.bond/og-image.png",
+      "updatedAt": "2026-11-24T03:11:45.839Z"
+    },
+    {
+      "id": "content-bn-youtube-transcript",
+      "languageCode": "bn",
+      "pageSlug": "youtube-transcript",
+      "heroTitle": "ইউটিউব ভিডিও ট্রান্সক্রিপ্ট ও সাবটাইটেল ডাউনলোডার",
+      "heroSubtitle": "যেকোনো পাবলিক ইউটিউব ভিডিও বা শর্টস থেকে টাইমস্ট্যাম্পসহ ট্রান্সক্রিপ্ট বের করুন, ৪০+ ভাষায় অনুবাদ করুন এবং TXT, SRT, VTT, PDF বা CSV ফরম্যাটে সেভ করুন।",
+      "placeholder": "ইউটিউব ভিডিও বা শর্টস লিংক এখানে পেস্ট করুন...",
+      "featuresSubtitle": "যেকোনো ইউটিউব ভিডিওর ট্রান্সক্রিপ্ট ও সাবটাইটেল বের করুন। ৪০+ ভাষায় অনুবাদ, বাংলায় বা ইংরেজি অক্ষরে পড়া এবং TXT, SRT, VTT, PDF ও CSV এক্সপোর্ট করুন।",
+      "features": [],
+      "guideBadge": "ইউটিউব ট্রান্সক্রিপ্ট টুল",
+      "guideTitle": "ইউটিউব ট্রান্সক্রিপ্ট ডাউনলোডার - TXT, SRT ও অনুবাদ",
+      "guideParagraphs": [],
+      "supportedFormats": [
+        "TXT",
+        "SRT",
+        "VTT",
+        "PDF",
+        "CSV"
+      ],
+      "howToSteps": [
+        {
+          "title": "ইউটিউব ভিডিও বা শর্টসের লিংক দিন",
+          "description": "সাবটাইটেল বা অটো-ক্যাপশন আছে এমন যেকোনো পাবলিক ইউটিউব ভিডিও বা শর্টসের লিংক কপি করে উপরের বক্সে পেস্ট করুন।"
+        },
+        {
+          "title": "সার্চ, বাংলা অনুবাদ বা রূপান্তর করুন",
+          "description": "কীওয়ার্ড লিখে নির্দিষ্ট অংশে যান, ড্রপডাউন থেকে বাংলা বা অন্য ভাষায় অনুবাদ করুন কিংবা তুলনা করে পড়ুন।"
+        },
+        {
+          "title": "কপি অথবা পছন্দের ফরম্যাটে সেভ করুন",
+          "description": "এক ক্লিকে সম্পূর্ণ টেক্সট কপি করুন অথবা টাইমস্ট্যাম্পসহ/ছাড়া TXT, SRT, VTT, PDF বা CSV হিসেবে ডাউনলোড করুন।"
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Save Vibe-এ ইউটিউব ট্রান্সক্রিপ্ট অনুবাদ কীভাবে কাজ করে?",
+          "answer": "ভিডিওর ক্যাপশন বের করার পর Translate ড্রপডাউন থেকে বাংলা বা অন্য যেকোনো ভাষা নির্বাচন করলে প্রতিটি লাইনের আসল টাইমস্ট্যাম্প অক্ষুণ্ণ রেখে সম্পূর্ণ ট্রান্সক্রিপ্ট অনুবাদ হয়ে যায়।"
+        },
+        {
+          "question": "Transliterate (A–Z) অপশনটির কাজ কী?",
+          "answer": "এটি ভাষার অর্থ পরিবর্তন না করে বাংলা, হিন্দি, আরবি, জাপানি বা কোরিয়ান লেখাকে ইংরেজি অক্ষরে উচ্চারণ আকারে দেখায়, যা ভাষা শিক্ষার্থীদের জন্য খুব উপকারী।"
+        },
+        {
+          "question": "কোন কোন ফরম্যাটে ট্রান্সক্রিপ্ট ডাউনলোড করা যায়?",
+          "answer": "মূল, অনূদিত কিংবা রূপান্তরিত ট্রান্সক্রিপ্ট আপনি ক্লিপবোর্ডে কপি করতে পারবেন অথবা টাইমস্ট্যাম্পসহ বা ছাড়া Plain Text (.txt), SubRip (.srt), WebVTT (.vtt), PDF (.pdf) এবং CSV (.csv) হিসেবে সেভ করতে পারবেন।"
+        },
+        {
+          "question": "কোনো লগইন বা API চার্জ ছাড়া এটি কি সম্পূর্ণ ফ্রি?",
+          "answer": "হ্যাঁ, শিক্ষার্থী, গবেষক ও কনটেন্ট নির্মাতাদের জন্য Save Vibe ইউটিউব ট্রান্সক্রিপ্ট ডাউনলোডার সম্পূর্ণ ফ্রি এবং কোনো অ্যাকাউন্ট লগইন লাগে না।"
+        }
+      ],
+      "seoTitle": "ইউটিউব ট্রান্সক্রিপ্ট ডাউনলোডার - TXT, SRT ও অনুবাদ",
+      "seoDescription": "যেকোনো ইউটিউব ভিডিওর ট্রান্সক্রিপ্ট ও সাবটাইটেল বের করুন। ৪০+ ভাষায় অনুবাদ, বাংলায় বা ইংরেজি অক্ষরে পড়া এবং TXT, SRT, VTT, PDF ও CSV এক্সপোর্ট করুন।",
+      "seoKeywords": [
+        "ইউটিউব ট্রান্সক্রিপ্ট ডাউনলোডার",
+        "ইউটিউব সাবটাইটেল ডাউনলোড",
+        "YouTube ক্যাপশন টেক্সট",
+        "ইউটিউব ভিডিও থেকে টেক্সট",
+        "SRT VTT সাবটাইটেল এক্সপোর্টার",
+        "ইউটিউব ট্রান্সক্রিপ্ট বাংলা অনুবাদ"
+      ],
+      "ogTitle": "ইউটিউব ট্রান্সক্রিপ্ট ও সাবটাইটেল ডাউনলোডার | Save Vibe",
+      "ogDescription": "টাইমস্ট্যাম্পসহ ইউটিউব ভিডিওর পুরো কথা টেক্সট আকারে বের করুন, বাংলাসহ ৪০+ ভাষায় অনুবাদ করুন এবং TXT, SRT, VTT, PDF বা CSV হিসেবে ডাউনলোড করুন।",
+      "ogImageUrl": "https://savevibe.bond/og-image.png",
+      "updatedAt": "2026-11-24T03:11:45.840Z"
+    }
+  ],
+  "platformConfigs": [
+    {
+      "platform": "facebook",
+      "isEnabled": true,
+      "cookies": "",
+      "hasCookies": false,
+      "proxyUrl": "",
+      "userAgent": "",
+      "statusNote": "",
+      "updatedAt": "2026-11-24T03:11:45.840Z"
+    },
+    {
+      "platform": "youtube",
+      "isEnabled": true,
+      "cookies": "",
+      "hasCookies": false,
+      "proxyUrl": "",
+      "userAgent": "",
+      "statusNote": "",
+      "updatedAt": "2026-11-24T03:11:45.840Z"
+    },
+    {
+      "platform": "instagram",
+      "isEnabled": true,
+      "cookies": "",
+      "hasCookies": false,
+      "proxyUrl": "",
+      "userAgent": "",
+      "statusNote": "",
+      "updatedAt": "2026-11-24T03:11:45.840Z"
+    },
+    {
+      "platform": "tiktok",
+      "isEnabled": true,
+      "cookies": "",
+      "hasCookies": false,
+      "proxyUrl": "",
+      "userAgent": "",
+      "statusNote": "",
+      "updatedAt": "2026-11-24T03:11:45.840Z"
+    }
+  ],
+  "globalSettings": {
+    "siteName": "Save Vibe",
+    "logoUrl": "/favicons/search-logo-96.png",
+    "faviconUrl": "/favicon.ico",
+    "defaultOgImage": "https://savevibe.bond/og-image.png",
+    "headScripts": "",
+    "bodyScripts": "",
+    "maintenanceMode": false,
+    "maintenanceMessage": "Save Vibe is currently undergoing scheduled maintenance for faster downloads. Please check back in a few minutes.",
+    "updatedAt": "2026-11-24T03:11:45.840Z"
+  },
+  "downloadLogs": []
+}

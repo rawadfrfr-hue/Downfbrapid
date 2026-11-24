@@ -1,12 +1,19 @@
 import React from 'react';
 import type { Metadata } from 'next';
-import { generatePageMetadata, generateJsonLdSchema } from '@/lib/seo-data';
+import {
+  buildCmsJsonLdSchemas,
+  generateCmsPageMetadata,
+  getPublicPageBootstrap,
+} from '@/lib/cms-seo';
 import { PlatformPageClient } from '@/components/PlatformPageClient';
 
-export const metadata: Metadata = generatePageMetadata('instagram', 'en');
+export async function generateMetadata(): Promise<Metadata> {
+  return generateCmsPageMetadata('instagram', 'en');
+}
 
-export default function InstagramDownloaderPage() {
-  const schemas = generateJsonLdSchema('instagram', 'en');
+export default async function InstagramDownloaderPage() {
+  const { content, activeLanguages, siteName } = await getPublicPageBootstrap('en', 'instagram');
+  const schemas = buildCmsJsonLdSchemas(content, siteName);
 
   return (
     <>
@@ -17,7 +24,13 @@ export default function InstagramDownloaderPage() {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
         />
       ))}
-      <PlatformPageClient platform="instagram" locale="en" />
+      <PlatformPageClient
+        platform="instagram"
+        locale="en"
+        cmsContent={content}
+        activeLanguages={activeLanguages}
+        siteName={siteName}
+      />
     </>
   );
 }

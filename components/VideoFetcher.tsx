@@ -10,10 +10,12 @@ import { ResultCard, VideoData } from './ResultCard';
 import { PagePlatform } from '@/lib/platforms';
 import { getLocalizedPlatformConfig } from '@/lib/platforms-bn';
 import { Locale, getLocalizedPath } from '@/lib/i18n';
+import type { CmsPageContentRecord } from '@/lib/cms-types';
 
 interface VideoFetcherProps {
   platform?: PagePlatform;
   locale?: Locale;
+  cmsContent?: CmsPageContentRecord;
   onRecordDownload: (quality: string) => void;
   onAddHistory: (item: VideoData) => void;
 }
@@ -39,11 +41,20 @@ function localizeFetchError(rawMessage: string, platformName: string, isBn: bool
 export const VideoFetcher: React.FC<VideoFetcherProps> = ({
   platform = 'home',
   locale = 'en',
+  cmsContent,
   onRecordDownload,
   onAddHistory,
 }) => {
   const isBn = locale === 'bn';
-  const platformConfig = getLocalizedPlatformConfig(platform, locale);
+  const baseConfig = getLocalizedPlatformConfig(platform, locale === 'bn' ? 'bn' : 'en');
+  const platformConfig = cmsContent
+    ? {
+        ...baseConfig,
+        heroTitle: cmsContent.heroTitle || baseConfig.heroTitle,
+        heroSubtitle: cmsContent.heroSubtitle || baseConfig.heroSubtitle,
+        placeholder: cmsContent.placeholder || baseConfig.placeholder,
+      }
+    : baseConfig;
   const [url, setUrl] = useState('');
   const [state, setState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -96,6 +107,7 @@ export const VideoFetcher: React.FC<VideoFetcherProps> = ({
         body: JSON.stringify({
           url: linkToFetch,
           platform: platformConfig.id,
+          locale,
           isDemo: isDemoFlag || false,
         }),
       });

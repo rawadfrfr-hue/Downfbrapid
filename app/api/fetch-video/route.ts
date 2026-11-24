@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getPlatformConfigsCached, recordDownloadEvent } from '@/lib/cms-store';
+import type { CmsPlatformKey } from '@/lib/cms-types';
 
 export const dynamic = 'force-dynamic';
 
@@ -381,6 +383,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const platformKey = detectedPlatform as CmsPlatformKey;
+    const locale = typeof body?.locale === 'string' ? body.locale : 'en';
+
+    const platformConfigs = await getPlatformConfigsCached();
+    const activePlatformCfg = platformConfigs.find((p) => p.platform === platformKey);
+
+    if (activePlatformCfg && !activePlatformCfg.isEnabled) {
+      const pauseReason =
+        activePlatformCfg.statusNote?.trim() ||
+        `${platformKey.charAt(0).toUpperCase() + platformKey.slice(1)} downloads are temporarily paused for maintenance.`;
+      await recordDownloadEvent({
+        platform: platformKey,
+        videoUrl: cleanUrl,
+        status: 'FAILED',
+        errorMessage: pauseReason,
+        errorCode: 'PLATFORM_DISABLED',
+        locale,
+      });
+      return NextResponse.json({ success: false, error: pauseReason }, { status: 503 });
+    }
+
     const backendBaseUrl = process.env.YTDLP_BACKEND_URL?.trim().replace(/\/+$/, '');
 
     // For TikTok: extract watermark-free Standard & High quality streams directly first,
@@ -388,6 +411,13 @@ export async function POST(req: NextRequest) {
     if (detectedPlatform === 'tiktok') {
       try {
         const tiktokData = await extractTikTokVideo(cleanUrl, backendBaseUrl ? 9000 : 16000);
+        await recordDownloadEvent({
+          platform: 'tiktok',
+          videoUrl: cleanUrl,
+          status: 'SUCCESS',
+          quality: 'HD No Watermark',
+          locale,
+        });
         return NextResponse.json({ success: true, data: tiktokData });
       } catch (tiktokErr: unknown) {
         if (!backendBaseUrl) {
@@ -395,6 +425,14 @@ export async function POST(req: NextRequest) {
             tiktokErr instanceof Error
               ? tiktokErr.message
               : 'Unable to download this TikTok video. Please verify the link is public.';
+          await recordDownloadEvent({
+            platform: 'tiktok',
+            videoUrl: cleanUrl,
+            status: 'FAILED',
+            errorMessage: msg,
+            errorCode: 'TIKTOK_EXTRACT_FAILED',
+            locale,
+          });
           return NextResponse.json({ success: false, error: msg }, { status: 422 });
         }
         // Otherwise continue to YTDLP_BACKEND_URL fallback below
@@ -402,10 +440,19 @@ export async function POST(req: NextRequest) {
     }
 
     if (!backendBaseUrl) {
+      const missingErr = 'Video extractor backend is not configured (missing YTDLP_BACKEND_URL).';
+      await recordDownloadEvent({
+        platform: platformKey,
+        videoUrl: cleanUrl,
+        status: 'FAILED',
+        errorMessage: missingErr,
+        errorCode: 'MISSING_BACKEND',
+        locale,
+      });
       return NextResponse.json(
         {
           success: false,
-          error: 'Video extractor backend is not configured (missing YTDLP_BACKEND_URL).',
+          error: missingErr,
         },
         { status: 500 }
       );
@@ -430,6 +477,9 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           url: cleanUrl,
           platform: detectedPlatform,
+          ...(activePlatformCfg?.cookies ? { cookies: activePlatformCfg.cookies } : {}),
+          ...(activePlatformCfg?.proxyUrl ? { proxyUrl: activePlatformCfg.proxyUrl } : {}),
+          ...(activePlatformCfg?.userAgent ? { userAgent: activePlatformCfg.userAgent } : {}),
         }),
         signal: controller.signal,
         cache: 'no-store',
@@ -444,6 +494,14 @@ export async function POST(req: NextRequest) {
           payload?.detail ||
           payload?.error ||
           'Unable to extract a direct download link for this video. Please verify the link is public.';
+        await recordDownloadEvent({
+          platform: platformKey,
+          videoUrl: cleanUrl,
+          status: 'FAILED',
+          errorMessage: errMessage,
+          errorCode: `HTTP_${backendRes.status}`,
+          locale,
+        });
         return NextResponse.json(
           { success: false, error: errMessage },
           { status: backendRes.status >= 400 && backendRes.status < 500 ? backendRes.status : 502 }
@@ -500,6 +558,14 @@ export async function POST(req: NextRequest) {
         thumbnail: data.thumbnail || fallbackThumb,
       };
 
+      await recordDownloadEvent({
+        platform: platformKey,
+        videoUrl: cleanUrl,
+        status: 'SUCCESS',
+        quality: 'HD',
+        locale,
+      });
+
       return NextResponse.json({
         success: true,
         data:
@@ -510,13 +576,30 @@ export async function POST(req: NextRequest) {
     } catch (fetchErr: unknown) {
       clearTimeout(timeout);
       if (fetchErr instanceof Error && fetchErr.name === 'AbortError') {
+        const timeoutMsg = 'The extraction request timed out. Please try again.';
+        await recordDownloadEvent({
+          platform: platformKey,
+          videoUrl: cleanUrl,
+          status: 'FAILED',
+          errorMessage: timeoutMsg,
+          errorCode: 'TIMEOUT',
+          locale,
+        });
         return NextResponse.json(
-          { success: false, error: 'The extraction request timed out. Please try again.' },
+          { success: false, error: timeoutMsg },
           { status: 504 }
         );
       }
       const msg =
         fetchErr instanceof Error ? fetchErr.message : 'Failed to connect to the extractor backend.';
+      await recordDownloadEvent({
+        platform: platformKey,
+        videoUrl: cleanUrl,
+        status: 'FAILED',
+        errorMessage: msg,
+        errorCode: 'BACKEND_UNREACHABLE',
+        locale,
+      });
       return NextResponse.json({ success: false, error: msg }, { status: 502 });
     }
   } catch (err: unknown) {

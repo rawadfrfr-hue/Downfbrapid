@@ -1,12 +1,19 @@
 import React from 'react';
 import type { Metadata } from 'next';
-import { generatePageMetadata, generateJsonLdSchema } from '@/lib/seo-data';
+import {
+  buildCmsJsonLdSchemas,
+  generateCmsPageMetadata,
+  getPublicPageBootstrap,
+} from '@/lib/cms-seo';
 import { PlatformPageClient } from '@/components/PlatformPageClient';
 
-export const metadata: Metadata = generatePageMetadata('tiktok', 'bn');
+export async function generateMetadata(): Promise<Metadata> {
+  return generateCmsPageMetadata('tiktok', 'bn');
+}
 
-export default function BnTiktokDownloaderPage() {
-  const schemas = generateJsonLdSchema('tiktok', 'bn');
+export default async function BnTiktokDownloaderPage() {
+  const { content, activeLanguages, siteName } = await getPublicPageBootstrap('bn', 'tiktok');
+  const schemas = buildCmsJsonLdSchemas(content, siteName);
 
   return (
     <>
@@ -17,7 +24,13 @@ export default function BnTiktokDownloaderPage() {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
         />
       ))}
-      <PlatformPageClient platform="tiktok" locale="bn" />
+      <PlatformPageClient
+        platform="tiktok"
+        locale="bn"
+        cmsContent={content}
+        activeLanguages={activeLanguages}
+        siteName={siteName}
+      />
     </>
   );
 }

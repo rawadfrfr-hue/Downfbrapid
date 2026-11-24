@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint ."
   },
@@ -13,6 +13,9 @@
     "@ffmpeg/util": "^0.12.2",
     "@google/genai": "^2.4.0",
     "@hookform/resolvers": "^5.2.1",
+    "@prisma/client": "^6.19.0",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.119.2",
     "autoprefixer": "^10.4.21",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -21,11 +24,13 @@
     "motion": "^12.23.24",
     "next": "^15.4.9",
     "postcss": "^8.5.6",
+    "prisma": "^6.19.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "tailwind-merge": "^3.3.1",
     "youtube-transcript": "^1.3.1",
-    "youtubei.js": "^18.3.0"
+    "youtubei.js": "^18.3.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.1.11",

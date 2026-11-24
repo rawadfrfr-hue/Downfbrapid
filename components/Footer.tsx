@@ -10,12 +10,14 @@ interface FooterProps {
   onOpenModal?: (type: ModalType) => void;
   totalDownloadsCount?: number;
   locale?: Locale;
+  siteName?: string;
 }
 
 export const Footer: React.FC<FooterProps> = ({
   onOpenModal,
   totalDownloadsCount = 0,
   locale = 'en',
+  siteName = 'Save Vibe',
 }) => {
   const [localContactOpen, setLocalContactOpen] = useState(false);
   const isBn = locale === 'bn';
@@ -35,7 +37,7 @@ export const Footer: React.FC<FooterProps> = ({
           {/* Left copyright & security badge */}
           <div className="flex items-center flex-wrap justify-center sm:justify-start gap-2">
             <span className="font-medium text-slate-700">
-              {isBn ? '© ২০২৬ Save Vibe' : '© 2026 Save Vibe'}
+              {isBn ? `© ২০২৬ ${siteName}` : `© 2026 ${siteName}`}
             </span>
             <span aria-hidden="true">·</span>
             <span className="flex items-center gap-1 text-slate-600 font-medium">

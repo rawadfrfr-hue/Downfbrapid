@@ -1,12 +1,19 @@
 import React from 'react';
 import type { Metadata } from 'next';
-import { generatePageMetadata, generateJsonLdSchema } from '@/lib/seo-data';
+import {
+  buildCmsJsonLdSchemas,
+  generateCmsPageMetadata,
+  getPublicPageBootstrap,
+} from '@/lib/cms-seo';
 import { PlatformPageClient } from '@/components/PlatformPageClient';
 
-export const metadata: Metadata = generatePageMetadata('youtube', 'bn');
+export async function generateMetadata(): Promise<Metadata> {
+  return generateCmsPageMetadata('youtube', 'bn');
+}
 
-export default function BnYoutubeDownloaderPage() {
-  const schemas = generateJsonLdSchema('youtube', 'bn');
+export default async function BnYoutubeDownloaderPage() {
+  const { content, activeLanguages, siteName } = await getPublicPageBootstrap('bn', 'youtube');
+  const schemas = buildCmsJsonLdSchemas(content, siteName);
 
   return (
     <>
@@ -17,7 +24,13 @@ export default function BnYoutubeDownloaderPage() {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
         />
       ))}
-      <PlatformPageClient platform="youtube" locale="bn" />
+      <PlatformPageClient
+        platform="youtube"
+        locale="bn"
+        cmsContent={content}
+        activeLanguages={activeLanguages}
+        siteName={siteName}
+      />
     </>
   );
 }

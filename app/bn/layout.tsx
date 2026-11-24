@@ -1,7 +1,11 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, JetBrains_Mono, Noto_Sans_Bengali } from 'next/font/google';
+import { notFound } from 'next/navigation';
 import '../globals.css';
 import { SITE_URL, OG_IMAGE_URL, getMetadataBase } from '@/lib/seo-data';
+import { getActiveLanguagesCached, getGlobalSettingsCached } from '@/lib/cms-store';
+import { MaintenanceView } from '@/components/MaintenanceView';
+import { CustomScriptInjector } from '@/components/CustomScriptInjector';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -74,7 +78,17 @@ export const metadata: Metadata = {
   },
 };
 
-export default function BnRootLayout({ children }: { children: React.ReactNode }) {
+export default async function BnRootLayout({ children }: { children: React.ReactNode }) {
+  const [globalSettings, activeLanguages] = await Promise.all([
+    getGlobalSettingsCached(),
+    getActiveLanguagesCached(),
+  ]);
+
+  const isBnActive = activeLanguages.some((l) => l.code === 'bn');
+  if (!isBnActive) {
+    notFound();
+  }
+
   return (
     <html
       lang="bn"
@@ -85,7 +99,18 @@ export default function BnRootLayout({ children }: { children: React.ReactNode }
         className="font-sans antialiased bg-[#F8FAFC] text-slate-900 selection:bg-[#1877F2]/20 selection:text-[#1877F2]"
         suppressHydrationWarning
       >
-        {children}
+        <CustomScriptInjector
+          headScripts={globalSettings.headScripts}
+          bodyScripts={globalSettings.bodyScripts}
+        />
+        {globalSettings.maintenanceMode ? (
+          <MaintenanceView
+            siteName={globalSettings.siteName}
+            message={globalSettings.maintenanceMessage}
+          />
+        ) : (
+          children
+        )}
       </body>
     </html>
   );

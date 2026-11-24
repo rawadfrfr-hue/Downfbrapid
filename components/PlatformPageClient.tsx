@@ -10,13 +10,23 @@ import { PrivacyTermsModal, ModalType } from '@/components/PrivacyTermsModal';
 import { VideoData } from '@/components/ResultCard';
 import { PagePlatform, getPlatformConfig } from '@/lib/platforms';
 import type { Locale } from '@/lib/i18n';
+import type { CmsLanguageRecord, CmsPageContentRecord } from '@/lib/cms-types';
 
 interface PlatformPageClientProps {
   platform: PagePlatform;
   locale?: Locale;
+  cmsContent?: CmsPageContentRecord;
+  activeLanguages?: CmsLanguageRecord[];
+  siteName?: string;
 }
 
-export function PlatformPageClient({ platform, locale = 'en' }: PlatformPageClientProps) {
+export function PlatformPageClient({
+  platform,
+  locale = 'en',
+  cmsContent,
+  activeLanguages,
+  siteName = 'Save Vibe',
+}: PlatformPageClientProps) {
   const [activeLegalModal, setActiveLegalModal] = useState<ModalType>(null);
   const [_historyItems, setHistoryItems] = useState<VideoData[]>(() => {
     if (typeof window === 'undefined') return [];
@@ -56,22 +66,28 @@ export function PlatformPageClient({ platform, locale = 'en' }: PlatformPageClie
       className={`min-h-screen flex flex-col bg-[#F8FAFC] text-slate-900 transition-colors duration-200 ${platformConfig.themeClass}`}
     >
       {/* Top Header */}
-      <Header platform={platform} locale={locale} />
+      <Header
+        platform={platform}
+        locale={locale}
+        activeLanguages={activeLanguages}
+        siteName={siteName}
+      />
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col justify-start items-center">
         <VideoFetcher
           platform={platform}
           locale={locale}
+          cmsContent={cmsContent}
           onRecordDownload={handleRecordDownload}
           onAddHistory={handleAddHistory}
         />
 
         {/* Features, Cross-Links & Detailed Guide */}
-        <FeaturesGrid platform={platform} locale={locale} />
+        <FeaturesGrid platform={platform} locale={locale} cmsContent={cmsContent} />
 
         {/* SEO FAQ & Step-by-Step Section */}
-        <FaqSection platform={platform} locale={locale} />
+        <FaqSection platform={platform} locale={locale} cmsContent={cmsContent} />
       </main>
 
       {/* Professional Footer */}
@@ -79,6 +95,7 @@ export function PlatformPageClient({ platform, locale = 'en' }: PlatformPageClie
         onOpenModal={(type) => setActiveLegalModal(type)}
         totalDownloadsCount={downloadsCount}
         locale={locale}
+        siteName={siteName}
       />
 
       {/* Interactive Contact Modal */}

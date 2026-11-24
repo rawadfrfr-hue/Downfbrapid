@@ -6,16 +6,30 @@ import { PagePlatform } from '@/lib/platforms';
 import { getLocalizedPlatformConfig } from '@/lib/platforms-bn';
 import { getLocalizedSeoData } from '@/lib/seo-data';
 import type { Locale } from '@/lib/i18n';
+import type { CmsPageContentRecord } from '@/lib/cms-types';
 
 interface FaqSectionProps {
   platform: PagePlatform;
   locale?: Locale;
+  cmsContent?: CmsPageContentRecord;
 }
 
-export const FaqSection: React.FC<FaqSectionProps> = ({ platform, locale = 'en' }) => {
+export const FaqSection: React.FC<FaqSectionProps> = ({
+  platform,
+  locale = 'en',
+  cmsContent,
+}) => {
   const isBn = locale === 'bn';
-  const seoInfo = getLocalizedSeoData(platform, locale);
-  const platformConfig = getLocalizedPlatformConfig(platform, locale);
+  const fallbackSeo = getLocalizedSeoData(platform, isBn ? 'bn' : 'en');
+  const seoInfo = cmsContent
+    ? {
+        ...fallbackSeo,
+        howToSteps:
+          cmsContent.howToSteps.length > 0 ? cmsContent.howToSteps : fallbackSeo.howToSteps,
+        faqs: cmsContent.faqs.length > 0 ? cmsContent.faqs : fallbackSeo.faqs,
+      }
+    : fallbackSeo;
+  const platformConfig = getLocalizedPlatformConfig(platform, isBn ? 'bn' : 'en');
   const isHome = platform === 'home';
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 

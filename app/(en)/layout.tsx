@@ -2,6 +2,9 @@ import type { Metadata, Viewport } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import '../globals.css';
 import { SITE_URL, OG_IMAGE_URL, getMetadataBase } from '@/lib/seo-data';
+import { getGlobalSettingsCached } from '@/lib/cms-store';
+import { MaintenanceView } from '@/components/MaintenanceView';
+import { CustomScriptInjector } from '@/components/CustomScriptInjector';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -67,14 +70,27 @@ export const metadata: Metadata = {
   },
 };
 
-export default function EnRootLayout({ children }: { children: React.ReactNode }) {
+export default async function EnRootLayout({ children }: { children: React.ReactNode }) {
+  const globalSettings = await getGlobalSettingsCached();
+
   return (
     <html lang="en" dir="ltr" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body
         className="font-sans antialiased bg-[#F8FAFC] text-slate-900 selection:bg-[#1877F2]/20 selection:text-[#1877F2]"
         suppressHydrationWarning
       >
-        {children}
+        <CustomScriptInjector
+          headScripts={globalSettings.headScripts}
+          bodyScripts={globalSettings.bodyScripts}
+        />
+        {globalSettings.maintenanceMode ? (
+          <MaintenanceView
+            siteName={globalSettings.siteName}
+            message={globalSettings.maintenanceMessage}
+          />
+        ) : (
+          children
+        )}
       </body>
     </html>
   );

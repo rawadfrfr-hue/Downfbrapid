@@ -18,6 +18,7 @@ import { getLocalizedPlatformConfig } from '@/lib/platforms-bn';
 import { getLocalizedSeoData } from '@/lib/seo-data';
 import type { BanglaPlatformSeoConfig } from '@/lib/seo-data-bn';
 import { Locale, getLocalizedPath } from '@/lib/i18n';
+import type { CmsPageContentRecord } from '@/lib/cms-types';
 
 const TikTokIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -28,6 +29,7 @@ const TikTokIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' })
 interface FeaturesGridProps {
   platform?: PagePlatform;
   locale?: Locale;
+  cmsContent?: CmsPageContentRecord;
 }
 
 interface ToolSuggestionOption {
@@ -99,11 +101,33 @@ const ALL_TOOL_SUGGESTIONS: ToolSuggestionOption[] = [
   },
 ];
 
-export const FeaturesGrid: React.FC<FeaturesGridProps> = ({ platform = 'home', locale = 'en' }) => {
+export const FeaturesGrid: React.FC<FeaturesGridProps> = ({
+  platform = 'home',
+  locale = 'en',
+  cmsContent,
+}) => {
   const isBn = locale === 'bn';
-  const platformConfig = getLocalizedPlatformConfig(platform, locale);
-  const seoInfo = getLocalizedSeoData(platform, locale);
-  const bnSeo = isBn ? (seoInfo as BanglaPlatformSeoConfig) : null;
+  const platformConfig = getLocalizedPlatformConfig(platform, isBn ? 'bn' : 'en');
+  const fallbackSeo = getLocalizedSeoData(platform, isBn ? 'bn' : 'en');
+  const seoInfo = cmsContent
+    ? {
+        ...fallbackSeo,
+        featuresSubtitle: cmsContent.featuresSubtitle || fallbackSeo.featuresSubtitle,
+        features:
+          cmsContent.features.length > 0 ? cmsContent.features : fallbackSeo.features,
+        guideBadge: cmsContent.guideBadge || fallbackSeo.guideBadge,
+        guideTitle: cmsContent.guideTitle || fallbackSeo.guideTitle,
+        guideParagraphs:
+          cmsContent.guideParagraphs.length > 0
+            ? cmsContent.guideParagraphs
+            : fallbackSeo.guideParagraphs,
+        supportedFormats:
+          cmsContent.supportedFormats.length > 0
+            ? cmsContent.supportedFormats
+            : fallbackSeo.supportedFormats,
+      }
+    : fallbackSeo;
+  const bnSeo = isBn ? (fallbackSeo as BanglaPlatformSeoConfig) : null;
   const isHome = platform === 'home';
 
   const relatedSuggestions = isHome

@@ -1,12 +1,19 @@
 import React from 'react';
 import type { Metadata } from 'next';
-import { generatePageMetadata, generateJsonLdSchema } from '@/lib/seo-data';
+import {
+  buildCmsJsonLdSchemas,
+  generateCmsPageMetadata,
+  getPublicPageBootstrap,
+} from '@/lib/cms-seo';
 import { PlatformPageClient } from '@/components/PlatformPageClient';
 
-export const metadata: Metadata = generatePageMetadata('home', 'bn');
+export async function generateMetadata(): Promise<Metadata> {
+  return generateCmsPageMetadata('home', 'bn');
+}
 
-export default function BnHomePage() {
-  const schemas = generateJsonLdSchema('home', 'bn');
+export default async function BnHomePage() {
+  const { content, activeLanguages, siteName } = await getPublicPageBootstrap('bn', 'home');
+  const schemas = buildCmsJsonLdSchemas(content, siteName);
 
   return (
     <>
@@ -17,7 +24,13 @@ export default function BnHomePage() {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
         />
       ))}
-      <PlatformPageClient platform="home" locale="bn" />
+      <PlatformPageClient
+        platform="home"
+        locale="bn"
+        cmsContent={content}
+        activeLanguages={activeLanguages}
+        siteName={siteName}
+      />
     </>
   );
 }

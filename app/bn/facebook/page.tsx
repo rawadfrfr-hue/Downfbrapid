@@ -1,12 +1,19 @@
 import React from 'react';
 import type { Metadata } from 'next';
-import { generatePageMetadata, generateJsonLdSchema } from '@/lib/seo-data';
+import {
+  buildCmsJsonLdSchemas,
+  generateCmsPageMetadata,
+  getPublicPageBootstrap,
+} from '@/lib/cms-seo';
 import { PlatformPageClient } from '@/components/PlatformPageClient';
 
-export const metadata: Metadata = generatePageMetadata('facebook', 'bn');
+export async function generateMetadata(): Promise<Metadata> {
+  return generateCmsPageMetadata('facebook', 'bn');
+}
 
-export default function BnFacebookDownloaderPage() {
-  const schemas = generateJsonLdSchema('facebook', 'bn');
+export default async function BnFacebookDownloaderPage() {
+  const { content, activeLanguages, siteName } = await getPublicPageBootstrap('bn', 'facebook');
+  const schemas = buildCmsJsonLdSchemas(content, siteName);
 
   return (
     <>
@@ -17,7 +24,13 @@ export default function BnFacebookDownloaderPage() {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
         />
       ))}
-      <PlatformPageClient platform="facebook" locale="bn" />
+      <PlatformPageClient
+        platform="facebook"
+        locale="bn"
+        cmsContent={content}
+        activeLanguages={activeLanguages}
+        siteName={siteName}
+      />
     </>
   );
 }

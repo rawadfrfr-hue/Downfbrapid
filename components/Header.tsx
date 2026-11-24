@@ -19,7 +19,14 @@ import {
   Globe,
 } from 'lucide-react';
 import { PLATFORMS, PagePlatform, PlatformType, getPlatformConfig } from '@/lib/platforms';
-import { Locale, getLocaleFromPathname, getLocalizedPath, getMatchingLanguagePath } from '@/lib/i18n';
+import {
+  Locale,
+  getLocaleFromPathname,
+  getLocalizedPath,
+  getMatchingLanguagePath,
+  stripLocalePrefix,
+} from '@/lib/i18n';
+import type { CmsLanguageRecord } from '@/lib/cms-types';
 
 const TikTokIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -44,15 +51,53 @@ const BrandLogoSvg: React.FC<{ className?: string }> = ({ className = 'w-9 h-9' 
 interface HeaderProps {
   platform?: PagePlatform;
   locale?: Locale;
+  activeLanguages?: CmsLanguageRecord[];
+  siteName?: string;
 }
 
-export const Header: React.FC<HeaderProps> = ({ platform, locale }) => {
+export const Header: React.FC<HeaderProps> = ({
+  platform,
+  locale,
+  activeLanguages,
+  siteName = 'Save Vibe',
+}) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
   const pathname = usePathname();
 
   const resolvedLocale: Locale = locale || getLocaleFromPathname(pathname);
   const isBn = resolvedLocale === 'bn';
-  const basePath = pathname?.startsWith('/bn') ? pathname.slice(3) || '/' : pathname || '/';
+  const basePath = stripLocalePrefix(pathname).basePath;
+
+  const languagesList: CmsLanguageRecord[] =
+    activeLanguages && activeLanguages.length > 0
+      ? activeLanguages
+      : [
+          {
+            id: 'en',
+            code: 'en',
+            name: 'English',
+            nativeName: 'English',
+            hreflang: 'en',
+            direction: 'ltr',
+            isDefault: true,
+            isActive: true,
+            sortOrder: 0,
+            updatedAt: '',
+          },
+          {
+            id: 'bn',
+            code: 'bn',
+            name: 'Bengali',
+            nativeName: 'বাংলা',
+            hreflang: 'bn',
+            direction: 'ltr',
+            isDefault: false,
+            isActive: true,
+            sortOrder: 1,
+            updatedAt: '',
+          },
+        ];
 
   const activePlatform: PagePlatform = (() => {
     if (platform) return platform;
@@ -68,6 +113,8 @@ export const Header: React.FC<HeaderProps> = ({ platform, locale }) => {
   const alternateHref = getMatchingLanguagePath(pathname, isBn ? 'en' : 'bn');
   const alternateLabel = isBn ? 'English' : 'বাংলা';
   const alternateLangCode = isBn ? 'en' : 'bn';
+  const currentLangObj =
+    languagesList.find((l) => l.code === resolvedLocale) || languagesList[0];
 
   // Sync browser tab SVG favicon cleanly on client-side navigation for platform pages
   useEffect(() => {
@@ -101,6 +148,7 @@ export const Header: React.FC<HeaderProps> = ({ platform, locale }) => {
   if (pathname !== prevPathname) {
     setPrevPathname(pathname);
     setIsMenuOpen(false);
+    setIsLangMenuOpen(false);
   }
 
   // Handle ESC key to close sidebar
@@ -109,10 +157,13 @@ export const Header: React.FC<HeaderProps> = ({ platform, locale }) => {
       if (e.key === 'Escape' && isMenuOpen) {
         setIsMenuOpen(false);
       }
+      if (e.key === 'Escape' && isLangMenuOpen) {
+        setIsLangMenuOpen(false);
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isMenuOpen]);
+  }, [isMenuOpen, isLangMenuOpen]);
 
   // Lock body scroll when sidebar is open
   useEffect(() => {
@@ -227,7 +278,7 @@ export const Header: React.FC<HeaderProps> = ({ platform, locale }) => {
             <BrandLogoSvg className="w-9 h-9 group-hover:scale-105" />
             <div className="flex flex-col">
               <span className="font-bold text-xl tracking-tight text-slate-900 leading-none group-hover:text-slate-800 whitespace-nowrap">
-                Save Vibe
+                {siteName}
               </span>
               <span className="text-[10px] font-medium text-slate-500 leading-none mt-1 whitespace-nowrap">
                 {isBn ? 'সোশ্যাল ভিডিও ডাউনলোডার' : 'Social Video Downloader'}
@@ -261,17 +312,59 @@ export const Header: React.FC<HeaderProps> = ({ platform, locale }) => {
           </nav>
 
           {/* Right Controls: Crawlable Language Switcher + Hamburger Menu */}
-          <div className="flex items-center gap-2 ml-auto shrink-0">
-            <Link
-              href={alternateHref}
-              hrefLang={alternateLangCode}
-              lang={alternateLangCode}
-              aria-label={isBn ? 'Switch to English' : 'বাংলা সংস্করণে যান'}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 hover:text-slate-900 transition-colors whitespace-nowrap shrink-0"
-            >
-              <Globe className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-              <span>{alternateLabel}</span>
-            </Link>
+          <div className="flex items-center gap-2 ml-auto shrink-0 relative">
+            {languagesList.length <= 2 ? (
+              <Link
+                href={alternateHref}
+                hrefLang={alternateLangCode}
+                lang={alternateLangCode}
+                aria-label={isBn ? 'Switch to English' : 'বাংলা সংস্করণে যান'}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 hover:text-slate-900 transition-colors whitespace-nowrap shrink-0"
+              >
+                <Globe className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                <span>{alternateLabel}</span>
+              </Link>
+            ) : (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsLangMenuOpen((v) => !v)}
+                  aria-expanded={isLangMenuOpen}
+                  aria-label="Select Language"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 hover:text-slate-900 transition-colors whitespace-nowrap shrink-0"
+                >
+                  <Globe className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                  <span>{currentLangObj?.nativeName || resolvedLocale.toUpperCase()}</span>
+                </button>
+                {isLangMenuOpen && (
+                  <div className="absolute right-0 mt-1.5 w-44 bg-white border border-slate-200 rounded-xl shadow-lg py-1 z-50">
+                    {languagesList.map((lang) => {
+                      const href = getMatchingLanguagePath(pathname, lang.code);
+                      const isCurrent = lang.code === resolvedLocale;
+                      return (
+                        <Link
+                          key={lang.code}
+                          href={href}
+                          hrefLang={lang.hreflang}
+                          lang={lang.code}
+                          onClick={() => setIsLangMenuOpen(false)}
+                          className={`flex items-center justify-between px-3 py-2 text-xs transition-colors ${
+                            isCurrent
+                              ? 'bg-slate-100 font-bold text-slate-900'
+                              : 'text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span>{lang.nativeName}</span>
+                          <span className="font-mono text-[10px] text-slate-400 uppercase">
+                            {lang.code}
+                          </span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             <button
               type="button"
